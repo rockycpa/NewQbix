@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}News & Updates{% endblock %}
+
+{% block content %}
+<div class="hero" style="padding:60px 5%">
+  <h1>Qbix Centre <span>News</span></h1>
+  <p>Updates, announcements, and community highlights from your Qbix Centre family.</p>
+</div>
+
+<section>
+  {% if posts %}
+    <div style="max-width:800px;margin:0 auto;display:flex;flex-direction:column;gap:28px">
+      {% for post in posts %}
+      <div class="card" style="cursor:pointer" onclick="window.location='/news/{{ post.id }}'">
+        <div style="font-size:13px;color:var(--txt2);margin-bottom:10px">
+          {{ post.date[:10] if post.date else '' }}
+        </div>
+        <h3 style="font-family:'Playfair Display',serif;font-size:22px;color:var(--navy);margin-bottom:10px">
+          {{ post.subject }}
+        </h3>
+        <div style="color:var(--txt2);font-size:14px;line-height:1.7;max-height:80px;overflow:hidden">
+          {{ post.body | striptags | truncate(200) }}
+        </div>
+        <div style="margin-top:14px">
+          <a href="/news/{{ post.id }}" style="color:var(--gold);font-weight:600;font-size:14px">Read more →</a>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div style="text-align:center;padding:60px 0">
+      <div style="font-size:48px;margin-bottom:16px">📰</div>
+      <h3 style="font-family:'Playfair Display',serif;color:var(--navy);margin-bottom:8px">No posts yet</h3>
+      <p style="color:var(--txt2)">Check back soon for news and updates from Qbix Centre.</p>
+    </div>
+  {% endif %}
+</section>
+{% endblock %}

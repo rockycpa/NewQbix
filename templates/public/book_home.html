@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}Book Conference Room{% endblock %}
+
+{% block content %}
+<div class="hero" style="padding:60px 5%">
+  <h1>Conference Room <span>Booking</span></h1>
+  <p>Reserve the Qbix Centre conference room online, 24/7. Active members only.</p>
+</div>
+
+<section style="max-width:480px;margin:0 auto">
+  <div class="form-card" style="margin:0">
+    <h2>Member Sign In</h2>
+    <p class="subtitle">Enter the email address associated with your Qbix Centre membership. We'll send you a verification code.</p>
+
+    <div id="step-email">
+      <div class="form-group">
+        <label>Your Member Email Address</label>
+        <input type="email" id="member-email" placeholder="your@email.com" onkeydown="if(event.key==='Enter')requestCode()">
+      </div>
+      <button onclick="requestCode()" class="btn btn-navy" style="width:100%" id="req-btn">Send Verification Code</button>
+    </div>
+
+    <div id="step-code" class="hidden">
+      <div class="alert alert-info" id="code-msg"></div>
+      <div class="form-group">
+        <label>Enter the 6-digit code</label>
+        <input type="text" id="verify-code" maxlength="6" placeholder="000000" style="font-size:24px;letter-spacing:8px;text-align:center" oninput="this.value=this.value.replace(/\D/g,'')" onkeydown="if(event.key==='Enter')verifyCode()">
+      </div>
+      <button onclick="verifyCode()" class="btn btn-navy" style="width:100%" id="verify-btn">Verify Code</button>
+      <button onclick="resetToEmail()" style="width:100%;margin-top:10px;background:none;border:none;color:var(--txt2);font-size:13px;cursor:pointer;padding:8px">Use a different email</button>
+    </div>
+  </div>
+
+  <div style="margin-top:24px;text-align:center">
+    <p style="font-size:13px;color:var(--txt2)">Not a member yet? <a href="/contact" style="color:var(--gold)">Learn about membership →</a></p>
+  </div>
+</section>
+
+{% block extra_js %}
+<script>
+let _token = '';
+
+async function requestCode(){
+  const email = document.getElementById('member-email').value.trim();
+  if(!email){ toast('Please enter your email address.','#dc2626'); return; }
+
+  const btn = document.getElementById('req-btn');
+  btn.disabled=true; btn.textContent='Sending...';
+
+  const r = await fetch('/book/request-code',{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({email})
+  });
+  const result = await r.json();
+
+  if(result.ok){
+    _token = result.token;
+    document.getElementById('step-email').classList.add('hidden');
+    document.getElementById('step-code').classList.remove('hidden');
+    document.getElementById('code-msg').textContent = `We sent a 6-digit code to ${email}. It expires in 10 minutes.`;
+    document.getElementById('verify-code').focus();
+  } else {
+    toast(result.error || 'Could not send code.','#dc2626');
+    btn.disabled=false; btn.textContent='Send Verification Code';
+  }
+}
+
+async function verifyCode(){
+  const code = document.getElementById('verify-code').value.trim();
+  if(code.length !== 6){ toast('Please enter the 6-digit code.','#dc2626'); return; }
+
+  const btn = document.getElementById('verify-btn');
+  btn.disabled=true; btn.textContent='Verifying...';
+
+  const r = await fetch('/book/verify',{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({token:_token, code})
+  });
+  const result = await r.json();
+
+  if(result.ok){
+    window.location = '/book/calendar?token='+result.bookingToken;
+  } else {
+    toast(result.error || 'Incorrect code.','#dc2626');
+    btn.disabled=false; btn.textContent='Verify Code';
+  }
+}
+
+function resetToEmail(){
+  document.getElementById('step-email').classList.remove('hidden');
+  document.getElementById('step-code').classList.add('hidden');
+  document.getElementById('req-btn').disabled=false;
+  document.getElementById('req-btn').textContent='Send Verification Code';
+  _token='';
+}
+</script>
+{% endblock %}
+{% endblock %}

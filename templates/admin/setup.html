@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Setup — Qbix Centre Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',sans-serif;background:#0b0d11;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.box{background:#13161e;border:1px solid #252a38;border-radius:14px;padding:40px;width:100%;max-width:480px;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.logo{font-family:'Playfair Display',serif;font-size:22px;color:#d4a843;margin-bottom:6px}
+.sub{color:#7d8aa0;font-size:13px;margin-bottom:28px}
+label{display:block;font-size:12px;font-weight:600;color:#7d8aa0;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;margin-top:16px}
+input{width:100%;padding:11px 14px;background:#1b1f2b;border:1px solid #252a38;border-radius:8px;color:#dde2ed;font-family:'Inter',sans-serif;font-size:14px;outline:none;transition:border-color .2s}
+input:focus{border-color:#d4a843}
+button{margin-top:24px;width:100%;padding:12px;background:#d4a843;border:none;border-radius:8px;color:#1a0e00;font-family:'Inter',sans-serif;font-size:15px;font-weight:700;cursor:pointer}
+.alert-success{margin:20px 0;padding:14px;border-radius:8px;background:rgba(77,184,135,.15);color:#4db887;border:1px solid rgba(77,184,135,.3);font-size:13px;line-height:1.7}
+.alert-error{margin:20px 0;padding:14px;border-radius:8px;background:rgba(217,96,96,.15);color:#d96060;border:1px solid rgba(217,96,96,.3);font-size:13px}
+code{background:#0b0d11;padding:4px 8px;border-radius:4px;font-family:monospace;font-size:12px;word-break:break-all}
+</style>
+</head>
+<body>
+<div class="box">
+  <div class="logo">Qbix Centre</div>
+  <div class="sub">First-run setup — create your admin password</div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+      <div class="alert-{{ 'success' if category == 'success' else 'error' }}">{{ message }}</div>
+    {% endfor %}
+  {% endwith %}
+
+  <form method="POST">
+    <label>Choose a Password (min 8 characters)</label>
+    <input type="password" name="password" required minlength="8" placeholder="Strong password...">
+    <label>Confirm Password</label>
+    <input type="password" name="confirm" required placeholder="Same password again...">
+    <button type="submit">Generate Password Hash</button>
+  </form>
+
+  <p style="margin-top:20px;font-size:13px;color:#404860;line-height:1.6">
+    This will show you the hashed password to add to your Railway environment variables. 
+    You only need to do this once.
+  </p>
+</div>
+</body>
+</html>

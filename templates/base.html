@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}Qbix Centre{% endblock %} — Professional Coworking in Macon, GA</title>
+<meta name="description" content="{% block description %}Qbix Centre offers private and coworking office spaces in Macon, Georgia. Flexible memberships starting at $425/month.{% endblock %}">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+{% if ga_id %}
+<script async src="https://www.googletagmanager.com/gtag/js?id={{ ga_id }}"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','{{ ga_id }}');</script>
+{% endif %}
+<style>
+:root {
+  --navy:   #1a2744;
+  --gold:   #c9a84c;
+  --gold2:  #e8c97a;
+  --light:  #f8f6f1;
+  --white:  #ffffff;
+  --txt:    #2d2d2d;
+  --txt2:   #666666;
+  --border: #e2ddd5;
+  --r: 10px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',sans-serif;color:var(--txt);background:var(--white);line-height:1.6}
+a{color:var(--navy);text-decoration:none}
+img{max-width:100%}
+
+/* NAV */
+nav.site-nav{background:var(--navy);padding:0 5%;display:flex;align-items:center;height:70px;position:sticky;top:0;z-index:100;box-shadow:0 2px 20px rgba(0,0,0,.3)}
+.nav-logo{font-family:'Playfair Display',serif;font-size:22px;color:var(--gold);font-weight:700;flex:1}
+.nav-logo span{color:var(--white);font-size:13px;font-family:'Inter',sans-serif;font-weight:300;margin-left:8px;opacity:.7}
+.nav-links{display:flex;gap:8px;align-items:center}
+.nav-links a{color:rgba(255,255,255,.8);font-size:14px;font-weight:500;padding:8px 14px;border-radius:6px;transition:all .2s}
+.nav-links a:hover,.nav-links a.active{color:#fff;background:rgba(255,255,255,.1)}
+.nav-cta{background:var(--gold)!important;color:var(--navy)!important;font-weight:600!important;padding:8px 18px!important}
+.nav-cta:hover{background:var(--gold2)!important}
+.nav-admin{color:rgba(255,255,255,.4)!important;font-size:12px!important}
+
+/* HERO */
+.hero{background:linear-gradient(135deg,var(--navy) 0%,#2d4a7a 100%);color:#fff;padding:90px 5%;text-align:center}
+.hero h1{font-family:'Playfair Display',serif;font-size:clamp(32px,5vw,58px);margin-bottom:18px;line-height:1.15}
+.hero h1 span{color:var(--gold)}
+.hero p{font-size:18px;opacity:.85;max-width:600px;margin:0 auto 32px;line-height:1.7}
+.hero-btns{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+.btn{display:inline-block;padding:13px 28px;border-radius:8px;font-weight:600;font-size:15px;transition:all .2s;cursor:pointer;border:none;font-family:'Inter',sans-serif}
+.btn-gold{background:var(--gold);color:var(--navy)}
+.btn-gold:hover{background:var(--gold2);transform:translateY(-1px)}
+.btn-outline{background:transparent;color:#fff;border:2px solid rgba(255,255,255,.5)}
+.btn-outline:hover{background:rgba(255,255,255,.1);border-color:#fff}
+.btn-navy{background:var(--navy);color:#fff}
+.btn-navy:hover{background:#253660}
+.btn-sm{padding:8px 18px;font-size:13px}
+
+/* STATS BAR */
+.stats-bar{background:var(--gold);padding:20px 5%;display:flex;justify-content:center;gap:60px;flex-wrap:wrap}
+.stat-item{text-align:center}
+.stat-v{font-family:'Playfair Display',serif;font-size:32px;color:var(--navy);font-weight:700}
+.stat-l{font-size:12px;color:var(--navy);opacity:.7;text-transform:uppercase;letter-spacing:.1em;font-weight:600}
+
+/* SECTIONS */
+section{padding:70px 5%}
+.section-label{font-size:12px;text-transform:uppercase;letter-spacing:.15em;color:var(--gold);font-weight:600;margin-bottom:10px}
+.section-title{font-family:'Playfair Display',serif;font-size:clamp(26px,4vw,40px);margin-bottom:16px;color:var(--navy)}
+.section-sub{color:var(--txt2);font-size:16px;max-width:560px;line-height:1.7}
+.section-light{background:var(--light)}
+.section-navy{background:var(--navy);color:#fff}
+.section-navy .section-title{color:var(--gold)}
+.section-navy .section-sub{color:rgba(255,255,255,.75)}
+
+/* GRID */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:center}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:20px}
+@media(max-width:900px){.grid-2,.grid-3{grid-template-columns:1fr}.grid-4{grid-template-columns:1fr 1fr}}
+@media(max-width:600px){.grid-4{grid-template-columns:1fr}.nav-links a:not(.nav-cta){display:none}}
+
+/* CARDS */
+.card{background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:28px;transition:all .2s}
+.card:hover{box-shadow:0 8px 30px rgba(0,0,0,.08);transform:translateY(-2px)}
+.card-icon{font-size:28px;margin-bottom:14px}
+.card h3{font-family:'Playfair Display',serif;font-size:20px;margin-bottom:8px;color:var(--navy)}
+.card p{color:var(--txt2);font-size:14px;line-height:1.7}
+
+/* OFFICE TILES */
+.office-tile{background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:22px;border-top:4px solid var(--gold)}
+.office-tile .office-num{font-family:'Playfair Display',serif;font-size:26px;color:var(--navy)}
+.office-tile .office-size{font-size:13px;color:var(--txt2);margin:4px 0}
+.office-tile .office-price{font-size:20px;font-weight:600;color:var(--gold);margin-top:8px}
+
+/* FORMS */
+.form-group{margin-bottom:18px}
+.form-group label{display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:var(--txt)}
+.form-group input,.form-group select,.form-group textarea{width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:7px;font-family:'Inter',sans-serif;font-size:14px;outline:none;transition:border-color .2s;background:#fff}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:var(--navy)}
+.form-group textarea{resize:vertical;min-height:100px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:600px){.form-row{grid-template-columns:1fr}}
+.form-card{background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:36px;max-width:600px;margin:0 auto}
+.form-card h2{font-family:'Playfair Display',serif;font-size:26px;color:var(--navy);margin-bottom:6px}
+.form-card .subtitle{color:var(--txt2);font-size:14px;margin-bottom:28px}
+
+/* ALERTS */
+.alert{padding:12px 18px;border-radius:7px;font-size:14px;margin-bottom:20px}
+.alert-success{background:#d1fae5;color:#065f46;border:1px solid #a7f3d0}
+.alert-error{background:#fee2e2;color:#991b1b;border:1px solid #fca5a5}
+.alert-info{background:#dbeafe;color:#1e40af;border:1px solid #93c5fd}
+
+/* FOOTER */
+footer{background:var(--navy);color:rgba(255,255,255,.7);padding:50px 5% 30px;font-size:14px}
+.footer-grid{display:grid;grid-template-columns:2fr 1fr 1fr;gap:40px;margin-bottom:40px}
+@media(max-width:700px){.footer-grid{grid-template-columns:1fr}}
+.footer-brand{font-family:'Playfair Display',serif;font-size:20px;color:var(--gold);margin-bottom:12px}
+footer h4{color:#fff;font-size:13px;text-transform:uppercase;letter-spacing:.1em;margin-bottom:14px}
+footer a{color:rgba(255,255,255,.6);display:block;margin-bottom:8px;font-size:13px;transition:color .2s}
+footer a:hover{color:var(--gold)}
+.footer-bottom{border-top:1px solid rgba(255,255,255,.1);padding-top:24px;display:flex;justify-content:space-between;font-size:12px;opacity:.5;flex-wrap:wrap;gap:8px}
+
+/* TOAST */
+.toast{position:fixed;bottom:24px;right:24px;background:var(--navy);color:#fff;padding:12px 20px;border-radius:8px;font-size:14px;z-index:999;opacity:0;transform:translateY(8px);transition:all .3s;pointer-events:none}
+.toast.show{opacity:1;transform:none}
+
+/* MISC */
+.badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600}
+.badge-green{background:#d1fae5;color:#065f46}
+.badge-blue{background:#dbeafe;color:#1e40af}
+.badge-gold{background:#fef3c7;color:#92400e}
+.badge-red{background:#fee2e2;color:#991b1b}
+.badge-gray{background:#f3f4f6;color:#374151}
+.divider{border:none;border-top:1px solid var(--border);margin:40px 0}
+.text-center{text-align:center}
+.text-gold{color:var(--gold)}
+.text-navy{color:var(--navy)}
+.text-muted{color:var(--txt2)}
+.mt-2{margin-top:8px}.mt-4{margin-top:16px}.mt-6{margin-top:24px}.mt-8{margin-top:32px}
+.mb-2{margin-bottom:8px}.mb-4{margin-bottom:16px}.mb-6{margin-bottom:24px}
+.hidden{display:none}
+</style>
+{% block extra_css %}{% endblock %}
+</head>
+<body>
+
+<nav class="site-nav">
+  <div class="nav-logo">Qbix Centre <span>Macon, GA</span></div>
+  <div class="nav-links">
+    <a href="/" class="{% if request.endpoint == 'home' %}active{% endif %}">Home</a>
+    <a href="/offices" class="{% if request.endpoint == 'offices_page' %}active{% endif %}">Offices</a>
+    <a href="/amenities" class="{% if request.endpoint == 'amenities' %}active{% endif %}">Amenities</a>
+    <a href="/news" class="{% if request.endpoint == 'news' %}active{% endif %}">News</a>
+    <a href="/contact" class="{% if request.endpoint == 'contact' %}active{% endif %}">Contact</a>
+    <a href="/book" class="btn btn-gold btn-sm">Book Conference Room</a>
+    <a href="/admin" class="nav-admin">Admin</a>
+  </div>
+</nav>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <div style="padding:0 5%">
+    {% for category, message in messages %}
+      <div class="alert alert-{{ 'success' if category == 'success' else 'error' }}">{{ message }}</div>
+    {% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}
+
+{% block content %}{% endblock %}
+
+<footer>
+  <div class="footer-grid">
+    <div>
+      <div class="footer-brand">Qbix Centre</div>
+      <p>Professional coworking and private office space in Macon, Georgia. A community built for productivity.</p>
+      <p style="margin-top:12px">500A Northside Crossing<br>Macon, GA 31210</p>
+    </div>
+    <div>
+      <h4>Quick Links</h4>
+      <a href="/offices">Available Offices</a>
+      <a href="/amenities">Amenities</a>
+      <a href="/book">Book Conference Room</a>
+      <a href="/news">News</a>
+      <a href="/contact">Contact Us</a>
+    </div>
+    <div>
+      <h4>Contact</h4>
+      <a href="tel:4787870532">(478) 787-0532</a>
+      <a href="mailto:qbixcentre@outlook.com">qbixcentre@outlook.com</a>
+      <p style="margin-top:16px;font-size:13px">Open 24/7 for members</p>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <span>&copy; {{ now.year if now else '2026' }} RoseAn Properties, LLC. All rights reserved.</span>
+    <span>Qbix Centre — Macon, GA</span>
+  </div>
+</footer>
+
+<div class="toast" id="toast"></div>
+<script>
+function toast(msg, color){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.background = color || '#1a2744';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+</script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

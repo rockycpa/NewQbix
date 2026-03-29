@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Qbix Centre — Management Portal</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0b0d11;--sur:#13161e;--sur2:#1b1f2b;--bdr:#252a38;--acc:#d4a843;--blue:#5b9bd5;--grn:#4db887;--red:#d96060;--purple:#9b7ed4;--txt:#dde2ed;--txt2:#7d8aa0;--txt3:#404860;--r:10px}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;font-size:14px}
+header{background:var(--sur);border-bottom:1px solid var(--bdr);display:flex;align-items:center;gap:18px;padding:0 22px;height:54px;position:sticky;top:0;z-index:100}
+.logo{font-family:'Playfair Display',serif;font-size:18px;color:var(--acc);white-space:nowrap}
+.logo em{font-style:normal;color:var(--txt2);font-size:11px;font-family:'IBM Plex Sans',sans-serif;margin-left:6px;font-weight:300}
+nav{display:flex;gap:2px}
+.nb{background:none;border:none;font-family:'IBM Plex Sans',sans-serif;font-size:12px;font-weight:500;color:var(--txt2);padding:5px 11px;border-radius:6px;cursor:pointer;transition:all .15s}
+.nb:hover{background:var(--sur2);color:var(--txt)}.nb.on{background:var(--acc);color:#1a0e00}
+.nb.notify-btn{background:rgba(91,155,213,.15);color:var(--blue);border:1px solid rgba(91,155,213,.3)}
+.nb.notify-btn.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+.hstats{margin-left:auto;display:flex;gap:16px;align-items:center}
+.hs{text-align:right}.hs-v{font-family:'IBM Plex Mono',monospace;font-size:15px;color:var(--acc)}.hs-l{font-size:10px;color:var(--txt3);text-transform:uppercase;letter-spacing:.08em}
+.savebar{background:#0d1a0f;border-bottom:1px solid #1a3a1f;padding:6px 22px;display:flex;align-items:center;gap:10px;font-size:12px}
+.save-indicator{display:flex;align-items:center;gap:6px;font-size:12px;color:#4db887}
+.save-dot{width:8px;height:8px;border-radius:50%;background:var(--grn);flex-shrink:0}
+.save-dot.saving{background:var(--acc);animation:pulse 1s infinite}
+.save-dot.error{background:var(--red)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.bk-btn{background:transparent;border:1px solid #1a3a1f;border-radius:6px;color:#4db887;font-family:'IBM Plex Sans',sans-serif;font-size:11px;padding:4px 11px;cursor:pointer;margin-left:auto}
+.bk-btn:hover{border-color:var(--grn)}
+main{padding:20px 22px;max-width:1440px;margin:0 auto}
+.page{display:none}.page.on{display:block}
+.pg-title{font-family:'Playfair Display',serif;font-size:23px;margin-bottom:3px}
+.pg-sub{color:var(--txt2);font-size:12px;margin-bottom:16px}
+.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:11px;margin-bottom:16px}
+.sc{background:var(--sur);border:1px solid var(--bdr);border-radius:var(--r);padding:14px 16px;position:relative;overflow:hidden}
+.sc::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.sc.g::before{background:var(--grn)}.sc.b::before{background:var(--blue)}.sc.a::before{background:var(--acc)}.sc.r::before{background:var(--red)}.sc.p::before{background:var(--purple)}
+.sc-v{font-family:'IBM Plex Mono',monospace;font-size:25px;line-height:1;margin-bottom:3px}
+.sc-l{font-size:12px;color:var(--txt2)}.sc-s{font-size:11px;color:var(--txt3);margin-top:2px}
+.card{background:var(--sur);border:1px solid var(--bdr);border-radius:var(--r);padding:16px}
+.ct{font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--txt3);margin-bottom:9px;font-weight:600}
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--txt3);padding:6px 10px;border-bottom:1px solid var(--bdr);font-weight:600;white-space:nowrap}
+td{padding:8px 10px;border-bottom:1px solid rgba(37,42,56,.5);font-size:13px;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr.rclick:hover td{background:rgba(255,255,255,.02);cursor:pointer}
+.mono{font-family:'IBM Plex Mono',monospace;font-size:12px}
+.badge{display:inline-block;padding:2px 7px;border-radius:20px;font-size:11px;font-weight:500}
+.bg{background:rgba(77,184,135,.12);color:var(--grn);border:1px solid rgba(77,184,135,.25)}
+.bb{background:rgba(91,155,213,.12);color:var(--blue);border:1px solid rgba(91,155,213,.25)}
+.ba{background:rgba(212,168,67,.12);color:var(--acc);border:1px solid rgba(212,168,67,.25)}
+.br{background:rgba(217,96,96,.12);color:var(--red);border:1px solid rgba(217,96,96,.25)}
+.tb{display:flex;gap:8px;margin-bottom:11px;align-items:center;flex-wrap:wrap}
+.sb{background:var(--sur2);border:1px solid var(--bdr);border-radius:7px;color:var(--txt);font-family:'IBM Plex Sans',sans-serif;font-size:13px;padding:6px 11px;min-width:190px;outline:none;transition:border-color .15s}
+.sb:focus{border-color:var(--acc)}
+.fb{background:var(--sur2);border:1px solid var(--bdr);border-radius:7px;color:var(--txt2);font-family:'IBM Plex Sans',sans-serif;font-size:12px;padding:6px 11px;cursor:pointer;transition:all .15s;font-weight:500}
+.fb:hover,.fb.on{background:var(--acc);color:#1a0e00;border-color:var(--acc)}
+.btn-add{background:var(--grn);border:none;border-radius:7px;color:#fff;font-family:'IBM Plex Sans',sans-serif;font-size:12px;font-weight:600;padding:6px 13px;cursor:pointer;margin-left:auto}
+.btn-add:hover{opacity:.85}
+.cl{color:var(--txt3);font-size:12px;font-family:'IBM Plex Mono',monospace}
+.og{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:9px}
+.ot{background:var(--sur);border:1px solid var(--bdr);border-radius:var(--r);padding:13px;cursor:pointer;transition:all .15s;position:relative;overflow:hidden}
+.ot::after{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:10px 10px 0 0}
+.ot.occ::after{background:var(--grn)}.ot.vac::after{background:var(--blue)}.ot.pend::after{background:var(--acc)}
+.ot:hover{border-color:var(--acc);transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.3)}
+.on2{font-family:'Playfair Display',serif;font-size:22px;line-height:1;margin-bottom:5px}
+.oten{font-size:12px;color:var(--txt2);line-height:1.4;min-height:24px}
+.osq{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--txt3);margin-top:5px}
+.odu{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--acc);margin-top:3px}
+.mo{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;display:none;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)}
+.mo.open{display:flex}
+.mi{background:var(--sur);border:1px solid var(--bdr);border-radius:14px;padding:22px;width:100%;max-width:620px;box-shadow:0 20px 60px rgba(0,0,0,.6);position:relative;animation:mIn .18s ease;max-height:92vh;overflow-y:auto}
+@keyframes mIn{from{opacity:0;transform:scale(.96) translateY(6px)}to{opacity:1;transform:none}}
+.mx{position:absolute;top:12px;right:12px;background:var(--sur2);border:none;color:var(--txt2);width:26px;height:26px;border-radius:50%;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.mx:hover{background:var(--red);color:#fff}
+.mt{font-family:'Playfair Display',serif;font-size:20px;margin-bottom:3px}
+.ms{color:var(--txt2);font-size:12px;margin-bottom:14px}
+.dg{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.di label{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--txt3);display:block;margin-bottom:2px}
+.di value{font-size:13px}.di.full{grid-column:1/-1}
+.divr{grid-column:1/-1;border-top:1px solid var(--bdr);margin:4px 0}
+.notebox{background:var(--sur2);border:1px solid var(--bdr);border-radius:7px;padding:9px;font-size:13px;color:var(--txt2);line-height:1.6;margin-top:3px;font-style:italic}
+.occ-tag{display:inline-flex;align-items:center;gap:5px;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;padding:3px 8px;margin:2px;font-size:12px;cursor:pointer}
+.occ-tag:hover{border-color:var(--acc)}
+.occ-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.occ-dot.active{background:var(--grn)}.occ-dot.archive{background:var(--txt3)}.occ-dot.pending{background:var(--acc)}
+.mo-actions{display:flex;gap:8px;margin-top:14px;padding-top:12px;border-top:1px solid var(--bdr);flex-wrap:wrap}
+.btn-edit{background:var(--acc);border:none;border-radius:7px;color:#1a0e00;font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:600;padding:7px 16px;cursor:pointer}
+.btn-edit:hover{opacity:.85}
+.btn-del{background:transparent;border:1px solid var(--red);border-radius:7px;color:var(--red);font-family:'IBM Plex Sans',sans-serif;font-size:13px;padding:7px 16px;cursor:pointer}
+.btn-del:hover{background:var(--red);color:#fff}
+.btn-blue{background:var(--blue);border:none;border-radius:7px;color:#fff;font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:600;padding:7px 16px;cursor:pointer}
+.btn-blue:hover{opacity:.85}
+.att-list{display:flex;flex-direction:column;gap:5px;margin-top:5px}
+.att-item{display:flex;align-items:center;gap:7px;background:var(--sur2);border:1px solid var(--bdr);border-radius:7px;padding:7px 10px;font-size:12px}
+.att-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.att-open{background:var(--acc);border:none;border-radius:5px;color:#1a0e00;font-size:11px;font-weight:600;padding:3px 8px;cursor:pointer}
+.att-del-btn{background:none;border:none;color:var(--txt3);cursor:pointer;font-size:14px;padding:0 2px}
+.att-del-btn:hover{color:var(--red)}
+.fm{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:300;display:none;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(6px)}
+.fm.open{display:flex}
+.fi{background:var(--sur);border:1px solid var(--bdr);border-radius:14px;padding:22px;width:100%;max-width:650px;box-shadow:0 24px 70px rgba(0,0,0,.7);position:relative;max-height:92vh;overflow-y:auto;animation:mIn .18s ease}
+.fi h2{font-family:'Playfair Display',serif;font-size:18px;margin-bottom:14px}
+.fg{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.fl{display:flex;flex-direction:column;gap:3px}
+.fl label{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--txt3);font-weight:600}
+.fl input,.fl select,.fl textarea{background:var(--sur2);border:1px solid var(--bdr);border-radius:7px;color:var(--txt);font-family:'IBM Plex Sans',sans-serif;font-size:13px;padding:7px 10px;outline:none;transition:border-color .15s;width:100%}
+.fl input:focus,.fl select:focus,.fl textarea:focus{border-color:var(--acc)}
+.fl textarea{resize:vertical;min-height:65px;line-height:1.5}
+.fl select option{background:var(--sur2)}
+.sect-title{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--txt3);font-weight:600;margin:12px 0 9px;padding-top:12px;border-top:1px solid var(--bdr);grid-column:1/-1}
+.file-drop{border:2px dashed var(--bdr);border-radius:8px;padding:13px;text-align:center;cursor:pointer;transition:all .15s;position:relative}
+.file-drop:hover,.file-drop.drag{border-color:var(--acc);background:rgba(212,168,67,.04)}
+.file-drop input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.file-drop-txt{font-size:12px;color:var(--txt3);pointer-events:none}
+.file-drop-txt span{color:var(--acc)}
+.pending-files{display:flex;flex-direction:column;gap:4px;margin-top:7px}
+.pf-item{display:flex;align-items:center;gap:7px;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;padding:5px 9px;font-size:12px}
+.pf-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--txt2)}
+.pf-rm{background:none;border:none;color:var(--txt3);cursor:pointer;font-size:13px}
+.pf-rm:hover{color:var(--red)}
+.dues-row{display:flex;align-items:center;justify-content:space-between;padding:4px 0;font-size:13px}
+.dues-row.total{border-top:1px solid var(--bdr);margin-top:3px;padding-top:7px;font-weight:600}
+.dues-net{color:var(--grn);font-family:'IBM Plex Mono',monospace;font-size:16px}
+.form-actions{display:flex;gap:9px;justify-content:flex-end;padding-top:12px;border-top:1px solid var(--bdr)}
+.btn-save{background:var(--grn);border:none;border-radius:7px;color:#fff;font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:600;padding:8px 20px;cursor:pointer}
+.btn-save:hover{opacity:.85}
+.btn-cancel{background:transparent;border:1px solid var(--bdr);border-radius:7px;color:var(--txt2);font-family:'IBM Plex Sans',sans-serif;font-size:13px;padding:8px 16px;cursor:pointer}
+.btn-cancel:hover{border-color:var(--txt2);color:var(--txt)}
+.dg2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
+.ri{display:flex;align-items:center;gap:8px;margin-bottom:5px}
+.rl{width:165px;font-size:12px;color:var(--txt2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0}
+.rb{flex:1;background:var(--sur2);border-radius:4px;height:6px;overflow:hidden}
+.rbf{height:100%;background:var(--acc);border-radius:4px}
+.ra{width:64px;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--acc)}
+.wc{background:var(--sur);border:1px solid var(--bdr);border-radius:var(--r);padding:13px 16px;display:flex;gap:14px;align-items:center;margin-bottom:8px}
+.wn{font-family:'Playfair Display',serif;font-size:21px;color:var(--txt3);width:24px;flex-shrink:0}
+.wi{flex:1}.wna{font-size:14px;font-weight:500}.wph{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--txt2);margin-top:2px}
+.wco{font-size:12px;color:var(--txt3);margin-top:2px;font-style:italic}
+.wdt{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--txt3);text-align:right;white-space:nowrap}
+.wact{display:flex;gap:5px;margin-top:7px}
+.btn-sm{background:transparent;border:1px solid var(--bdr);border-radius:5px;color:var(--txt2);font-size:11px;padding:3px 8px;cursor:pointer;transition:all .15s;font-family:'IBM Plex Sans',sans-serif}
+.btn-sm:hover{border-color:var(--acc);color:var(--acc)}.btn-sm.del:hover{border-color:var(--red);color:var(--red)}
+.notify-layout{display:grid;grid-template-columns:300px 1fr;gap:16px;align-items:start}
+.notify-panel{background:var(--sur);border:1px solid var(--bdr);border-radius:var(--r);padding:16px}
+.notify-panel h3{font-family:'Playfair Display',serif;font-size:16px;margin-bottom:12px}
+.group-btn{display:flex;align-items:center;gap:9px;background:var(--sur2);border:1px solid var(--bdr);border-radius:7px;padding:9px 12px;margin-bottom:6px;cursor:pointer;transition:all .15s;width:100%;text-align:left}
+.group-btn:hover,.group-btn.on{border-color:var(--blue);background:rgba(91,155,213,.08)}
+.group-btn.on .gb-icon{background:var(--blue)}
+.gb-icon{width:28px;height:28px;border-radius:6px;background:var(--bdr);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.gb-label{font-size:13px;font-weight:500;color:var(--txt)}
+.gb-count{margin-left:auto;font-size:11px;color:var(--txt3);font-family:'IBM Plex Mono',monospace}
+.divider-line{border:none;border-top:1px solid var(--bdr);margin:10px 0}
+.recipient-area{background:var(--sur2);border:1px solid var(--bdr);border-radius:8px;padding:10px;min-height:60px;display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px}
+.chip{display:inline-flex;align-items:center;gap:5px;background:rgba(91,155,213,.12);border:1px solid rgba(91,155,213,.3);border-radius:20px;padding:3px 10px;font-size:12px;color:var(--blue)}
+.chip-rm{background:none;border:none;color:rgba(91,155,213,.6);cursor:pointer;font-size:12px;padding:0 1px}
+.chip-rm:hover{color:var(--red)}
+.chip.phone-chip{background:rgba(77,184,135,.1);border-color:rgba(77,184,135,.3);color:var(--grn)}
+.compose-card{background:var(--sur);border:1px solid var(--bdr);border-radius:var(--r);padding:16px}
+.compose-card h3{font-family:'Playfair Display',serif;font-size:16px;margin-bottom:14px}
+.compose-field{margin-bottom:11px}
+.compose-field label{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--txt3);display:block;margin-bottom:4px;font-weight:600}
+.compose-field input,.compose-field textarea{background:var(--sur2);border:1px solid var(--bdr);border-radius:7px;color:var(--txt);font-family:'IBM Plex Sans',sans-serif;font-size:13px;padding:8px 11px;outline:none;transition:border-color .15s;width:100%}
+.compose-field input:focus,.compose-field textarea:focus{border-color:var(--acc)}
+.compose-field textarea{min-height:120px;resize:vertical;line-height:1.6}
+.merge-tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:5px}
+.mtag{background:var(--sur2);border:1px solid var(--bdr);border-radius:4px;color:var(--acc);font-size:11px;font-family:'IBM Plex Mono',monospace;padding:2px 7px;cursor:pointer}
+.mtag:hover{border-color:var(--acc)}
+.notify-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px solid var(--bdr)}
+.n-btn{border:none;border-radius:7px;font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:600;padding:9px 18px;cursor:pointer}
+.n-btn:hover{opacity:.85}
+.n-email{background:var(--blue);color:#fff}
+.n-text{background:var(--grn);color:#fff}
+.n-copy{background:var(--sur2);color:var(--txt);border:1px solid var(--bdr)}
+.n-copy:hover{border-color:var(--acc);color:var(--acc);opacity:1}
+.tpl-strip{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:11px}
+.tpl-btn{background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt2);font-size:11px;padding:4px 10px;cursor:pointer;font-family:'IBM Plex Sans',sans-serif}
+.tpl-btn:hover{border-color:var(--purple);color:var(--purple)}
+.result-box{background:var(--sur2);border:1px solid var(--bdr);border-radius:8px;padding:12px;font-size:13px;color:var(--txt2);line-height:1.7;white-space:pre-wrap;max-height:250px;overflow-y:auto;font-family:'IBM Plex Mono',monospace;margin-top:10px;display:none}
+.conf{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:400;display:none;align-items:center;justify-content:center;padding:20px}
+.conf.open{display:flex}
+.conf-box{background:var(--sur);border:1px solid var(--bdr);border-radius:12px;padding:22px;max-width:400px;width:100%;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,.6);animation:mIn .15s ease}
+.conf-box h3{font-family:'Playfair Display',serif;font-size:18px;margin-bottom:7px}
+.conf-box p{color:var(--txt2);font-size:13px;margin-bottom:18px;line-height:1.5}
+.conf-btns{display:flex;gap:9px;justify-content:center}
+.btn-conf-del{background:var(--red);border:none;border-radius:7px;color:#fff;font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:600;padding:8px 20px;cursor:pointer}
+.btn-conf-cancel{background:transparent;border:1px solid var(--bdr);border-radius:7px;color:var(--txt2);font-family:'IBM Plex Sans',sans-serif;font-size:13px;padding:8px 16px;cursor:pointer}
+.toast{position:fixed;bottom:20px;right:20px;color:#fff;font-size:13px;font-weight:500;padding:9px 16px;border-radius:8px;z-index:500;opacity:0;transform:translateY(8px);transition:all .25s;pointer-events:none;max-width:380px}
+.toast.show{opacity:1;transform:none}
+.dl-preview{max-width:100%;max-height:190px;border-radius:8px;margin-top:5px;border:1px solid var(--bdr)}
+.newsletter-preview{background:var(--sur2);border:1px solid var(--bdr);border-radius:8px;padding:16px;max-height:300px;overflow-y:auto;font-size:13px;line-height:1.7;margin-top:10px}
+.pending-bar{background:rgba(212,168,67,.1);border:1px solid rgba(212,168,67,.3);border-radius:8px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;gap:12px}
+.pending-count{font-family:'IBM Plex Mono',monospace;font-size:20px;color:var(--acc);font-weight:700}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">Qbix Centre <em>Management Portal</em></div>
+  <nav>
+    <button class="nb on" onclick="showPage('dashboard',this)">Dashboard</button>
+    <button class="nb" onclick="showPage('offices',this)">Offices</button>
+    <button class="nb" onclick="showPage('members',this)">Members</button>
+    <button class="nb" onclick="showPage('occupants',this)">Occupants</button>
+    <button class="nb" onclick="showPage('waitlist',this)">Waiting List</button>
+    <button class="nb notify-btn" onclick="showPage('notify',this)">&#128226; Notify</button>
+    <button class="nb" onclick="showPage('newsletter',this)" style="background:rgba(155,126,212,.15);color:var(--purple);border:1px solid rgba(155,126,212,.3)">&#128240; Newsletter</button>
+    <button class="nb" onclick="showPage('bookings',this)">&#128197; Bookings</button>
+  </nav>
+  <div class="hstats">
+    <div class="hs"><div class="hs-v" id="h-occ">{{ occ }}</div><div class="hs-l">Occupied</div></div>
+    <div class="hs"><div class="hs-v" id="h-vac">{{ vac }}</div><div class="hs-l">Vacant</div></div>
+    <div class="hs"><div class="hs-v" id="h-rev">${{ "{:,.0f}".format(net_rev/1000) }}k</div><div class="hs-l">Net Revenue</div></div>
+    <a href="/admin/logout" style="font-size:11px;color:var(--txt3);margin-left:8px">Sign out</a>
+  </div>
+</header>
+<div class="savebar">
+  <div class="save-indicator"><div class="save-dot" id="save-dot"></div><span id="save-status">All changes saved</span></div>
+  <button class="bk-btn" onclick="doBackup()">&#128230; Backup Now</button>
+</div>
+<main>
+
+<!-- DASHBOARD -->
+<div class="page on" id="page-dashboard">
+  <div class="pg-title">Dashboard</div><div class="pg-sub">Live overview — Qbix Centre</div>
+
+  {% if pending %}
+  <div class="pending-bar">
+    <div class="pending-count">{{ pending|length }}</div>
+    <div>
+      <div style="font-weight:600;color:var(--acc)">Pending Member{{ 's' if pending|length != 1 else '' }}</div>
+      <div style="font-size:12px;color:var(--txt2)">
+        {% for m in pending[:3] %}{{ m.name }}{% if not loop.last %}, {% endif %}{% endfor %}
+        {% if pending|length > 3 %} + {{ pending|length - 3 }} more{% endif %}
+        — <a href="#" onclick="showPage('members', document.querySelectorAll('.nb')[2]);setMF('Pending',document.getElementById('mf-pending'))" style="color:var(--acc)">Review now →</a>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="stats">
+    <div class="sc g"><div class="sc-v">{{ occ }}</div><div class="sc-l">Occupied Offices</div><div class="sc-s">{{ "%.0f"|format(occ/(occ+vac)*100) if (occ+vac) else 0 }}% occupancy</div></div>
+    <div class="sc b"><div class="sc-v">{{ vac }}</div><div class="sc-l">Vacant Offices</div><div class="sc-s">{{ vacant|sum(attribute='sqft') }} sq ft available</div></div>
+    <div class="sc a"><div class="sc-v">${{ "{:,}".format(gross) }}</div><div class="sc-l">Gross Monthly</div><div class="sc-s">before discounts</div></div>
+    <div class="sc p"><div class="sc-v">${{ "{:,}".format(net_rev) }}</div><div class="sc-l">Net Monthly</div><div class="sc-s">${{ "{:,}".format(net_rev*12) }} annually</div></div>
+    <div class="sc r"><div class="sc-v" id="s4">${{ "{:,}".format(dep) }}</div><div class="sc-l">Deposits Held</div><div class="sc-s">{{ active|length }} active members</div></div>
+  </div>
+
+  <div class="dg2">
+    <div class="card"><div class="ct">Net Dues by Member</div><div id="rev-bars"></div></div>
+    <div>
+      <div class="card" style="margin-bottom:12px">
+        <div class="ct">Vacant Offices</div>
+        {% if vacant %}
+          {% for o in vacant %}
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--bdr)">
+            <div><span style="font-family:'Playfair Display',serif;font-size:13px;color:var(--blue)">Office {{ o.num }}</span><span style="font-size:11px;color:var(--txt3);margin-left:6px">{{ o.sqft }} sq ft</span></div>
+            {% if o.listDues %}<span class="badge ba">${{ "{:,}".format(o.listDues) }}/mo</span>{% else %}<span class="badge bb">TBD</span>{% endif %}
+          </div>
+          {% endfor %}
+        {% else %}<div style="color:var(--txt3);font-size:12px">All offices occupied!</div>{% endif %}
+      </div>
+      <div class="card" style="margin-bottom:12px">
+        <div class="ct">Upcoming End Dates</div>
+        {% if endings %}
+          {% for m in endings %}
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--bdr)">
+            <div style="font-size:13px">{{ m.name }}</div>
+            <span class="badge br">{{ m.end }}</span>
+          </div>
+          {% endfor %}
+        {% else %}<div style="color:var(--txt3);font-size:12px">No upcoming end dates</div>{% endif %}
+      </div>
+      <div class="card">
+        <div class="ct">Upcoming Bookings</div>
+        {% if upcoming_bookings %}
+          {% for b in upcoming_bookings[:5] %}
+          <div style="padding:5px 0;border-bottom:1px solid var(--bdr);font-size:12px">
+            <div style="font-weight:500">{{ b.date }} {{ b.start }}–{{ b.end }}</div>
+            <div style="color:var(--txt2)">{{ b.memberName }}: {{ b.title or 'Meeting' }}</div>
+          </div>
+          {% endfor %}
+        {% else %}<div style="color:var(--txt3);font-size:12px">No upcoming bookings</div>{% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- OFFICES -->
+<div class="page" id="page-offices">
+  <div class="pg-title">Offices</div><div class="pg-sub">Click any tile to view or edit</div>
+  <div class="tb">
+    <input class="sb" type="text" placeholder="Search office or member..." oninput="filterOffices(this.value)">
+    <button class="fb on" id="fa" onclick="setOF('all',this)">All</button>
+    <button class="fb" id="fo" onclick="setOF('occ',this)">Occupied</button>
+    <button class="fb" id="fv" onclick="setOF('vac',this)">Vacant</button>
+    <span class="cl" id="oc-count"></span>
+    <button class="btn-add" onclick="openOfficeForm(null)">+ Add Office</button>
+  </div>
+  <div class="og" id="office-grid"></div>
+</div>
+
+<!-- MEMBERS -->
+<div class="page" id="page-members">
+  <div class="pg-title">Members</div><div class="pg-sub">Click any row to view or edit</div>
+  <div class="tb">
+    <input class="sb" type="text" placeholder="Search member..." oninput="filterMembers(this.value)">
+    <button class="fb on" id="mf-active" onclick="setMF('Active',this)">Active</button>
+    <button class="fb" id="mf-pending" onclick="setMF('Pending',this)">Pending</button>
+    <button class="fb" id="mf-archive" onclick="setMF('Archive',this)">Archive</button>
+    <button class="fb" id="mf-all" onclick="setMF('all',this)">All</button>
+    <span class="cl" id="m-count"></span>
+    <button class="btn-add" onclick="openOnboardLink()">&#128279; Onboard Link</button>
+    <button class="btn-add" onclick="openMemberForm(null)" style="background:var(--grn)">+ Add Member</button>
+  </div>
+  <div class="card"><div class="tw"><table>
+    <thead><tr><th>Member</th><th>Status</th><th>Start</th><th>End</th><th>Gross</th><th>Discount</th><th>Net Dues</th><th>Deposit</th><th>Agreement</th><th>Docs</th></tr></thead>
+    <tbody id="m-tbody"></tbody>
+  </table></div></div>
+</div>
+
+<!-- OCCUPANTS -->
+<div class="page" id="page-occupants">
+  <div class="pg-title">Occupants</div><div class="pg-sub">Click any row to view or edit</div>
+  <div class="tb">
+    <input class="sb" type="text" placeholder="Search name, company, office..." oninput="filterOccupants(this.value)">
+    <button class="fb on" id="of-active" onclick="setOccF('Active',this)">Active</button>
+    <button class="fb" id="of-pending" onclick="setOccF('Pending',this)">Pending</button>
+    <button class="fb" id="of-archive" onclick="setOccF('Archive',this)">Archive</button>
+    <button class="fb" id="of-all" onclick="setOccF('all',this)">All</button>
+    <span class="cl" id="occ-count"></span>
+    <button class="btn-add" onclick="openOccupantForm(null)">+ Add Occupant</button>
+  </div>
+  <div class="card"><div class="tw"><table>
+    <thead><tr><th>Name</th><th>Company</th><th>Office</th><th>Phone</th><th>Email</th><th>Status</th><th>End Date</th><th>Driver's License</th></tr></thead>
+    <tbody id="occ-tbody"></tbody>
+  </table></div></div>
+</div>
+
+<!-- WAITLIST -->
+<div class="page" id="page-waitlist">
+  <div class="pg-title">Waiting List</div><div class="pg-sub">Prospective tenants</div>
+  <div class="tb"><button class="btn-add" onclick="openWaitForm(null)">+ Add to List</button></div>
+  <div id="wl-container"></div>
+</div>
+
+<!-- NOTIFY -->
+<div class="page" id="page-notify">
+  <div class="pg-title">&#128226; Notify</div><div class="pg-sub">Send emails or texts to members and occupants</div>
+  <div class="notify-layout">
+    <div>
+      <div class="notify-panel">
+        <h3>Quick Groups</h3>
+        <div class="group-btn on" id="grp-all-members" onclick="selectGroup('all-members',this)"><div class="gb-icon">&#128101;</div><div><div class="gb-label">All Active Members</div></div><span class="gb-count" id="gc-members">-</span></div>
+        <div class="group-btn" id="grp-all-occupants" onclick="selectGroup('all-occupants',this)"><div class="gb-icon">&#127970;</div><div><div class="gb-label">All Active Occupants</div></div><span class="gb-count" id="gc-occupants">-</span></div>
+        <div class="group-btn" id="grp-everyone" onclick="selectGroup('everyone',this)"><div class="gb-icon">&#128203;</div><div><div class="gb-label">Everyone</div></div><span class="gb-count" id="gc-everyone">-</span></div>
+        <hr class="divider-line">
+        <div class="group-btn" id="grp-email-only" onclick="selectGroup('email-only',this)"><div class="gb-icon">&#128231;</div><div><div class="gb-label">Has Email</div></div><span class="gb-count" id="gc-email">-</span></div>
+        <div class="group-btn" id="grp-phone-only" onclick="selectGroup('phone-only',this)"><div class="gb-icon">&#128241;</div><div><div class="gb-label">Has Phone</div></div><span class="gb-count" id="gc-phone">-</span></div>
+        <hr class="divider-line">
+        <div style="font-size:11px;color:var(--txt3);margin-bottom:7px;text-transform:uppercase;letter-spacing:.07em;font-weight:600">Or pick individuals</div>
+        <div style="max-height:220px;overflow-y:auto" id="individual-list"></div>
+      </div>
+    </div>
+    <div class="compose-card">
+      <h3>Compose Message</h3>
+      <div class="compose-field"><label>Recipients <span id="recip-count" style="color:var(--txt3);font-weight:400"></span></label><div class="recipient-area" id="recipient-area"></div></div>
+      <div class="compose-field"><label>Templates</label><div class="tpl-strip" id="tpl-strip"></div></div>
+      <div class="compose-field"><label>Subject (for email)</label><input id="msg-subject" placeholder="e.g. Important Notice from Qbix Centre"></div>
+      <div class="compose-field">
+        <label>Message Body</label>
+        <textarea id="msg-body" placeholder="Type your message here..."></textarea>
+        <div style="margin-top:6px;font-size:11px;color:var(--txt3)">Merge fields:</div>
+        <div class="merge-tags">
+          <span class="mtag" onclick="insertMerge('{name}')">{name}</span>
+          <span class="mtag" onclick="insertMerge('{office}')">{office}</span>
+          <span class="mtag" onclick="insertMerge('{dues}')">{dues}</span>
+          <span class="mtag" onclick="insertMerge('{company}')">{company}</span>
+        </div>
+      </div>
+      <div class="notify-actions">
+        <button class="n-btn n-email" onclick="sendEmail()">&#128231; Open in Email Client</button>
+        <button class="n-btn n-text" onclick="copyPhones()">&#128241; Copy Phones</button>
+        <button class="n-btn n-copy" onclick="copyEmails()">&#128203; Copy Emails</button>
+        <button class="n-btn n-copy" style="margin-left:auto" onclick="previewMessages()">&#128065; Preview</button>
+      </div>
+      <div class="result-box" id="result-box"></div>
+      <div style="margin-top:12px;padding-top:11px;border-top:1px solid var(--bdr);display:flex;gap:8px;align-items:center">
+        <input id="tpl-name" placeholder="Template name to save..." style="background:var(--sur2);border:1px solid var(--bdr);border-radius:7px;color:var(--txt);font-family:'IBM Plex Sans',sans-serif;font-size:12px;padding:6px 10px;outline:none;flex:1">
+        <button class="btn-sm" onclick="saveTemplate()" style="padding:6px 12px">&#128190; Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- NEWSLETTER -->
+<div class="page" id="page-newsletter">
+  <div class="pg-title">&#128240; Newsletter</div><div class="pg-sub">AI-assisted monthly newsletter — ~3 cents per draft</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start">
+    <div class="card">
+      <div class="ct">Generate Draft</div>
+      <div class="compose-field">
+        <label>Additional Notes for AI</label>
+        <textarea id="nl-notes" placeholder="e.g. 'We just got new chairs in the kitchenette' or 'Spring is here — encourage use of the conference room'" style="min-height:90px"></textarea>
+      </div>
+      <button onclick="generateNewsletter()" class="btn-save" style="width:100%" id="nl-gen-btn">&#10024; Generate Draft with AI</button>
+      <div id="nl-draft-area" style="display:none;margin-top:16px">
+        <div class="compose-field">
+          <label>Subject</label>
+          <input id="nl-subject" placeholder="e.g. Qbix Centre — April 2026 Newsletter">
+        </div>
+        <div class="compose-field">
+          <label>Newsletter Body (edit as needed)</label>
+          <textarea id="nl-body" style="min-height:200px"></textarea>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+          <button onclick="publishNewsletter(false)" class="n-btn n-copy" style="border:1px solid var(--bdr)">&#128190; Save to Website Only</button>
+          <button onclick="publishNewsletter(true)" class="n-btn n-email">&#128231; Save &amp; Email All Members</button>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="ct">Past Newsletters</div>
+      <div id="nl-history" style="color:var(--txt3);font-size:13px">Loading...</div>
+    </div>
+  </div>
+</div>
+
+<!-- BOOKINGS -->
+<div class="page" id="page-bookings">
+  <div class="pg-title">&#128197; Conference Room Bookings</div><div class="pg-sub">All upcoming bookings</div>
+  <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center">
+    <button class="btn-add" onclick="sendMonthlyUsage()" style="background:var(--purple)">&#128231; Send Monthly Usage Emails</button>
+  </div>
+  <div class="card"><div class="tw">
+    <table>
+      <thead><tr><th>Date</th><th>Time</th><th>Member</th><th>Title</th><th>Status</th><th>Action</th></tr></thead>
+      <tbody id="bookings-tbody"></tbody>
+    </table>
+  </div></div>
+</div>
+
+</main>
+
+<!-- Modals -->
+<div class="mo" id="view-modal" onclick="closeMo(event,'view-modal')">
+  <div class="mi">
+    <button class="mx" onclick="closeMo(null,'view-modal')">&#x2715;</button>
+    <div class="mt" id="mo-title"></div>
+    <div class="ms" id="mo-sub"></div>
+    <div class="dg" id="mo-body"></div>
+    <div class="mo-actions" id="mo-actions"></div>
+  </div>
+</div>
+
+<div class="fm" id="form-modal">
+  <div class="fi">
+    <button class="mx" onclick="closeForm()" style="position:absolute;top:12px;right:12px">&#x2715;</button>
+    <h2 id="form-title">Edit</h2>
+    <div id="form-body"></div>
+    <div class="form-actions">
+      <button class="btn-cancel" onclick="closeForm()">Cancel</button>
+      <button class="btn-save" onclick="submitForm()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Onboard link modal -->
+<div class="mo" id="onboard-modal" onclick="closeMo(event,'onboard-modal')">
+  <div class="mi" style="max-width:480px">
+    <button class="mx" onclick="closeMo(null,'onboard-modal')">&#x2715;</button>
+    <div class="mt">Generate Onboarding Link</div>
+    <div class="ms">Send a personalized application link to a prospective member</div>
+    <div class="fg" style="margin-top:12px">
+      <div class="fl full"><label>Prospect Name</label><input id="ob-name" placeholder="Jane Smith or Acme Corp"></div>
+      <div class="fl full"><label>Email Address</label><input id="ob-email" type="email" placeholder="prospect@company.com"></div>
+    </div>
+    <div id="ob-result" style="display:none;margin-top:12px">
+      <div style="background:var(--sur2);border:1px solid var(--grn);border-radius:8px;padding:12px">
+        <div style="font-size:11px;color:var(--txt3);margin-bottom:6px;text-transform:uppercase;letter-spacing:.08em">Link sent to their email &amp; copied to clipboard:</div>
+        <div id="ob-link" style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--acc);word-break:break-all"></div>
+      </div>
+    </div>
+    <div class="form-actions" style="padding-top:14px;border-top:1px solid var(--bdr)">
+      <button class="btn-cancel" onclick="closeMo(null,'onboard-modal')">Close</button>
+      <button class="btn-save" onclick="generateOnboardLink()">Generate &amp; Send Link</button>
+    </div>
+  </div>
+</div>
+
+<div class="conf" id="conf-modal">
+  <div class="conf-box">
+    <h3 id="conf-title">Confirm</h3>
+    <p id="conf-msg"></p>
+    <div class="conf-btns">
+      <button class="btn-conf-cancel" onclick="closeConf()">Cancel</button>
+      <button class="btn-conf-del" id="conf-ok" onclick="confirmAction()">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══ DATA ═══
+let DB = {};
+
+async function loadData(){
+  setSaveStatus('loading');
+  try{
+    const r = await fetch('/admin/api/data');
+    DB = await r.json();
+    setSaveStatus('saved');
+    refreshAll();
+    checkDailyBackup();
+  } catch(e){ setSaveStatus('error'); toast('Could not load data','var(--red)'); }
+}
+
+async function saveData(){
+  setSaveStatus('saving');
+  try{
+    const r = await fetch('/admin/api/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(DB)});
+    const result = await r.json();
+    if(result.ok) setSaveStatus('saved');
+    else { setSaveStatus('error'); toast('Save failed: '+result.error,'var(--red)'); }
+  } catch(e){ setSaveStatus('error'); toast('Could not reach server','var(--red)'); }
+}
+
+function setSaveStatus(state){
+  const dot=document.getElementById('save-dot'), txt=document.getElementById('save-status');
+  dot.className='save-dot';
+  if(state==='saving'){dot.classList.add('saving');txt.textContent='Saving...';}
+  else if(state==='saved'){txt.textContent='All changes saved';}
+  else if(state==='error'){dot.classList.add('error');txt.textContent='Save error!';}
+  else if(state==='loading'){dot.classList.add('saving');txt.textContent='Loading...';}
+}
+
+async function doBackup(){
+  try{
+    const r = await fetch('/admin/api/backup');
+    const result = await r.json();
+    if(result.ok){ DB.lastBackup=new Date().toISOString().slice(0,10); document.getElementById('save-status').textContent='All changes saved'; toast('Backup saved ✓'); }
+    else toast('Backup failed: '+(result.error||''),'var(--red)');
+  } catch(e){ toast('Backup failed','var(--red)'); }
+}
+
+function checkDailyBackup(){
+  const today=new Date().toISOString().slice(0,10);
+  if(DB.lastBackup!==today){
+    document.getElementById('save-status').innerHTML='All changes saved &nbsp;|&nbsp; <span style="color:var(--acc);cursor:pointer" onclick="doBackup()">&#9888; No backup today</span>';
+  }
+}
+
+// ═══ HELPERS ═══
+const uid  = () => '_'+Math.random().toString(36).slice(2,9);
+const f$   = n => (n==null||n===''||isNaN(n))? '$0' : '$'+Number(n).toLocaleString();
+const fD   = d => { if(!d) return '-'; try{ return new Date(d+(d.includes('T')||d.length>10?'':'T12:00:00')).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }catch(e){return d;} };
+const eml  = e => e ? '<a href="mailto:'+e+'" style="color:var(--blue)">'+e+'</a>' : '-';
+const esc  = s => (s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+const net  = m => Math.max(0,(Number(m.dues)||0)-(Number(m.discount)||0));
+const getMember     = n  => DB.members.find(m=>m.name===n);
+const getMemberById = id => DB.members.find(m=>m.id===id);
+const getOccById    = id => DB.occupants.find(p=>p.id===id);
+const officesFor    = n  => DB.offices.filter(o=>o.member===n).map(o=>o.num);
+const occupantsFor  = n  => DB.occupants.filter(p=>p.company===n);
+const occsForOffice = n  => DB.occupants.filter(p=>p.office===n);
+const duesFor       = n  => { const m=getMember(n); return m?net(m):null; };
+
+function toast(msg,col,dur){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.style.background=col||'var(--grn)';
+  t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),dur||2800);
+}
+function fileToB64(file){ return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res({name:file.name,type:file.type,data:r.result});r.onerror=rej;r.readAsDataURL(file);}); }
+function openAttachment(att){ if(!att)return; const w=window.open('','_blank'); if(att.type&&att.type.startsWith('image/')){w.document.write('<!DOCTYPE html><html><body style="margin:0;background:#111"><img src="'+att.data+'" style="max-width:100%;height:auto"></body></html>');}else{const a=w.document.createElement('a');a.href=att.data;a.download=att.name;w.document.body.appendChild(a);a.click();setTimeout(()=>w.close(),500);} }
+
+// ═══ DASHBOARD ═══
+function buildDash(){
+  const active=DB.members.filter(m=>m.status==='Active'&&m.dues>0).sort((a,b)=>net(b)-net(a));
+  const mx=active[0]?net(active[0]):1;
+  document.getElementById('rev-bars').innerHTML=active.map(m=>'<div class="ri"><div class="rl" title="'+m.name+'">'+m.name+'</div><div class="rb"><div class="rbf" style="width:'+Math.round(net(m)/mx*100)+'%"></div></div><div class="ra">'+f$(net(m))+'</div></div>').join('')||'<div style="color:var(--txt3);font-size:12px">No active members</div>';
+}
+
+function buildBookingsTab(){
+  const today=new Date().toISOString().slice(0,10);
+  const rows=(DB.bookings||[]).filter(b=>b.status!=='cancelled').sort((a,b)=>(a.date+a.start).localeCompare(b.date+b.start));
+  document.getElementById('bookings-tbody').innerHTML=rows.map(b=>`<tr><td class="mono">${b.date}</td><td class="mono">${b.start}–${b.end}</td><td>${b.memberName}</td><td>${b.title||'Meeting'}</td><td><span class="badge ${b.date<today?'br':'bg'}">${b.date<today?'Past':'Upcoming'}</span></td><td><button class="btn-sm del" onclick="adminCancelBooking('${b.id}')">Cancel</button></td></tr>`).join('')||'<tr><td colspan="6" style="text-align:center;color:var(--txt3);padding:20px">No bookings</td></tr>';
+}
+
+async function adminCancelBooking(id){
+  const r=await fetch('/admin/api/booking-cancel',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bookingId:id})});
+  const result=await r.json();
+  if(result.ok){const b=DB.bookings.find(x=>x.id===id);if(b)b.status='cancelled';buildBookingsTab();toast('Booking cancelled');}
+}
+
+async function sendMonthlyUsage(){
+  const now=new Date();
+  const r=await fetch('/admin/api/send-monthly-usage',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({month:now.getMonth()+1,year:now.getFullYear()})});
+  const result=await r.json();
+  if(result.ok) toast('Monthly usage emails sent to '+result.sent+' members');
+  else toast('Error: '+result.error,'var(--red)');
+}
+
+function buildNewsletterHistory(){
+  const posts=(DB.newsletter||[]).slice().reverse().slice(0,10);
+  document.getElementById('nl-history').innerHTML=posts.length?posts.map(p=>`<div style="padding:8px 0;border-bottom:1px solid var(--bdr)"><div style="font-size:12px;color:var(--txt3)">${p.date?p.date.slice(0,10):''} ${p.sent?'· Emailed to members':''}</div><div style="font-size:13px;font-weight:500;margin-top:2px">${p.subject}</div></div>`).join(''):'<div style="color:var(--txt3);font-size:13px">No newsletters yet</div>';
+}
+
+async function generateNewsletter(){
+  const btn=document.getElementById('nl-gen-btn');
+  btn.disabled=true; btn.textContent='Generating...';
+  try{
+    const r=await fetch('/admin/api/generate-newsletter',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({notes:document.getElementById('nl-notes').value})});
+    const result=await r.json();
+    if(result.ok){
+      const now=new Date();
+      document.getElementById('nl-subject').value=`Qbix Centre — ${now.toLocaleDateString('en-US',{month:'long',year:'numeric'})} Newsletter`;
+      document.getElementById('nl-body').value=result.draft;
+      document.getElementById('nl-draft-area').style.display='block';
+      toast('Draft generated! Review and edit before sending.');
+    } else { toast('Error: '+result.error,'var(--red)'); }
+  } catch(e){ toast('Generation failed: '+e.message,'var(--red)'); }
+  btn.disabled=false; btn.textContent='✨ Generate Draft with AI';
+}
+
+async function publishNewsletter(send){
+  const subject=document.getElementById('nl-subject').value.trim();
+  const body=document.getElementById('nl-body').value.trim();
+  if(!subject||!body){toast('Subject and body required','var(--red)');return;}
+  const r=await fetch('/admin/api/publish-newsletter',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({subject,body,send})});
+  const result=await r.json();
+  if(result.ok){
+    if(!DB.newsletter)DB.newsletter=[];
+    DB.newsletter.push({id:result.postId,subject,body,date:new Date().toISOString(),sent:send});
+    buildNewsletterHistory();
+    document.getElementById('nl-draft-area').style.display='none';
+    document.getElementById('nl-notes').value='';
+    toast(send?`Newsletter sent to ${result.sent} members ✓`:'Newsletter saved to website ✓');
+  } else toast('Error: '+result.error,'var(--red)');
+}
+
+function refreshAll(){ buildDash(); renderOffices(); renderMembers(); renderOccupants(); renderWaitlist(); buildNotify(); buildBookingsTab(); buildNewsletterHistory(); }
+
+// ═══ OFFICES ═══
+let ofFilter='all',ofSearch='';
+function renderOffices(){
+  const list=DB.offices.filter(o=>{
+    if(ofFilter==='occ'&&o.status!=='Occupied')return false;
+    if(ofFilter==='vac'&&o.status!=='Vacant')return false;
+    const q=ofSearch.toLowerCase();
+    if(q&&!o.num.toLowerCase().includes(q)&&!(o.member||'').toLowerCase().includes(q))return false;
+    return true;
+  });
+  document.getElementById('oc-count').textContent=list.length+' offices';
+  const dues=o=>o.status==='Occupied'?duesFor(o.member):o.listDues;
+  document.getElementById('office-grid').innerHTML=list.map(o=>'<div class="ot '+(o.status==='Occupied'?'occ':'vac')+'" onclick="openOfficeMo(\''+esc(o.id)+'\')">'+'<div style="display:flex;justify-content:space-between;align-items:flex-start"><div class="on2">'+o.num+'</div><span class="badge '+(o.status==='Occupied'?'bg':'bb')+'">'+o.status+'</span></div>'+'<div class="oten">'+(o.member||'<em style="color:var(--txt3)">Available</em>')+'</div>'+'<div class="osq">'+(o.sqft?o.sqft+(o.dormer?'+'+o.dormer:'')+' sq ft':'-')+'</div>'+(dues(o)?'<div class="odu">'+f$(dues(o))+'/mo</div>':'')+'</div>').join('')||'<div style="color:var(--txt3);padding:20px">No offices match.</div>';
+}
+function setOF(f,btn){ofFilter=f;document.querySelectorAll('#fa,#fo,#fv').forEach(b=>b.classList.remove('on'));btn.classList.add('on');renderOffices();}
+function filterOffices(q){ofSearch=q;renderOffices();}
+
+function openOfficeMo(id){
+  const o=DB.offices.find(x=>x.id===id);
+  const m=o.member?getMember(o.member):null;
+  const occs=occsForOffice(o.num);
+  const allOff=o.member?officesFor(o.member):[];
+  document.getElementById('mo-title').textContent='Office '+o.num;
+  document.getElementById('mo-sub').textContent=o.status+(o.member?' — '+o.member:' — Available');
+  let h='<div class="di"><label>Status</label><value><span class="badge '+(o.status==='Occupied'?'bg':'bb')+'">'+o.status+'</span></value></div>'+'<div class="di"><label>Square Footage</label><value>'+(o.sqft?o.sqft+(o.dormer?' + '+o.dormer+' dormer':'')+' sq ft':'-')+'</value></div>';
+  if(o.member&&m){
+    const d=Number(m.discount)||0;
+    h+='<div class="di"><label>Net Dues</label><value style="color:var(--grn);font-family:\'IBM Plex Mono\',monospace;font-size:15px">'+f$(net(m))+(d>0?' <span style="font-size:11px;color:var(--txt3)">(- '+f$(d)+')</span>':'')+'</value></div>';
+    h+='<div class="di"><label>Deposit</label><value class="mono">'+f$(m.deposit)+'</value></div>';
+    h+='<div class="di"><label>Tenant Start</label><value>'+(o.tenantStart||'-')+'</value></div>';
+    h+='<div class="di"><label>All Offices</label><value class="mono">'+(allOff.join(', ')||'-')+'</value></div>';
+    if(m.end)h+='<div class="di full"><label>End Date</label><value style="color:var(--red)">'+fD(m.end)+'</value></div>';
+    if(m.notes)h+='<div class="di full"><label>Notes</label><div class="notebox">'+m.notes+'</div></div>';
+  } else {
+    h+='<div class="di"><label>Listed Rate</label><value style="color:var(--acc);font-family:\'IBM Plex Mono\',monospace">'+(o.listDues?f$(o.listDues)+'/mo':'TBD')+'</value></div>';
+  }
+  if(occs.length){h+='<div class="divr"></div><div class="di full"><label>Occupants ('+occs.length+')</label><div style="margin-top:5px">'+occs.map(p=>'<div class="occ-tag" onclick="closeMo(null,\'view-modal\');setTimeout(()=>openOccMo(\''+esc(p.id)+'\'),60)"><span class="occ-dot '+(p.status==='Active'?'active':'archive')+'"></span>'+p.name+'</div>').join('')+'</div></div>';}
+  document.getElementById('mo-body').innerHTML=h;
+  document.getElementById('mo-actions').innerHTML='<button class="btn-edit" onclick="closeMo(null,\'view-modal\');openOfficeForm(\''+esc(o.id)+'\')">Edit</button>'+'<button class="btn-del" onclick="closeMo(null,\'view-modal\');askDelete(\'office\',\''+esc(o.id)+'\',\'Office '+o.num+'\')">Delete</button>';
+  document.getElementById('view-modal').classList.add('open');
+}
+
+// ═══ MEMBERS ═══
+let mSearch='',mFilter='Active';
+function renderMembers(){
+  const list=DB.members.filter(m=>{
+    if(mFilter!=='all'&&m.status!==mFilter)return false;
+    const q=mSearch.toLowerCase();
+    return!q||m.name.toLowerCase().includes(q)||(m.email||'').toLowerCase().includes(q);
+  });
+  document.getElementById('m-count').textContent=list.length+' members';
+  document.getElementById('m-tbody').innerHTML=list.map(m=>{
+    const d=Number(m.discount)||0;const atts=m.attachments||[];
+    const agStatus=m.agreementSigned?'<span class="badge bg">Signed</span>':m.agreementSent?'<span class="badge ba">Sent</span>':'<span class="badge br">Pending</span>';
+    return '<tr class="rclick" onclick="openMemberMo(\''+esc(m.id)+'\')">'+'<td><strong>'+m.name+'</strong></td>'+'<td><span class="badge '+(m.status==='Active'?'bg':m.status==='Pending'?'ba':'br')+'">'+m.status+'</span></td>'+'<td class="mono">'+fD(m.start)+'</td>'+'<td class="mono" style="color:'+(m.end?'var(--red)':'var(--txt3)')+'">'+fD(m.end)+'</td>'+'<td class="mono">'+f$(m.dues)+'</td>'+'<td class="mono" style="color:'+(d>0?'var(--purple)':'var(--txt3)')+'">'+(d>0?'-'+f$(d):'-')+'</td>'+'<td class="mono" style="color:var(--grn)">'+f$(net(m))+'</td>'+'<td class="mono">'+f$(m.deposit)+'</td>'+'<td>'+agStatus+'</td>'+'<td style="font-size:12px;color:'+(atts.length?'var(--acc)':'var(--txt3)')+'">&#128206; '+(atts.length||'-')+'</td></tr>';
+  }).join('')||'<tr><td colspan="10" style="color:var(--txt3);text-align:center;padding:20px">No members found</td></tr>';
+}
+function filterMembers(q){mSearch=q;renderMembers();}
+function setMF(f,btn){mFilter=f;document.querySelectorAll('#mf-active,#mf-pending,#mf-archive,#mf-all').forEach(b=>b.classList.remove('on'));btn.classList.add('on');renderMembers();}
+
+function openMemberMo(id){
+  const m=getMemberById(id);const offs=officesFor(m.name);const occs=occupantsFor(m.name);const d=Number(m.discount)||0;const atts=m.attachments||[];
+  document.getElementById('mo-title').textContent=m.name;
+  document.getElementById('mo-sub').textContent=m.status+' Member — Offices: '+(offs.join(', ')||'-');
+  let h='<div class="di"><label>Status</label><value><span class="badge '+(m.status==='Active'?'bg':m.status==='Pending'?'ba':'br')+'">'+m.status+'</span></value></div>';
+  h+='<div class="di"><label>Member Since</label><value>'+fD(m.start)+'</value></div>';
+  h+='<div class="di full"><label>Monthly Dues</label><div style="margin-top:5px"><div class="dues-row"><span style="color:var(--txt2)">Gross</span><span class="mono">'+f$(m.dues)+'</span></div>'+(d>0?'<div class="dues-row"><span style="color:var(--purple)">Discount</span><span class="mono" style="color:var(--purple)">- '+f$(d)+'</span></div>':'')+'<div class="dues-row total"><span>Net</span><span class="dues-net">'+f$(net(m))+'</span></div></div></div>';
+  h+='<div class="di"><label>Deposit</label><value class="mono">'+f$(m.deposit)+'</value></div>';
+  h+='<div class="di"><label>End Date</label><value style="color:'+(m.end?'var(--red)':'var(--txt3)')+'">'+fD(m.end)+'</value></div>';
+  h+='<div class="di"><label>Email</label><value style="font-size:12px">'+eml(m.email)+'</value></div>';
+  h+='<div class="di"><label>Phone</label><value class="mono">'+(m.phone||'-')+'</value></div>';
+  if(m.notes)h+='<div class="di full"><label>Notes</label><div class="notebox">'+m.notes+'</div></div>';
+  h+='<div class="di"><label>Agreement Sent</label><value>'+(m.agreementSent?fD(m.agreementSent):'<span style="color:var(--txt3)">Not sent</span>')+'</value></div>';
+  h+='<div class="di"><label>Agreement Signed</label><value>'+(m.agreementSigned?'<span style="color:var(--grn)">'+fD(m.agreementSigned)+'</span>':'<span style="color:var(--txt3)">Pending</span>')+'</value></div>';
+  h+='<div class="divr"></div><div class="di full"><label>Docs ('+atts.length+')</label>'+(atts.length?'<div class="att-list" id="att-list-view"></div>':'<div style="color:var(--txt3);font-size:12px;margin-top:4px">None. Click Edit to add.</div>')+'</div>';
+  if(occs.length){h+='<div class="divr"></div><div class="di full"><label>Occupants ('+occs.length+')</label><div style="margin-top:5px">'+occs.map(p=>'<div class="occ-tag" onclick="closeMo(null,\'view-modal\');setTimeout(()=>openOccMo(\''+esc(p.id)+'\'),60)"><span class="occ-dot '+(p.status.toLowerCase())+'"></span>'+p.name+'</div>').join('')+'</div></div>';}
+  document.getElementById('mo-body').innerHTML=h;
+  if(atts.length){
+    document.getElementById('att-list-view').innerHTML=atts.map((a,i)=>'<div class="att-item"><span>'+(a.type&&a.type.startsWith('image/')?'🖼':'📄')+'</span><span class="att-name">'+a.name+'</span><button class="att-open" data-mid="'+m.id+'" data-idx="'+i+'">Open</button><button class="att-del-btn" data-mid="'+m.id+'" data-idx="'+i+'">&#x2715;</button></div>').join('');
+    document.querySelectorAll('.att-open').forEach(btn=>{btn.onclick=()=>{const mm=getMemberById(btn.dataset.mid);openAttachment(mm.attachments[+btn.dataset.idx]);};});
+    document.querySelectorAll('.att-del-btn').forEach(btn=>{btn.onclick=()=>{const mm=getMemberById(btn.dataset.mid);mm.attachments.splice(+btn.dataset.idx,1);closeMo(null,'view-modal');setTimeout(()=>openMemberMo(m.id),60);saveData();toast('Attachment removed');};});
+  }
+  document.getElementById('mo-actions').innerHTML=
+    '<button class="btn-edit" onclick="closeMo(null,\'view-modal\');openMemberForm(\''+esc(m.id)+'\')">Edit</button>'+
+    '<button class="btn-blue" onclick="downloadAgreement(\''+esc(m.id)+'\')">&#128196; Download Agreement</button>'+
+    (!m.agreementSent?'<button class="btn-sm" onclick="markAgreementSent(\''+esc(m.id)+'\')">Mark Agreement Sent</button>':'')+
+    (!m.agreementSigned&&m.agreementSent?'<button class="btn-sm" onclick="markAgreementSigned(\''+esc(m.id)+'\')">Mark Agreement Signed</button>':'')+
+    '<button class="btn-del" onclick="closeMo(null,\'view-modal\');askDelete(\'member\',\''+esc(m.id)+'\',\''+esc(m.name)+'\')">Delete</button>';
+  document.getElementById('view-modal').classList.add('open');
+}
+
+function downloadAgreement(id){
+  window.open('/admin/api/generate-agreement/'+id,'_blank');
+  const m=getMemberById(id);
+  if(!m.agreementSent){m.agreementSent=new Date().toISOString().slice(0,10);saveData();renderMembers();}
+}
+function markAgreementSent(id){const m=getMemberById(id);m.agreementSent=new Date().toISOString().slice(0,10);saveData();closeMo(null,'view-modal');setTimeout(()=>openMemberMo(id),60);toast('Marked as sent');}
+function markAgreementSigned(id){const m=getMemberById(id);m.agreementSigned=new Date().toISOString().slice(0,10);if(m.status==='Pending')m.status='Active';saveData();closeMo(null,'view-modal');setTimeout(()=>openMemberMo(id),60);toast('Marked as signed — status set to Active ✓');}
+
+// Onboarding link
+function openOnboardLink(){document.getElementById('ob-name').value='';document.getElementById('ob-email').value='';document.getElementById('ob-result').style.display='none';document.getElementById('onboard-modal').classList.add('open');}
+async function generateOnboardLink(){
+  const name=document.getElementById('ob-name').value.trim();const email=document.getElementById('ob-email').value.trim();
+  if(!name){toast('Enter a name','var(--red)');return;}
+  const r=await fetch('/admin/api/onboard-link',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,email})});
+  const result=await r.json();
+  if(result.ok){
+    document.getElementById('ob-result').style.display='block';
+    document.getElementById('ob-link').textContent=result.link;
+    navigator.clipboard.writeText(result.link).catch(()=>{});
+    toast('Link generated & copied'+(email?' — emailed to '+email:''));
+  } else toast('Error: '+result.error,'var(--red)');
+}
+
+// ═══ OCCUPANTS ═══
+let occSearch='',occFilter='Active';
+function renderOccupants(){
+  const list=DB.occupants.filter(o=>{
+    if(occFilter!=='all'&&o.status!==occFilter)return false;
+    const q=occSearch.toLowerCase();
+    return!q||o.name.toLowerCase().includes(q)||o.company.toLowerCase().includes(q)||(o.office||'').toLowerCase().includes(q)||(o.email||'').toLowerCase().includes(q);
+  });
+  document.getElementById('occ-count').textContent=list.length+' occupants';
+  document.getElementById('occ-tbody').innerHTML=list.map(o=>{
+    let dlCell;
+    if(o.dlAttachment&&o.dlAttachment.type&&o.dlAttachment.type.startsWith('image/')){dlCell='<img src="'+o.dlAttachment.data+'" style="height:38px;width:60px;object-fit:cover;border-radius:5px;border:1px solid var(--bdr);display:block;cursor:pointer" onclick="event.stopPropagation();openAttachment(getOccById(\''+esc(o.id)+'\').dlAttachment)">';}
+    else if(o.dlAttachment){dlCell='<span style="font-size:11px;color:var(--acc);cursor:pointer" onclick="event.stopPropagation();openAttachment(getOccById(\''+esc(o.id)+'\').dlAttachment)">📄 PDF</span>';}
+    else{dlCell='<span style="color:var(--txt3);font-size:12px">Missing</span>';}
+    return '<tr class="rclick" onclick="openOccMo(\''+esc(o.id)+'\')">'+'<td><strong>'+o.name+'</strong></td><td style="color:var(--txt2)">'+o.company+'</td>'+'<td class="mono">'+(o.office?'Office '+o.office:'-')+'</td>'+'<td class="mono" style="font-size:12px">'+(o.phone||'-')+'</td>'+'<td style="font-size:12px">'+(o.email?'<a href="mailto:'+o.email+'" style="color:var(--blue)">'+o.email+'</a>':'-')+'</td>'+'<td><span class="badge '+(o.status==='Active'?'bg':o.status==='Pending'?'ba':'br')+'">'+o.status+'</span></td>'+'<td class="mono" style="color:'+(o.endDate?'var(--red)':'var(--txt3)')+';font-size:12px">'+(o.endDate||'-')+'</td>'+'<td style="padding:5px 10px">'+dlCell+'</td></tr>';
+  }).join('')||'<tr><td colspan="8" style="color:var(--txt3);text-align:center;padding:20px">No occupants found</td></tr>';
+}
+function filterOccupants(q){occSearch=q;renderOccupants();}
+function setOccF(f,btn){occFilter=f;document.querySelectorAll('#of-active,#of-pending,#of-archive,#of-all').forEach(b=>b.classList.remove('on'));btn.classList.add('on');renderOccupants();}
+
+function openOccMo(id){
+  const o=getOccById(id);
+  document.getElementById('mo-title').textContent=o.name;
+  document.getElementById('mo-sub').textContent=o.company+(o.office?' — Office '+o.office:'');
+  let h='<div class="di"><label>Status</label><value><span class="badge '+(o.status==='Active'?'bg':o.status==='Pending'?'ba':'br')+'">'+o.status+'</span></value></div>';
+  h+='<div class="di"><label>Office</label><value class="mono">'+(o.office?'Office '+o.office:'-')+'</value></div>';
+  h+='<div class="di"><label>Phone</label><value class="mono">'+(o.phone||'-')+'</value></div>';
+  h+='<div class="di"><label>Email</label><value style="font-size:12px">'+eml(o.email)+'</value></div>';
+  h+='<div class="di full"><label>Member Company</label><value style="cursor:pointer;color:var(--acc)" id="occ-co-link">'+o.company+' ↗</value></div>';
+  if(o.endDate)h+='<div class="di full"><label>End Date</label><value style="color:var(--red)">'+o.endDate+'</value></div>';
+  h+='<div class="divr"></div><div class="di full"><label>Driver\'s License</label>';
+  if(o.dlAttachment){h+='<div class="att-list" id="dl-view"></div>';if(o.dlAttachment.type&&o.dlAttachment.type.startsWith('image/'))h+='<img src="'+o.dlAttachment.data+'" class="dl-preview" alt="DL">';}
+  else{h+='<div style="color:var(--txt3);font-size:12px;margin-top:4px">Not uploaded.</div>';}
+  h+='</div>';
+  document.getElementById('mo-body').innerHTML=h;
+  document.getElementById('occ-co-link').onclick=()=>{const mm=getMember(o.company);closeMo(null,'view-modal');if(mm)setTimeout(()=>openMemberMo(mm.id),60);};
+  if(o.dlAttachment){
+    document.getElementById('dl-view').innerHTML='<div class="att-item"><span>🪪</span><span class="att-name">'+o.dlAttachment.name+'</span><button class="att-open" id="dl-open-btn">Open</button><button class="att-del-btn" id="dl-del-btn">&#x2715;</button></div>';
+    document.getElementById('dl-open-btn').onclick=()=>openAttachment(getOccById(id).dlAttachment);
+    document.getElementById('dl-del-btn').onclick=()=>{const p=getOccById(id);p.dlAttachment=null;closeMo(null,'view-modal');setTimeout(()=>openOccMo(id),60);saveData();toast('DL removed');};
+  }
+  document.getElementById('mo-actions').innerHTML='<button class="btn-edit" onclick="closeMo(null,\'view-modal\');openOccupantForm(\''+esc(o.id)+'\')">Edit</button>';
+  document.getElementById('view-modal').classList.add('open');
+}
+
+// ═══ WAITLIST ═══
+function renderWaitlist(){
+  document.getElementById('wl-container').innerHTML=DB.waitlist.map((w,i)=>'<div class="wc"><div class="wn">'+(i+1)+'</div><div class="wi"><div class="wna">'+w.name+'</div><div class="wph">'+w.phone+'</div><div class="wco">'+w.comment+'</div><div class="wact"><button class="btn-sm" onclick="openWaitForm(\''+esc(w.id)+'\')">Edit</button><button class="btn-sm del" onclick="askDelete(\'waitlist\',\''+esc(w.id)+'\',\''+esc(w.name)+'\')">Delete</button></div></div><div class="wdt">'+fD(w.date)+'</div></div>').join('')||'<div style="color:var(--txt3);padding:20px 0">Waiting list is empty.</div>';
+}
+
+// ═══ NOTIFY ═══
+let selectedRecipients=[];
+function buildNotify(){
+  const all=getUniqPeople('everyone');
+  document.getElementById('gc-members').textContent=DB.members.filter(m=>m.status==='Active').length;
+  document.getElementById('gc-occupants').textContent=DB.occupants.filter(o=>o.status==='Active').length;
+  document.getElementById('gc-everyone').textContent=all.length;
+  document.getElementById('gc-email').textContent=all.filter(p=>p.email).length;
+  document.getElementById('gc-phone').textContent=all.filter(p=>p.phone).length;
+  document.getElementById('individual-list').innerHTML=getUniqPeople('everyone').map(p=>'<div style="display:flex;align-items:center;gap:7px;padding:5px 4px;border-radius:6px;cursor:pointer" onclick="toggleIndividual(\''+esc(p.id)+'\',\''+esc(p.name)+'\',\''+esc(p.email||'')+'\',\''+esc(p.phone||'')+'\',\''+esc(p.office||'')+'\',\''+esc(p.company||'')+'\',\''+p.type+'\')">'+'<div style="width:14px;height:14px;border-radius:3px;border:1px solid var(--bdr);background:var(--sur2);flex-shrink:0;font-size:10px;display:flex;align-items:center;justify-content:center" id="indv-chk-'+p.id+'"></div>'+'<div style="flex:1;min-width:0"><div style="font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+p.name+'</div><div style="font-size:10px;color:var(--txt3)">'+(p.type==='member'?'Member':'Occupant')+(p.office?' — Ofc '+p.office:'')+'</div></div>'+'<div style="display:flex;gap:3px">'+(p.email?'<span style="font-size:10px;color:var(--blue)">✉</span>':'')+(p.phone?'<span style="font-size:10px;color:var(--grn)">📱</span>':'')+'</div></div>').join('');
+  renderTemplates();
+  selectGroup('all-members',document.getElementById('grp-all-members'));
+}
+function getUniqPeople(group){
+  const seen=new Set();const add=arr=>arr.filter(p=>{if(seen.has(p.id))return false;seen.add(p.id);return true;});
+  let mem=[],occ=[];
+  if(group==='all-members'||group==='everyone')mem=DB.members.filter(m=>m.status==='Active').map(m=>({id:m.id,name:m.name,email:m.email,phone:'',office:officesFor(m.name).join(', '),company:m.name,type:'member',dues:net(m)}));
+  if(group==='all-occupants'||group==='everyone')occ=DB.occupants.filter(o=>o.status==='Active').map(o=>({id:o.id,name:o.name,email:o.email,phone:o.phone,office:o.office,company:o.company,type:'occupant',dues:0}));
+  let people=add([...mem,...occ]);
+  if(group==='email-only')people=getUniqPeople('everyone').filter(p=>p.email);
+  if(group==='phone-only')people=getUniqPeople('everyone').filter(p=>p.phone);
+  return people;
+}
+function selectGroup(group,btn){document.querySelectorAll('.group-btn').forEach(b=>b.classList.remove('on'));btn.classList.add('on');selectedRecipients=getUniqPeople(group);renderRecipients();syncCheckboxes();}
+function toggleIndividual(id,name,email,phone,office,company,type){const idx=selectedRecipients.findIndex(r=>r.id===id);if(idx>=0)selectedRecipients.splice(idx,1);else{selectedRecipients.push({id,name,email,phone,office,company,type,dues:0});if(type==='member'){const m=getMemberById(id);if(m)selectedRecipients[selectedRecipients.length-1].dues=net(m);}}document.querySelectorAll('.group-btn').forEach(b=>b.classList.remove('on'));renderRecipients();syncCheckboxes();}
+function syncCheckboxes(){const ids=new Set(selectedRecipients.map(r=>r.id));document.querySelectorAll('[id^="indv-chk-"]').forEach(el=>{const pid=el.id.replace('indv-chk-','');el.textContent=ids.has(pid)?'✓':'';el.style.borderColor=ids.has(pid)?'var(--blue)':'var(--bdr)';el.style.background=ids.has(pid)?'var(--blue)':'var(--sur2)';el.style.color='#fff';});}
+function renderRecipients(){const withEmail=selectedRecipients.filter(r=>r.email);const withPhone=selectedRecipients.filter(r=>r.phone&&!r.email);document.getElementById('recipient-area').innerHTML=[...withEmail.map(r=>'<span class="chip">'+r.name+'<button class="chip-rm" onclick="removeRecipient(\''+r.id+'\')">✕</button></span>'),...withPhone.map(r=>'<span class="chip phone-chip">📱 '+r.name+'<button class="chip-rm" onclick="removeRecipient(\''+r.id+'\')">✕</button></span>')].join('');document.getElementById('recip-count').textContent='('+selectedRecipients.length+' — '+withEmail.length+' email — '+selectedRecipients.filter(r=>r.phone).length+' phone)';}
+function removeRecipient(id){selectedRecipients=selectedRecipients.filter(r=>r.id!==id);document.querySelectorAll('.group-btn').forEach(b=>b.classList.remove('on'));renderRecipients();syncCheckboxes();}
+function insertMerge(tag){const ta=document.getElementById('msg-body');const s=ta.selectionStart,e=ta.selectionEnd;ta.value=ta.value.slice(0,s)+tag+ta.value.slice(e);ta.selectionStart=ta.selectionEnd=s+tag.length;ta.focus();}
+function applyMerge(tpl,p){return tpl.replace(/\{name\}/g,p.name||'').replace(/\{office\}/g,p.office?'Office '+p.office:'').replace(/\{company\}/g,p.company||'').replace(/\{dues\}/g,p.dues?'$'+Number(p.dues).toLocaleString():'');}
+function sendEmail(){const emails=selectedRecipients.filter(r=>r.email).map(r=>r.email);if(!emails.length){toast('No email recipients','var(--red)');return;}window.open('mailto:?bcc='+encodeURIComponent(emails.join(','))+'&subject='+encodeURIComponent(document.getElementById('msg-subject').value||'Message from Qbix Centre')+'&body='+encodeURIComponent(document.getElementById('msg-body').value||''));toast('Opening email with '+emails.length+' BCC recipients');}
+function copyPhones(){const phones=selectedRecipients.filter(r=>r.phone).map(r=>r.phone.replace(/\D/g,''));if(!phones.length){toast('No phone numbers','var(--red)');return;}navigator.clipboard.writeText(phones.join(', ')).then(()=>toast('📱 '+phones.length+' numbers copied')).catch(()=>{const rb=document.getElementById('result-box');rb.style.display='block';rb.textContent='Phone numbers:\n'+phones.join('\n');});}
+function copyEmails(){const emails=selectedRecipients.filter(r=>r.email).map(r=>r.email);if(!emails.length){toast('No emails','var(--red)');return;}navigator.clipboard.writeText(emails.join('; ')).then(()=>toast('📋 '+emails.length+' emails copied')).catch(()=>{const rb=document.getElementById('result-box');rb.style.display='block';rb.textContent=emails.join('\n');});}
+function previewMessages(){const body=document.getElementById('msg-body').value;if(!body.trim()){toast('Write a message first','var(--red)');return;}const wc=selectedRecipients.filter(r=>r.email||r.phone);if(!wc.length){toast('No contactable recipients','var(--red)');return;}const rb=document.getElementById('result-box');rb.style.display='block';rb.textContent=wc.slice(0,5).map(r=>'--- To: '+r.name+' '+(r.email?'<'+r.email+'>':'phone '+r.phone)+' ---\n'+applyMerge(body,r)).join('\n\n')+(wc.length>5?'\n\n... and '+(wc.length-5)+' more':'');}
+function renderTemplates(){document.getElementById('tpl-strip').innerHTML=(DB.templates||[]).map(t=>'<span class="tpl-btn" onclick="loadTemplate(\''+esc(t.id)+'\')" title="'+t.subject+'">'+t.name+'</span>').join('');}
+function loadTemplate(id){const t=(DB.templates||[]).find(x=>x.id===id);if(!t)return;document.getElementById('msg-subject').value=t.subject;document.getElementById('msg-body').value=t.body;}
+function saveTemplate(){const name=document.getElementById('tpl-name').value.trim();const subject=document.getElementById('msg-subject').value.trim();const body=document.getElementById('msg-body').value.trim();if(!name||!body){toast('Enter name and message','var(--red)');return;}if(!DB.templates)DB.templates=[];const ex=DB.templates.find(t=>t.name===name);if(ex){ex.subject=subject;ex.body=body;}else DB.templates.push({id:uid(),name,subject,body});renderTemplates();document.getElementById('tpl-name').value='';saveData();toast('Template saved');}
+
+// ═══ FORMS ═══
+let formType=null,formId=null,pendingFiles=[];
+function renderPending(cid){const el=document.getElementById(cid);if(!el)return;el.innerHTML=pendingFiles.map((f,i)=>'<div class="pf-item"><span>'+(f.type&&f.type.startsWith('image/')?'🖼':'📄')+'</span><span class="pf-name">'+f.name+'</span><button class="pf-rm" onclick="removePending('+i+',\''+cid+'\')">✕</button></div>').join('');}
+function removePending(i,cid){pendingFiles.splice(i,1);renderPending(cid);}
+async function handleFiles(files,ctx){for(const file of files){if(file.size>10*1024*1024){toast('File too large (max 10MB)','var(--red)');continue;}try{const b64=await fileToB64(file);if(ctx==='dl')pendingFiles=[b64];else pendingFiles.push(b64);renderPending(ctx==='dl'?'pending-dl':'pending-agreements');}catch(e){toast('Error reading file','var(--red)');}}}
+function handleDrop(e,ctx){e.preventDefault();e.currentTarget.classList.remove('drag');handleFiles(e.dataTransfer.files,ctx);}
+
+function setStatus(val){
+  document.getElementById('f-status').value=val;
+  const styles={Active:{border:'var(--grn)',bg:'rgba(77,184,135,.15)',color:'var(--grn)'},Archive:{border:'var(--txt3)',bg:'rgba(64,72,96,.4)',color:'var(--txt2)'},Pending:{border:'var(--acc)',bg:'rgba(212,168,67,.12)',color:'var(--acc)'}};
+  ['Active','Archive','Pending'].forEach(s=>{const btn=document.getElementById('st-'+s.toLowerCase());if(!btn)return;const on=s===val;const st=styles[s];btn.style.borderColor=on?st.border:'var(--bdr)';btn.style.background=on?st.bg:'var(--sur)';btn.style.color=on?st.color:'var(--txt3)';});
+}
+
+function statusButtons(cur,includesPending){
+  const btn=(val,icon,label)=>{const styles={Active:{b:'var(--grn)',bg:'rgba(77,184,135,.15)',c:'var(--grn)'},Archive:{b:'var(--txt3)',bg:'rgba(64,72,96,.4)',c:'var(--txt2)'},Pending:{b:'var(--acc)',bg:'rgba(212,168,67,.12)',c:'var(--acc)'}};const on=cur===val;const s=styles[val];return '<button type="button" id="st-'+val.toLowerCase()+'" onclick="setStatus(\''+val+'\')" style="flex:1;padding:9px;border-radius:7px;border:2px solid '+(on?s.b:'var(--bdr)')+';background:'+(on?s.bg:'var(--sur)')+';color:'+(on?s.c:'var(--txt3)')+';font-family:IBM Plex Sans,sans-serif;font-size:13px;font-weight:600;cursor:pointer">'+icon+' '+label+'</button>';};
+  return '<div class="fl full" style="background:var(--sur2);border:1px solid var(--bdr);border-radius:8px;padding:11px"><label style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--txt3);font-weight:600;display:block;margin-bottom:6px">Status</label><div style="display:flex;gap:8px">'+btn('Active','✓','Active')+btn('Archive','📦','Archive')+(includesPending?btn('Pending','⏳','Pending'):'')+
+  '</div><input type="hidden" id="f-status" value="'+cur+'"></div>';
+}
+
+function openOfficeForm(id){
+  formType='office';formId=id;const o=id?DB.offices.find(x=>x.id===id):{};
+  const mOpts=['',...DB.members.map(m=>m.name)].map(n=>'<option value="'+n+'" '+((o.member||'')==n?'selected':'')+'>'+(n||'— Vacant —')+'</option>').join('');
+  document.getElementById('form-title').textContent=id?'Edit Office':'Add Office';
+  document.getElementById('form-body').innerHTML='<div class="fg"><div class="fl"><label>Office Number *</label><input id="f-num" value="'+(o.num||'')+'" placeholder="e.g. 37"></div><div class="fl"><label>Status</label><select id="f-status"><option value="Occupied" '+(o.status==='Occupied'?'selected':'')+'>Occupied</option><option value="Vacant" '+(o.status==='Vacant'?'selected':'')+'>Vacant</option></select></div><div class="fl"><label>Member / Tenant</label><select id="f-member">'+mOpts+'</select></div><div class="fl"><label>Tenant Start</label><input id="f-tstart" value="'+(o.tenantStart||'')+'" placeholder="e.g. 9/1/2025"></div><div class="fl"><label>Square Footage</label><input id="f-sqft" type="number" value="'+(o.sqft||'')+'"></div><div class="fl"><label>Dormer Sq Ft</label><input id="f-dormer" type="number" value="'+(o.dormer||'')+'"></div><div class="fl"><label>Listed Rate (Vacant $/mo)</label><input id="f-ldues" type="number" value="'+(o.listDues||'')+'"></div></div>';
+  document.getElementById('form-modal').classList.add('open');
+}
+
+function openMemberForm(id){
+  formType='member';formId=id;pendingFiles=[];const m=id?getMemberById(id):{};
+  document.getElementById('form-title').textContent=id?'Edit Member':'Add Member';
+  document.getElementById('form-body').innerHTML='<div class="fg"><div class="fl full"><label>Member Name *</label><input id="f-name" value="'+(m.name||'')+'" placeholder="Company or individual name"></div>'+statusButtons(m.status||'Active',true)+'<div class="fl"><label>Start Date</label><input id="f-start" type="date" value="'+(m.start||'')+'"></div><div class="fl"><label>End Date</label><input id="f-end" type="date" value="'+(m.end||'')+'"></div><div class="fl"><label>Gross Monthly Dues ($)</label><input id="f-dues" type="number" value="'+(m.dues||'')+'" oninput="updNet()"></div><div class="fl"><label>Discount ($)</label><input id="f-discount" type="number" value="'+(m.discount||0)+'" oninput="updNet()"></div><div class="fl full" style="background:var(--sur2);border:1px solid var(--bdr);border-radius:7px;padding:9px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--txt3);margin-bottom:3px">Net Monthly Dues</div><div id="net-prev" style="font-family:\'IBM Plex Mono\',monospace;font-size:17px;color:var(--grn)">-</div></div><div class="fl"><label>Deposit Held ($)</label><input id="f-deposit" type="number" value="'+(m.deposit||'')+'"></div><div class="fl"><label>Billing Email</label><input id="f-email" type="email" value="'+(m.email||'')+'"></div><div class="fl"><label>Phone</label><input id="f-phone" value="'+(m.phone||'')+'"></div><div class="fl full"><label>Notes</label><textarea id="f-notes">'+(m.notes||'')+'</textarea></div><div class="sect-title">Agreements / Documents</div><div class="fl full"><div class="file-drop" ondragover="this.classList.add(\'drag\')" ondragleave="this.classList.remove(\'drag\')" ondrop="handleDrop(event,\'agreements\')"><input type="file" multiple accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" onchange="handleFiles(this.files,\'agreements\')"><div class="file-drop-txt">📎 Drop files or <span>click to browse</span><br><small>PDF, Word, or images — max 10MB each</small></div></div><div class="pending-files" id="pending-agreements"></div>'+((m.attachments||[]).length?'<div style="margin-top:7px;font-size:11px;color:var(--txt3)">Stored: '+(m.attachments||[]).map(a=>'<span style="color:var(--acc)">'+a.name+'</span>').join(', ')+'</div>':'')+'</div></div>';
+  updNet();document.getElementById('form-modal').classList.add('open');
+}
+function updNet(){const d=Number(document.getElementById('f-dues')?.value)||0;const disc=Number(document.getElementById('f-discount')?.value)||0;const el=document.getElementById('net-prev');if(el)el.textContent='$'+Math.max(0,d-disc).toLocaleString();}
+
+function openOccupantForm(id){
+  formType='occupant';formId=id;pendingFiles=[];const p=id?getOccById(id):{};
+  const cOpts=['',...DB.members.map(m=>m.name)].map(n=>'<option value="'+n+'" '+((p.company||'')==n?'selected':'')+'>'+(n||'— Select —')+'</option>').join('');
+  const oOpts=['',...DB.offices.map(o=>o.num)].map(n=>'<option value="'+n+'" '+((p.office||'')==n?'selected':'')+'>'+(n||'— None —')+'</option>').join('');
+  document.getElementById('form-title').textContent=id?'Edit Occupant':'Add Occupant';
+  document.getElementById('form-body').innerHTML='<div class="fg"><div class="fl full"><label>Full Name *</label><input id="f-name" value="'+(p.name||'')+'" placeholder="First Last"></div><div class="fl"><label>Member Company *</label><select id="f-company">'+cOpts+'</select></div><div class="fl"><label>Office Number</label><select id="f-office">'+oOpts+'</select></div><div class="fl"><label>Phone</label><input id="f-phone" value="'+(p.phone||'')+'"></div><div class="fl"><label>Email</label><input id="f-email" type="email" value="'+(p.email||'')+'"></div>'+statusButtons(p.status||'Active',false)+'<div class="fl"><label>End Date</label><input id="f-endDate" value="'+(p.endDate||'')+'" placeholder="e.g. 7/31/2026"></div><div class="sect-title">Driver\'s License</div><div class="fl full"><div class="file-drop" ondragover="this.classList.add(\'drag\')" ondragleave="this.classList.remove(\'drag\')" ondrop="handleDrop(event,\'dl\')"><input type="file" accept="image/*,.pdf" onchange="handleFiles(this.files,\'dl\')"><div class="file-drop-txt">🪪 Drop driver\'s license or <span>click to browse</span><br><small>JPG, PNG, PDF — max 10MB</small></div></div><div class="pending-files" id="pending-dl"></div>'+(p.dlAttachment?'<div style="margin-top:7px;font-size:11px;color:var(--txt3)">Stored: <span style="color:var(--acc)">'+p.dlAttachment.name+'</span></div>':'')+'</div></div>';
+  document.getElementById('form-modal').classList.add('open');
+}
+
+function openWaitForm(id){
+  formType='waitlist';formId=id;const w=id?DB.waitlist.find(x=>x.id===id):{};
+  document.getElementById('form-title').textContent=id?'Edit Entry':'Add to Waiting List';
+  document.getElementById('form-body').innerHTML='<div class="fg"><div class="fl full"><label>Name *</label><input id="f-name" value="'+(w.name||'')+'" placeholder="Full name or company"></div><div class="fl"><label>Phone</label><input id="f-phone" value="'+(w.phone||'')+'"></div><div class="fl"><label>Date Requested</label><input id="f-date" type="date" value="'+(w.date||'')+'"></div><div class="fl full"><label>Comments / Notes</label><textarea id="f-comment">'+(w.comment||'')+'</textarea></div></div>';
+  document.getElementById('form-modal').classList.add('open');
+}
+
+async function submitForm(){
+  if(formType==='office'){
+    const num=document.getElementById('f-num').value.trim();if(!num){alert('Office number required.');return;}
+    const obj={id:formId||uid(),num,status:document.getElementById('f-status').value,member:document.getElementById('f-member').value,tenantStart:document.getElementById('f-tstart').value,sqft:Number(document.getElementById('f-sqft').value)||null,dormer:Number(document.getElementById('f-dormer').value)||null,listDues:Number(document.getElementById('f-ldues').value)||null};
+    if(formId){const i=DB.offices.findIndex(x=>x.id===formId);DB.offices[i]=obj;}else DB.offices.push(obj);
+  } else if(formType==='member'){
+    const name=document.getElementById('f-name').value.trim();if(!name){alert('Member name required.');return;}
+    const existing=formId?getMemberById(formId):{attachments:[],agreementSent:'',agreementSigned:''};
+    const obj={id:formId||uid(),name,status:document.getElementById('f-status').value,dues:Number(document.getElementById('f-dues').value)||0,discount:Number(document.getElementById('f-discount').value)||0,deposit:Number(document.getElementById('f-deposit').value)||0,start:document.getElementById('f-start').value,end:document.getElementById('f-end').value,email:document.getElementById('f-email').value.trim(),phone:document.getElementById('f-phone').value.trim(),notes:document.getElementById('f-notes').value.trim(),attachments:[...(existing.attachments||[]),...pendingFiles],agreementSent:existing.agreementSent||'',agreementSigned:existing.agreementSigned||''};
+    if(formId){const i=DB.members.findIndex(x=>x.id===formId);DB.members[i]=obj;}else DB.members.push(obj);
+  } else if(formType==='occupant'){
+    const name=document.getElementById('f-name').value.trim();const company=document.getElementById('f-company').value;if(!name||!company){alert('Name and company required.');return;}
+    const existing=formId?getOccById(formId):{dlAttachment:null};
+    const obj={id:formId||uid(),name,company,office:document.getElementById('f-office').value,phone:document.getElementById('f-phone').value.trim(),email:document.getElementById('f-email').value.trim(),status:document.getElementById('f-status').value,endDate:document.getElementById('f-endDate').value.trim(),dlAttachment:pendingFiles.length?pendingFiles[0]:(existing.dlAttachment||null)};
+    if(formId){const i=DB.occupants.findIndex(x=>x.id===formId);DB.occupants[i]=obj;}else DB.occupants.push(obj);
+  } else if(formType==='waitlist'){
+    const name=document.getElementById('f-name').value.trim();if(!name){alert('Name required.');return;}
+    const obj={id:formId||uid(),name,phone:document.getElementById('f-phone').value.trim(),date:document.getElementById('f-date').value,comment:document.getElementById('f-comment').value.trim()};
+    if(formId){const i=DB.waitlist.findIndex(x=>x.id===formId);DB.waitlist[i]=obj;}else DB.waitlist.push(obj);
+  }
+  closeForm();refreshAll();await saveData();toast('Saved ✓');
+}
+function closeForm(){document.getElementById('form-modal').classList.remove('open');formType=null;formId=null;pendingFiles=[];}
+
+// ═══ DELETE ═══
+let confirmCallback=null;
+function askDelete(type,id,label){
+  document.getElementById('conf-title').textContent='Delete Record?';
+  document.getElementById('conf-msg').textContent='Delete "'+label+'"? This cannot be undone.';
+  document.getElementById('conf-ok').textContent='Delete';
+  document.getElementById('conf-ok').style.background='var(--red)';
+  confirmCallback=async()=>{if(type==='office')DB.offices=DB.offices.filter(x=>x.id!==id);if(type==='member')DB.members=DB.members.filter(x=>x.id!==id);if(type==='occupant')DB.occupants=DB.occupants.filter(x=>x.id!==id);if(type==='waitlist')DB.waitlist=DB.waitlist.filter(x=>x.id!==id);closeConf();refreshAll();await saveData();toast('Deleted','var(--red)');};
+  document.getElementById('conf-modal').classList.add('open');
+}
+function confirmAction(){if(confirmCallback){confirmCallback();confirmCallback=null;}}
+function closeConf(){document.getElementById('conf-modal').classList.remove('open');}
+
+// ═══ NAV ═══
+function showPage(id,btn){document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));document.querySelectorAll('.nb').forEach(b=>b.classList.remove('on'));document.getElementById('page-'+id).classList.add('on');btn.classList.add('on');}
+function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.getElementById(id).classList.remove('open');}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')['form-modal','view-modal','conf-modal','onboard-modal'].forEach(id=>document.getElementById(id).classList.remove('open'));});
+
+loadData();
+</script>
+</body>
+</html>

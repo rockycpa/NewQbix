@@ -1,0 +1,272 @@
+{% extends "base.html" %}
+{% block title %}Book Conference Room — Calendar{% endblock %}
+
+{% block extra_css %}
+<style>
+.cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.cal-nav{background:none;border:1px solid var(--border);border-radius:6px;width:36px;height:36px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center}
+.cal-nav:hover{background:var(--light)}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cal-day-label{text-align:center;font-size:12px;font-weight:600;color:var(--txt2);padding:8px 0}
+.cal-day{text-align:center;padding:10px 4px;border-radius:7px;cursor:pointer;border:1px solid transparent;transition:all .15s;min-height:60px;position:relative}
+.cal-day:hover:not(.cal-day-past):not(.cal-day-empty){background:var(--light);border-color:var(--border)}
+.cal-day.cal-day-today{border-color:var(--gold);background:#fef3c7}
+.cal-day.cal-day-past{opacity:.4;cursor:default}
+.cal-day.cal-day-empty{cursor:default}
+.cal-day .day-num{font-size:14px;font-weight:500}
+.cal-day .day-slots{display:flex;flex-direction:column;gap:2px;margin-top:4px}
+.slot-pip{font-size:9px;padding:1px 4px;border-radius:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.slot-pip.taken{background:#fee2e2;color:#991b1b}
+.slot-pip.mine{background:#d1fae5;color:#065f46}
+
+.time-picker{background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:24px;margin-top:20px}
+.time-picker h3{font-family:'Playfair Display',serif;color:var(--navy);margin-bottom:16px}
+.time-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px}
+.time-btn{padding:8px;border:1px solid var(--border);border-radius:6px;background:#fff;cursor:pointer;font-size:13px;transition:all .15s;text-align:center}
+.time-btn:hover{border-color:var(--navy);background:var(--light)}
+.time-btn.selected{background:var(--navy);color:#fff;border-color:var(--navy)}
+.time-btn.unavailable{opacity:.4;cursor:default;background:#f3f4f6}
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="background:var(--navy);padding:20px 5%;color:#fff;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+  <div>
+    <div style="font-family:'Playfair Display',serif;font-size:20px;color:var(--gold)">Conference Room Booking</div>
+    <div style="font-size:13px;opacity:.75;margin-top:2px">Welcome, {{ member_name }} — {{ included_hours }} hours included monthly</div>
+  </div>
+  <a href="/book" style="color:rgba(255,255,255,.6);font-size:13px">Sign out</a>
+</div>
+
+<section style="max-width:900px;margin:0 auto">
+  <div style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap">
+
+    <!-- Calendar -->
+    <div style="flex:1;min-width:300px">
+      <div class="cal-header">
+        <button class="cal-nav" onclick="prevMonth()">◀</button>
+        <div style="font-family:'Playfair Display',serif;font-size:20px;color:var(--navy)" id="cal-title"></div>
+        <button class="cal-nav" onclick="nextMonth()">▶</button>
+      </div>
+      <div class="cal-grid" id="cal-grid">
+        <div class="cal-day-label">Mon</div>
+        <div class="cal-day-label">Tue</div>
+        <div class="cal-day-label">Wed</div>
+        <div class="cal-day-label">Thu</div>
+        <div class="cal-day-label">Fri</div>
+        <div class="cal-day-label">Sat</div>
+        <div class="cal-day-label">Sun</div>
+      </div>
+    </div>
+
+    <!-- Booking panel -->
+    <div style="width:300px">
+      <div id="booking-panel" class="time-picker" style="display:none">
+        <h3 id="panel-date"></h3>
+        <div class="form-group">
+          <label style="font-size:13px">Meeting Title</label>
+          <input type="text" id="booking-title" placeholder="e.g. Client Meeting" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:14px;outline:none">
+        </div>
+        <div class="form-group" style="margin-top:12px">
+          <label style="font-size:13px">Start Time</label>
+          <select id="start-time" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:14px" onchange="updateEndTimes()">
+          </select>
+        </div>
+        <div class="form-group" style="margin-top:12px">
+          <label style="font-size:13px">End Time</label>
+          <select id="end-time" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:14px">
+          </select>
+        </div>
+        <button onclick="confirmBooking()" class="btn btn-gold" style="width:100%;margin-top:16px">Confirm Booking</button>
+      </div>
+
+      <div id="success-panel" class="time-picker" style="display:none;text-align:center">
+        <div style="font-size:40px;margin-bottom:12px">✅</div>
+        <h3>Booking Confirmed!</h3>
+        <p style="color:var(--txt2);font-size:14px;margin-top:8px" id="confirm-msg"></p>
+        <button onclick="location.reload()" class="btn btn-navy btn-sm" style="margin-top:16px">Book Another</button>
+      </div>
+
+      <!-- Upcoming bookings -->
+      <div class="time-picker" style="margin-top:16px">
+        <h3 style="font-size:16px">My Upcoming Bookings</h3>
+        <div id="my-bookings" style="margin-top:12px;font-size:13px;color:var(--txt2)">Loading...</div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+{% block extra_js %}
+<script>
+const TOKEN = '{{ token }}';
+const MEMBER = '{{ member_name }}';
+let currentYear  = new Date().getFullYear();
+let currentMonth = new Date().getMonth() + 1;
+let selectedDate = null;
+let bookedSlots  = [];
+
+const TIMES = ['7:00','7:30','8:00','8:30','9:00','9:30','10:00','10:30','11:00','11:30',
+               '12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30','16:00',
+               '16:30','17:00','17:30','18:00'];
+
+async function loadSlots(){
+  const r = await fetch(`/book/slots?token=${TOKEN}&year=${currentYear}&month=${currentMonth}`);
+  const result = await r.json();
+  bookedSlots = result.ok ? result.slots : [];
+  renderCalendar();
+  loadMyBookings();
+}
+
+function renderCalendar(){
+  const grid = document.getElementById('cal-grid');
+  // Remove day cells (keep headers)
+  while(grid.children.length > 7) grid.removeChild(grid.lastChild);
+
+  document.getElementById('cal-title').textContent =
+    new Date(currentYear, currentMonth-1, 1).toLocaleDateString('en-US',{month:'long',year:'numeric'});
+
+  const firstDay = new Date(currentYear, currentMonth-1, 1).getDay(); // 0=Sun
+  const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  // Offset: Mon=0, need to convert Sun=0 to Mon=0
+  const offset = (firstDay === 0) ? 6 : firstDay - 1;
+  for(let i=0; i<offset; i++){
+    const empty = document.createElement('div');
+    empty.className = 'cal-day cal-day-empty'; grid.appendChild(empty);
+  }
+
+  for(let d=1; d<=daysInMonth; d++){
+    const dt = new Date(currentYear, currentMonth-1, d);
+    const ds = `${currentYear}-${String(currentMonth).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isPast = dt < today;
+    const isToday = dt.getTime() === today.getTime();
+    const dayBookings = bookedSlots.filter(b => b.date === ds);
+
+    const cell = document.createElement('div');
+    cell.className = 'cal-day' + (isPast?' cal-day-past':'') + (isToday?' cal-day-today':'');
+
+    let html = `<div class="day-num">${d}</div><div class="day-slots">`;
+    dayBookings.forEach(b => {
+      const isMe = b.memberName === MEMBER;
+      html += `<div class="slot-pip ${isMe?'mine':'taken'}">${b.start}–${b.end}</div>`;
+    });
+    html += '</div>';
+    cell.innerHTML = html;
+
+    if(!isPast){
+      cell.onclick = () => selectDate(ds, dt.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'}), dayBookings);
+    }
+    grid.appendChild(cell);
+  }
+}
+
+function selectDate(dateStr, dateLabel, dayBookings){
+  selectedDate = dateStr;
+  const panel = document.getElementById('booking-panel');
+  document.getElementById('success-panel').style.display = 'none';
+  panel.style.display = 'block';
+  document.getElementById('panel-date').textContent = dateLabel;
+
+  // Build start time options (exclude taken slots)
+  const takenRanges = dayBookings.map(b => ({s:b.start,e:b.end}));
+  const startSel = document.getElementById('start-time');
+  startSel.innerHTML = '';
+  TIMES.slice(0,-1).forEach(t => {
+    const blocked = takenRanges.some(r => t >= r.s && t < r.e);
+    if(!blocked){
+      const opt = document.createElement('option');
+      opt.value = t; opt.textContent = formatTime(t); startSel.appendChild(opt);
+    }
+  });
+  updateEndTimes();
+}
+
+function updateEndTimes(){
+  const start = document.getElementById('start-time').value;
+  const startIdx = TIMES.indexOf(start);
+  const endSel = document.getElementById('end-time');
+  endSel.innerHTML = '';
+  const dayBookings = bookedSlots.filter(b => b.date === selectedDate);
+  const takenRanges = dayBookings.map(b => ({s:b.start,e:b.end}));
+
+  for(let i=startIdx+1; i<TIMES.length; i++){
+    const t = TIMES[i];
+    // Stop if this slot is taken
+    const blocked = takenRanges.some(r => t > r.s && t <= r.e);
+    if(blocked) break;
+    const opt = document.createElement('option');
+    opt.value = t; opt.textContent = formatTime(t); endSel.appendChild(opt);
+  }
+}
+
+function formatTime(t){
+  const [h,m] = t.split(':').map(Number);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const h12 = h > 12 ? h-12 : h === 0 ? 12 : h;
+  return `${h12}:${String(m).padStart(2,'0')} ${ampm}`;
+}
+
+async function confirmBooking(){
+  const start = document.getElementById('start-time').value;
+  const end   = document.getElementById('end-time').value;
+  const title = document.getElementById('booking-title').value || 'Meeting';
+
+  if(!start || !end){ toast('Please select start and end times.','#dc2626'); return; }
+
+  const btn = document.querySelector('#booking-panel .btn-gold');
+  btn.disabled=true; btn.textContent='Booking...';
+
+  const r = await fetch('/book/create',{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({token:TOKEN, date:selectedDate, start, end, title})
+  });
+  const result = await r.json();
+
+  if(result.ok){
+    document.getElementById('booking-panel').style.display='none';
+    document.getElementById('success-panel').style.display='block';
+    document.getElementById('confirm-msg').textContent =
+      `${selectedDate} from ${formatTime(start)} to ${formatTime(end)}. A confirmation has been sent to your email.`;
+    loadSlots();
+  } else {
+    toast(result.error || 'Booking failed.','#dc2626');
+    btn.disabled=false; btn.textContent='Confirm Booking';
+  }
+}
+
+async function loadMyBookings(){
+  const today = new Date().toISOString().slice(0,10);
+  const upcoming = bookedSlots
+    .filter(b => b.memberName===MEMBER && b.date >= today)
+    .sort((a,b) => (a.date+a.start).localeCompare(b.date+b.start))
+    .slice(0,5);
+
+  const el = document.getElementById('my-bookings');
+  if(!upcoming.length){
+    el.textContent = 'No upcoming bookings.'; return;
+  }
+  el.innerHTML = upcoming.map(b =>
+    `<div style="padding:8px 0;border-bottom:1px solid var(--border)">
+      <div style="font-weight:500;color:var(--txt)">${b.date}</div>
+      <div style="color:var(--txt2)">${b.start}–${b.end} · ${b.title||'Meeting'}</div>
+    </div>`
+  ).join('');
+}
+
+function prevMonth(){
+  currentMonth--;
+  if(currentMonth < 1){ currentMonth=12; currentYear--; }
+  loadSlots();
+}
+function nextMonth(){
+  currentMonth++;
+  if(currentMonth > 12){ currentMonth=1; currentYear++; }
+  loadSlots();
+}
+
+loadSlots();
+</script>
+{% endblock %}
+{% endblock %}
