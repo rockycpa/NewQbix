@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Qbix Centre — Complete Web Application
 Runs on Railway. Serves both the public website and the management app.
