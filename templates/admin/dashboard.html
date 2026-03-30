@@ -502,6 +502,7 @@ tr.rclick:hover td{background:rgba(255,255,255,.02);cursor:pointer}
 <div class="toast" id="toast"></div>
 
 <script>
+{% raw %}
 // ═══ DATA ═══
 let DB = {};
 
@@ -509,11 +510,18 @@ async function loadData(){
   setSaveStatus('loading');
   try{
     const r = await fetch('/admin/api/data');
-    DB = await r.json();
+    if(!r.ok){ throw new Error('Server returned '+r.status); }
+    const text = await r.text();
+    try{ DB = JSON.parse(text); }
+    catch(pe){ throw new Error('Bad JSON from server: '+text.slice(0,100)); }
     setSaveStatus('saved');
     refreshAll();
     checkDailyBackup();
-  } catch(e){ setSaveStatus('error'); toast('Could not load data','var(--red)'); }
+  } catch(e){
+    setSaveStatus('error');
+    toast('Could not load data: '+e.message,'var(--red)',6000);
+    console.error('loadData error:',e);
+  }
 }
 
 async function saveData(){
@@ -938,6 +946,7 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
 document.addEventListener('keydown',e=>{if(e.key==='Escape')['form-modal','view-modal','conf-modal','onboard-modal'].forEach(id=>document.getElementById(id).classList.remove('open'));});
 
 loadData();
+{% endraw %}
 </script>
 </body>
 </html>
