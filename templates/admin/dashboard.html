@@ -512,7 +512,7 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
 
 <script>
 {% raw %}
-// ═══ DATA ═══
+// === DATA ===
 let DB = {};
 
 async function loadData(){
@@ -556,7 +556,7 @@ async function doBackup(){
   try{
     const r = await fetch('/admin/api/backup');
     const result = await r.json();
-    if(result.ok){ DB.lastBackup=new Date().toISOString().slice(0,10); document.getElementById('save-status').textContent='All changes saved'; toast('Backup saved ✓'); }
+    if(result.ok){ DB.lastBackup=new Date().toISOString().slice(0,10); document.getElementById('save-status').textContent='All changes saved'; toast('Backup saved &#10003;'); }
     else toast('Backup failed: '+(result.error||''),'var(--red)');
   } catch(e){ toast('Backup failed','var(--red)'); }
 }
@@ -568,7 +568,7 @@ function checkDailyBackup(){
   }
 }
 
-// ═══ HELPERS ═══
+// === HELPERS ===
 const uid  = () => '_'+Math.random().toString(36).slice(2,9);
 const f$   = n => (n==null||n===''||isNaN(n))? '$0' : '$'+Number(n).toLocaleString();
 const fD   = d => { if(!d) return '-'; try{ return new Date(d+(d.includes('T')||d.length>10?'':'T12:00:00')).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }catch(e){return d;} };
@@ -591,7 +591,7 @@ function toast(msg,col,dur){
 function fileToB64(file){ return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res({name:file.name,type:file.type,data:r.result});r.onerror=rej;r.readAsDataURL(file);}); }
 function openAttachment(att){ if(!att)return; const w=window.open('','_blank'); if(att.type&&att.type.startsWith('image/')){w.document.write('<!DOCTYPE html><html><body style="margin:0;background:#111"><img src="'+att.data+'" style="max-width:100%;height:auto"></body></html>');}else{const a=w.document.createElement('a');a.href=att.data;a.download=att.name;w.document.body.appendChild(a);a.click();setTimeout(()=>w.close(),500);} }
 
-// ═══ DASHBOARD ═══
+// === DASHBOARD ===
 function buildDash(){
   const active=DB.members.filter(m=>m.status==='Active'&&m.dues>0).sort((a,b)=>net(b)-net(a));
   const mx=active[0]?net(active[0]):1;
@@ -620,7 +620,7 @@ async function sendMonthlyUsage(){
 
 function buildNewsletterHistory(){
   const posts=(DB.newsletter||[]).slice().reverse().slice(0,10);
-  document.getElementById('nl-history').innerHTML=posts.length?posts.map(p=>`<div style="padding:8px 0;border-bottom:1px solid var(--bdr)"><div style="font-size:12px;color:var(--txt3)">${p.date?p.date.slice(0,10):''} ${p.sent?'· Emailed to members':''}</div><div style="font-size:13px;font-weight:500;margin-top:2px">${p.subject}</div></div>`).join(''):'<div style="color:var(--txt3);font-size:13px">No newsletters yet</div>';
+  document.getElementById('nl-history').innerHTML=posts.length?posts.map(p=>`<div style="padding:8px 0;border-bottom:1px solid var(--bdr)"><div style="font-size:12px;color:var(--txt3)">${p.date?p.date.slice(0,10):''} ${p.sent?'&middot; Emailed to members':''}</div><div style="font-size:13px;font-weight:500;margin-top:2px">${p.subject}</div></div>`).join(''):'<div style="color:var(--txt3);font-size:13px">No newsletters yet</div>';
 }
 
 async function generateNewsletter(){
@@ -637,7 +637,7 @@ async function generateNewsletter(){
       toast('Draft generated! Review and edit before sending.');
     } else { toast('Error: '+result.error,'var(--red)'); }
   } catch(e){ toast('Generation failed: '+e.message,'var(--red)'); }
-  btn.disabled=false; btn.textContent='✨ Generate Draft with AI';
+  btn.disabled=false; btn.textContent=' Generate Draft with AI';
 }
 
 async function publishNewsletter(send){
@@ -652,13 +652,13 @@ async function publishNewsletter(send){
     buildNewsletterHistory();
     document.getElementById('nl-draft-area').style.display='none';
     document.getElementById('nl-notes').value='';
-    toast(send?`Newsletter sent to ${result.sent} members ✓`:'Newsletter saved to website ✓');
+    toast(send?`Newsletter sent to ${result.sent} members &#10003;`:'Newsletter saved to website &#10003;');
   } else toast('Error: '+result.error,'var(--red)');
 }
 
 function refreshAll(){ buildDash(); renderOffices(); renderMembers(); renderOccupants(); renderWaitlist(); buildNotify(); buildBookingsTab(); buildNewsletterHistory(); }
 
-// ═══ OFFICES ═══
+// === OFFICES ===
 let ofFilter='all',ofSearch='';
 function renderOffices(){
   const list=DB.offices.filter(o=>{
@@ -700,7 +700,7 @@ function openOfficeMo(id){
   document.getElementById('view-modal').classList.add('open');
 }
 
-// ═══ MEMBERS ═══
+// === MEMBERS ===
 let mSearch='',mFilter='Active';
 function renderMembers(){
   const list=DB.members.filter(m=>{
@@ -736,7 +736,7 @@ function openMemberMo(id){
   if(occs.length){h+='<div class="divr"></div><div class="di full"><label>Occupants ('+occs.length+')</label><div style="margin-top:5px">'+occs.map(p=>'<div class="occ-tag" onclick="closeMo(null,\'view-modal\');setTimeout(()=>openOccMo(\''+esc(p.id)+'\'),60)"><span class="occ-dot '+(p.status.toLowerCase())+'"></span>'+p.name+'</div>').join('')+'</div></div>';}
   document.getElementById('mo-body').innerHTML=h;
   if(atts.length){
-    document.getElementById('att-list-view').innerHTML=atts.map((a,i)=>'<div class="att-item"><span>'+(a.type&&a.type.startsWith('image/')?'🖼':'📄')+'</span><span class="att-name">'+a.name+'</span><button class="att-open" data-mid="'+m.id+'" data-idx="'+i+'">Open</button><button class="att-del-btn" data-mid="'+m.id+'" data-idx="'+i+'">&#x2715;</button></div>').join('');
+    document.getElementById('att-list-view').innerHTML=atts.map((a,i)=>'<div class="att-item"><span>'+(a.type&&a.type.startsWith('image/')?'&#128444;':'&#128196;')+'</span><span class="att-name">'+a.name+'</span><button class="att-open" data-mid="'+m.id+'" data-idx="'+i+'">Open</button><button class="att-del-btn" data-mid="'+m.id+'" data-idx="'+i+'">&#x2715;</button></div>').join('');
     document.querySelectorAll('.att-open').forEach(btn=>{btn.onclick=()=>{const mm=getMemberById(btn.dataset.mid);openAttachment(mm.attachments[+btn.dataset.idx]);};});
     document.querySelectorAll('.att-del-btn').forEach(btn=>{btn.onclick=()=>{const mm=getMemberById(btn.dataset.mid);mm.attachments.splice(+btn.dataset.idx,1);closeMo(null,'view-modal');setTimeout(()=>openMemberMo(m.id),60);saveData();toast('Attachment removed');};});
   }
@@ -755,7 +755,7 @@ function downloadAgreement(id){
   if(!m.agreementSent){m.agreementSent=new Date().toISOString().slice(0,10);saveData();renderMembers();}
 }
 function markAgreementSent(id){const m=getMemberById(id);m.agreementSent=new Date().toISOString().slice(0,10);saveData();closeMo(null,'view-modal');setTimeout(()=>openMemberMo(id),60);toast('Marked as sent');}
-function markAgreementSigned(id){const m=getMemberById(id);m.agreementSigned=new Date().toISOString().slice(0,10);if(m.status==='Pending')m.status='Active';saveData();closeMo(null,'view-modal');setTimeout(()=>openMemberMo(id),60);toast('Marked as signed &mdash; status set to Active ✓');}
+function markAgreementSigned(id){const m=getMemberById(id);m.agreementSigned=new Date().toISOString().slice(0,10);if(m.status==='Pending')m.status='Active';saveData();closeMo(null,'view-modal');setTimeout(()=>openMemberMo(id),60);toast('Marked as signed &mdash; status set to Active &#10003;');}
 
 // Onboarding link
 function openOnboardLink(){document.getElementById('ob-name').value='';document.getElementById('ob-email').value='';document.getElementById('ob-result').style.display='none';document.getElementById('onboard-modal').classList.add('open');}
@@ -772,7 +772,7 @@ async function generateOnboardLink(){
   } else toast('Error: '+result.error,'var(--red)');
 }
 
-// ═══ OCCUPANTS ═══
+// === OCCUPANTS ===
 let occSearch='',occFilter='Active';
 function renderOccupants(){
   const list=DB.occupants.filter(o=>{
@@ -784,7 +784,7 @@ function renderOccupants(){
   document.getElementById('occ-tbody').innerHTML=list.map(o=>{
     let dlCell;
     if(o.dlAttachment&&o.dlAttachment.type&&o.dlAttachment.type.startsWith('image/')){dlCell='<img src="'+o.dlAttachment.data+'" style="height:38px;width:60px;object-fit:cover;border-radius:5px;border:1px solid var(--bdr);display:block;cursor:pointer" onclick="event.stopPropagation();openAttachment(getOccById(\''+esc(o.id)+'\').dlAttachment)">';}
-    else if(o.dlAttachment){dlCell='<span style="font-size:11px;color:var(--acc);cursor:pointer" onclick="event.stopPropagation();openAttachment(getOccById(\''+esc(o.id)+'\').dlAttachment)">📄 PDF</span>';}
+    else if(o.dlAttachment){dlCell='<span style="font-size:11px;color:var(--acc);cursor:pointer" onclick="event.stopPropagation();openAttachment(getOccById(\''+esc(o.id)+'\').dlAttachment)">&#128196; PDF</span>';}
     else{dlCell='<span style="color:var(--txt3);font-size:12px">Missing</span>';}
     return '<tr class="rclick" onclick="openOccMo(\''+esc(o.id)+'\')">'+'<td><strong>'+o.name+'</strong></td><td style="color:var(--txt2)">'+o.company+'</td>'+'<td class="mono">'+(o.office?'Office '+o.office:'-')+'</td>'+'<td class="mono" style="font-size:12px">'+(o.phone||'-')+'</td>'+'<td style="font-size:12px">'+(o.email?'<a href="mailto:'+o.email+'" style="color:var(--blue)">'+o.email+'</a>':'-')+'</td>'+'<td><span class="badge '+(o.status==='Active'?'bg':o.status==='Pending'?'ba':'br')+'">'+o.status+'</span></td>'+'<td class="mono" style="color:'+(o.endDate?'var(--red)':'var(--txt3)')+';font-size:12px">'+(o.endDate||'-')+'</td>'+'<td style="padding:5px 10px">'+dlCell+'</td></tr>';
   }).join('')||'<tr><td colspan="8" style="color:var(--txt3);text-align:center;padding:20px">No occupants found</td></tr>';
@@ -800,7 +800,7 @@ function openOccMo(id){
   h+='<div class="di"><label>Office</label><value class="mono">'+(o.office?'Office '+o.office:'-')+'</value></div>';
   h+='<div class="di"><label>Phone</label><value class="mono">'+(o.phone||'-')+'</value></div>';
   h+='<div class="di"><label>Email</label><value style="font-size:12px">'+eml(o.email)+'</value></div>';
-  h+='<div class="di full"><label>Member Company</label><value style="cursor:pointer;color:var(--acc)" id="occ-co-link">'+o.company+' ↗</value></div>';
+  h+='<div class="di full"><label>Member Company</label><value style="cursor:pointer;color:var(--acc)" id="occ-co-link">'+o.company+' &#8599;</value></div>';
   if(o.endDate)h+='<div class="di full"><label>End Date</label><value style="color:var(--red)">'+o.endDate+'</value></div>';
   h+='<div class="divr"></div><div class="di full"><label>Driver\'s License</label>';
   if(o.dlAttachment){h+='<div class="att-list" id="dl-view"></div>';if(o.dlAttachment.type&&o.dlAttachment.type.startsWith('image/'))h+='<img src="'+o.dlAttachment.data+'" class="dl-preview" alt="DL">';}
@@ -809,7 +809,7 @@ function openOccMo(id){
   document.getElementById('mo-body').innerHTML=h;
   document.getElementById('occ-co-link').onclick=()=>{const mm=getMember(o.company);closeMo(null,'view-modal');if(mm)setTimeout(()=>openMemberMo(mm.id),60);};
   if(o.dlAttachment){
-    document.getElementById('dl-view').innerHTML='<div class="att-item"><span>🪪</span><span class="att-name">'+o.dlAttachment.name+'</span><button class="att-open" id="dl-open-btn">Open</button><button class="att-del-btn" id="dl-del-btn">&#x2715;</button></div>';
+    document.getElementById('dl-view').innerHTML='<div class="att-item"><span>&#127818;</span><span class="att-name">'+o.dlAttachment.name+'</span><button class="att-open" id="dl-open-btn">Open</button><button class="att-del-btn" id="dl-del-btn">&#x2715;</button></div>';
     document.getElementById('dl-open-btn').onclick=()=>openAttachment(getOccById(id).dlAttachment);
     document.getElementById('dl-del-btn').onclick=()=>{const p=getOccById(id);p.dlAttachment=null;closeMo(null,'view-modal');setTimeout(()=>openOccMo(id),60);saveData();toast('DL removed');};
   }
@@ -817,12 +817,12 @@ function openOccMo(id){
   document.getElementById('view-modal').classList.add('open');
 }
 
-// ═══ WAITLIST ═══
+// === WAITLIST ===
 function renderWaitlist(){
   document.getElementById('wl-container').innerHTML=DB.waitlist.map((w,i)=>'<div class="wc"><div class="wn">'+(i+1)+'</div><div class="wi"><div class="wna">'+w.name+'</div><div class="wph">'+w.phone+'</div><div class="wco">'+w.comment+'</div><div class="wact"><button class="btn-sm" onclick="openWaitForm(\''+esc(w.id)+'\')">Edit</button><button class="btn-sm del" onclick="askDelete(\'waitlist\',\''+esc(w.id)+'\',\''+esc(w.name)+'\')">Delete</button></div></div><div class="wdt">'+fD(w.date)+'</div></div>').join('')||'<div style="color:var(--txt3);padding:20px 0">Waiting list is empty.</div>';
 }
 
-// ═══ NOTIFY ═══
+// === NOTIFY ===
 let selectedRecipients=[];
 function buildNotify(){
   const all=getUniqPeople('everyone');
@@ -831,7 +831,7 @@ function buildNotify(){
   document.getElementById('gc-everyone').textContent=all.length;
   document.getElementById('gc-email').textContent=all.filter(p=>p.email).length;
   document.getElementById('gc-phone').textContent=all.filter(p=>p.phone).length;
-  document.getElementById('individual-list').innerHTML=getUniqPeople('everyone').map(p=>'<div style="display:flex;align-items:center;gap:7px;padding:5px 4px;border-radius:6px;cursor:pointer" onclick="toggleIndividual(\''+esc(p.id)+'\',\''+esc(p.name)+'\',\''+esc(p.email||'')+'\',\''+esc(p.phone||'')+'\',\''+esc(p.office||'')+'\',\''+esc(p.company||'')+'\',\''+p.type+'\')">'+'<div style="width:14px;height:14px;border-radius:3px;border:1px solid var(--bdr);background:var(--sur2);flex-shrink:0;font-size:10px;display:flex;align-items:center;justify-content:center" id="indv-chk-'+p.id+'"></div>'+'<div style="flex:1;min-width:0"><div style="font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+p.name+'</div><div style="font-size:10px;color:var(--txt3)">'+(p.type==='member'?'Member':'Occupant')+(p.office?' &mdash; Ofc '+p.office:'')+'</div></div>'+'<div style="display:flex;gap:3px">'+(p.email?'<span style="font-size:10px;color:var(--blue)">✉</span>':'')+(p.phone?'<span style="font-size:10px;color:var(--grn)">📱</span>':'')+'</div></div>').join('');
+  document.getElementById('individual-list').innerHTML=getUniqPeople('everyone').map(p=>'<div style="display:flex;align-items:center;gap:7px;padding:5px 4px;border-radius:6px;cursor:pointer" onclick="toggleIndividual(\''+esc(p.id)+'\',\''+esc(p.name)+'\',\''+esc(p.email||'')+'\',\''+esc(p.phone||'')+'\',\''+esc(p.office||'')+'\',\''+esc(p.company||'')+'\',\''+p.type+'\')">'+'<div style="width:14px;height:14px;border-radius:3px;border:1px solid var(--bdr);background:var(--sur2);flex-shrink:0;font-size:10px;display:flex;align-items:center;justify-content:center" id="indv-chk-'+p.id+'"></div>'+'<div style="flex:1;min-width:0"><div style="font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+p.name+'</div><div style="font-size:10px;color:var(--txt3)">'+(p.type==='member'?'Member':'Occupant')+(p.office?' &mdash; Ofc '+p.office:'')+'</div></div>'+'<div style="display:flex;gap:3px">'+(p.email?'<span style="font-size:10px;color:var(--blue)">&#9993;</span>':'')+(p.phone?'<span style="font-size:10px;color:var(--grn)">&#128241;</span>':'')+'</div></div>').join('');
   renderTemplates();
   selectGroup('all-members',document.getElementById('grp-all-members'));
 }
@@ -847,22 +847,22 @@ function getUniqPeople(group){
 }
 function selectGroup(group,btn){document.querySelectorAll('.group-btn').forEach(b=>b.classList.remove('on'));btn.classList.add('on');selectedRecipients=getUniqPeople(group);renderRecipients();syncCheckboxes();}
 function toggleIndividual(id,name,email,phone,office,company,type){const idx=selectedRecipients.findIndex(r=>r.id===id);if(idx>=0)selectedRecipients.splice(idx,1);else{selectedRecipients.push({id,name,email,phone,office,company,type,dues:0});if(type==='member'){const m=getMemberById(id);if(m)selectedRecipients[selectedRecipients.length-1].dues=net(m);}}document.querySelectorAll('.group-btn').forEach(b=>b.classList.remove('on'));renderRecipients();syncCheckboxes();}
-function syncCheckboxes(){const ids=new Set(selectedRecipients.map(r=>r.id));document.querySelectorAll('[id^="indv-chk-"]').forEach(el=>{const pid=el.id.replace('indv-chk-','');el.textContent=ids.has(pid)?'✓':'';el.style.borderColor=ids.has(pid)?'var(--blue)':'var(--bdr)';el.style.background=ids.has(pid)?'var(--blue)':'var(--sur2)';el.style.color='#fff';});}
-function renderRecipients(){const withEmail=selectedRecipients.filter(r=>r.email);const withPhone=selectedRecipients.filter(r=>r.phone&&!r.email);document.getElementById('recipient-area').innerHTML=[...withEmail.map(r=>'<span class="chip">'+r.name+'<button class="chip-rm" onclick="removeRecipient(\''+r.id+'\')">✕</button></span>'),...withPhone.map(r=>'<span class="chip phone-chip">📱 '+r.name+'<button class="chip-rm" onclick="removeRecipient(\''+r.id+'\')">✕</button></span>')].join('');document.getElementById('recip-count').textContent='('+selectedRecipients.length+' &mdash; '+withEmail.length+' email &mdash; '+selectedRecipients.filter(r=>r.phone).length+' phone)';}
+function syncCheckboxes(){const ids=new Set(selectedRecipients.map(r=>r.id));document.querySelectorAll('[id^="indv-chk-"]').forEach(el=>{const pid=el.id.replace('indv-chk-','');el.textContent=ids.has(pid)?'&#10003;':'';el.style.borderColor=ids.has(pid)?'var(--blue)':'var(--bdr)';el.style.background=ids.has(pid)?'var(--blue)':'var(--sur2)';el.style.color='#fff';});}
+function renderRecipients(){const withEmail=selectedRecipients.filter(r=>r.email);const withPhone=selectedRecipients.filter(r=>r.phone&&!r.email);document.getElementById('recipient-area').innerHTML=[...withEmail.map(r=>'<span class="chip">'+r.name+'<button class="chip-rm" onclick="removeRecipient(\''+r.id+'\')">&#x2715;</button></span>'),...withPhone.map(r=>'<span class="chip phone-chip">&#128241; '+r.name+'<button class="chip-rm" onclick="removeRecipient(\''+r.id+'\')">&#x2715;</button></span>')].join('');document.getElementById('recip-count').textContent='('+selectedRecipients.length+' &mdash; '+withEmail.length+' email &mdash; '+selectedRecipients.filter(r=>r.phone).length+' phone)';}
 function removeRecipient(id){selectedRecipients=selectedRecipients.filter(r=>r.id!==id);document.querySelectorAll('.group-btn').forEach(b=>b.classList.remove('on'));renderRecipients();syncCheckboxes();}
 function insertMerge(tag){const ta=document.getElementById('msg-body');const s=ta.selectionStart,e=ta.selectionEnd;ta.value=ta.value.slice(0,s)+tag+ta.value.slice(e);ta.selectionStart=ta.selectionEnd=s+tag.length;ta.focus();}
 function applyMerge(tpl,p){return tpl.replace(/\{name\}/g,p.name||'').replace(/\{office\}/g,p.office?'Office '+p.office:'').replace(/\{company\}/g,p.company||'').replace(/\{dues\}/g,p.dues?'$'+Number(p.dues).toLocaleString():'');}
 function sendEmail(){const emails=selectedRecipients.filter(r=>r.email).map(r=>r.email);if(!emails.length){toast('No email recipients','var(--red)');return;}window.open('mailto:?bcc='+encodeURIComponent(emails.join(','))+'&subject='+encodeURIComponent(document.getElementById('msg-subject').value||'Message from Qbix Centre')+'&body='+encodeURIComponent(document.getElementById('msg-body').value||''));toast('Opening email with '+emails.length+' BCC recipients');}
-function copyPhones(){const phones=selectedRecipients.filter(r=>r.phone).map(r=>r.phone.replace(/\D/g,''));if(!phones.length){toast('No phone numbers','var(--red)');return;}navigator.clipboard.writeText(phones.join(', ')).then(()=>toast('📱 '+phones.length+' numbers copied')).catch(()=>{const rb=document.getElementById('result-box');rb.style.display='block';rb.textContent='Phone numbers:\n'+phones.join('\n');});}
-function copyEmails(){const emails=selectedRecipients.filter(r=>r.email).map(r=>r.email);if(!emails.length){toast('No emails','var(--red)');return;}navigator.clipboard.writeText(emails.join('; ')).then(()=>toast('📋 '+emails.length+' emails copied')).catch(()=>{const rb=document.getElementById('result-box');rb.style.display='block';rb.textContent=emails.join('\n');});}
+function copyPhones(){const phones=selectedRecipients.filter(r=>r.phone).map(r=>r.phone.replace(/\D/g,''));if(!phones.length){toast('No phone numbers','var(--red)');return;}navigator.clipboard.writeText(phones.join(', ')).then(()=>toast('&#128241; '+phones.length+' numbers copied')).catch(()=>{const rb=document.getElementById('result-box');rb.style.display='block';rb.textContent='Phone numbers:\n'+phones.join('\n');});}
+function copyEmails(){const emails=selectedRecipients.filter(r=>r.email).map(r=>r.email);if(!emails.length){toast('No emails','var(--red)');return;}navigator.clipboard.writeText(emails.join('; ')).then(()=>toast('&#128203; '+emails.length+' emails copied')).catch(()=>{const rb=document.getElementById('result-box');rb.style.display='block';rb.textContent=emails.join('\n');});}
 function previewMessages(){const body=document.getElementById('msg-body').value;if(!body.trim()){toast('Write a message first','var(--red)');return;}const wc=selectedRecipients.filter(r=>r.email||r.phone);if(!wc.length){toast('No contactable recipients','var(--red)');return;}const rb=document.getElementById('result-box');rb.style.display='block';rb.textContent=wc.slice(0,5).map(r=>'--- To: '+r.name+' '+(r.email?'<'+r.email+'>':'phone '+r.phone)+' ---\n'+applyMerge(body,r)).join('\n\n')+(wc.length>5?'\n\n... and '+(wc.length-5)+' more':'');}
 function renderTemplates(){document.getElementById('tpl-strip').innerHTML=(DB.templates||[]).map(t=>'<span class="tpl-btn" onclick="loadTemplate(\''+esc(t.id)+'\')" title="'+t.subject+'">'+t.name+'</span>').join('');}
 function loadTemplate(id){const t=(DB.templates||[]).find(x=>x.id===id);if(!t)return;document.getElementById('msg-subject').value=t.subject;document.getElementById('msg-body').value=t.body;}
 function saveTemplate(){const name=document.getElementById('tpl-name').value.trim();const subject=document.getElementById('msg-subject').value.trim();const body=document.getElementById('msg-body').value.trim();if(!name||!body){toast('Enter name and message','var(--red)');return;}if(!DB.templates)DB.templates=[];const ex=DB.templates.find(t=>t.name===name);if(ex){ex.subject=subject;ex.body=body;}else DB.templates.push({id:uid(),name,subject,body});renderTemplates();document.getElementById('tpl-name').value='';saveData();toast('Template saved');}
 
-// ═══ FORMS ═══
+// === FORMS ===
 let formType=null,formId=null,pendingFiles=[];
-function renderPending(cid){const el=document.getElementById(cid);if(!el)return;el.innerHTML=pendingFiles.map((f,i)=>'<div class="pf-item"><span>'+(f.type&&f.type.startsWith('image/')?'🖼':'📄')+'</span><span class="pf-name">'+f.name+'</span><button class="pf-rm" onclick="removePending('+i+',\''+cid+'\')">✕</button></div>').join('');}
+function renderPending(cid){const el=document.getElementById(cid);if(!el)return;el.innerHTML=pendingFiles.map((f,i)=>'<div class="pf-item"><span>'+(f.type&&f.type.startsWith('image/')?'&#128444;':'&#128196;')+'</span><span class="pf-name">'+f.name+'</span><button class="pf-rm" onclick="removePending('+i+',\''+cid+'\')">&#x2715;</button></div>').join('');}
 function removePending(i,cid){pendingFiles.splice(i,1);renderPending(cid);}
 async function handleFiles(files,ctx){for(const file of files){if(file.size>10*1024*1024){toast('File too large (max 10MB)','var(--red)');continue;}try{const b64=await fileToB64(file);if(ctx==='dl')pendingFiles=[b64];else pendingFiles.push(b64);renderPending(ctx==='dl'?'pending-dl':'pending-agreements');}catch(e){toast('Error reading file','var(--red)');}}}
 function handleDrop(e,ctx){e.preventDefault();e.currentTarget.classList.remove('drag');handleFiles(e.dataTransfer.files,ctx);}
@@ -875,7 +875,7 @@ function setStatus(val){
 
 function statusButtons(cur,includesPending){
   const btn=(val,icon,label)=>{const styles={Active:{b:'var(--grn)',bg:'rgba(77,184,135,.15)',c:'var(--grn)'},Archive:{b:'var(--txt3)',bg:'rgba(64,72,96,.4)',c:'var(--txt2)'},Pending:{b:'var(--acc)',bg:'rgba(212,168,67,.12)',c:'var(--acc)'}};const on=cur===val;const s=styles[val];return '<button type="button" id="st-'+val.toLowerCase()+'" onclick="setStatus(\''+val+'\')" style="flex:1;padding:9px;border-radius:7px;border:2px solid '+(on?s.b:'var(--bdr)')+';background:'+(on?s.bg:'var(--sur)')+';color:'+(on?s.c:'var(--txt3)')+';font-family:IBM Plex Sans,sans-serif;font-size:13px;font-weight:600;cursor:pointer">'+icon+' '+label+'</button>';};
-  return '<div class="fl full" style="background:var(--sur2);border:1px solid var(--bdr);border-radius:8px;padding:11px"><label style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--txt3);font-weight:600;display:block;margin-bottom:6px">Status</label><div style="display:flex;gap:8px">'+btn('Active','✓','Active')+btn('Archive','📦','Archive')+(includesPending?btn('Pending','⏳','Pending'):'')+
+  return '<div class="fl full" style="background:var(--sur2);border:1px solid var(--bdr);border-radius:8px;padding:11px"><label style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--txt3);font-weight:600;display:block;margin-bottom:6px">Status</label><div style="display:flex;gap:8px">'+btn('Active','&#10003;','Active')+btn('Archive','&#128230;','Archive')+(includesPending?btn('Pending','&#9203;','Pending'):'')+
   '</div><input type="hidden" id="f-status" value="'+cur+'"></div>';
 }
 
@@ -883,14 +883,14 @@ function openOfficeForm(id){
   formType='office';formId=id;const o=id?DB.offices.find(x=>x.id===id):{};
   const mOpts=['',...DB.members.map(m=>m.name)].map(n=>'<option value="'+n+'" '+((o.member||'')==n?'selected':'')+'>'+(n||'&mdash; Vacant &mdash;')+'</option>').join('');
   document.getElementById('form-title').textContent=id?'Edit Office':'Add Office';
-  document.getElementById('form-body').innerHTML='<div class="fg"><div class="fl"><label>Office Number *</label><input id="f-num" value="'+(o.num||'')+'" placeholder="e.g. 37"></div><div class="fl"><label>Status</label><select id="f-status"><option value="Occupied" '+(o.status==='Occupied'?'selected':'')+'>Occupied</option><option value="Vacant" '+(o.status==='Vacant'?'selected':'')+'>Vacant</option></select></div><div class="fl"><label>Member / Tenant</label><select id="f-member">'+mOpts+'</select></div><div class="fl"><label>Tenant Start</label><input id="f-tstart" value="'+(o.tenantStart||'')+'" placeholder="e.g. 9/1/2025"></div><div class="fl"><label>Square Footage</label><input id="f-sqft" type="number" value="'+(o.sqft||'')+'"></div><div class="fl"><label>Dormer Sq Ft</label><input id="f-dormer" type="number" value="'+(o.dormer||'')+'"></div><div class="fl"><label>Listed Rate (Vacant $/mo)</label><input id="f-ldues" type="number" value="'+(o.listDues||'')+'"></div><div class="fl full"><label>Description (shown on website for vacant offices)</label><textarea id="f-desc" style="min-height:70px">'+(o.description||'')+'</textarea></div><div class="sect-title">Office Photos (shown on website)</div><div class="fl full"><div class="file-drop" ondragover="this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="handleDrop(event,'office-photos')"><input type="file" multiple accept="image/*" onchange="handleFiles(this.files,'office-photos')"><div class="file-drop-txt">&#128247; Drop office photos or <span>click to browse</span><br><small>JPG, PNG — up to 3 photos, max 5MB each</small></div></div><div class="pending-files" id="pending-office-photos"></div>'+((o.photos||[]).length?'<div style="margin-top:7px;font-size:11px;color:var(--txt3)">Stored: '+(o.photos||[]).map(p=>'<span style="color:var(--acc)">'+(p.name||'photo')+'</span>').join(', ')+'</div>':'')+'</div></div>';
+  document.getElementById('form-body').innerHTML='<div class="fg"><div class="fl"><label>Office Number *</label><input id="f-num" value="'+(o.num||'')+'" placeholder="e.g. 37"></div><div class="fl"><label>Status</label><select id="f-status"><option value="Occupied" '+(o.status==='Occupied'?'selected':'')+'>Occupied</option><option value="Vacant" '+(o.status==='Vacant'?'selected':'')+'>Vacant</option></select></div><div class="fl"><label>Member / Tenant</label><select id="f-member">'+mOpts+'</select></div><div class="fl"><label>Tenant Start</label><input id="f-tstart" value="'+(o.tenantStart||'')+'" placeholder="e.g. 9/1/2025"></div><div class="fl"><label>Square Footage</label><input id="f-sqft" type="number" value="'+(o.sqft||'')+'"></div><div class="fl"><label>Dormer Sq Ft</label><input id="f-dormer" type="number" value="'+(o.dormer||'')+'"></div><div class="fl"><label>Listed Rate (Vacant $/mo)</label><input id="f-ldues" type="number" value="'+(o.listDues||'')+'"></div><div class="fl full"><label>Description (shown on website for vacant offices)</label><textarea id="f-desc" style="min-height:70px">'+(o.description||'')+'</textarea></div><div class="sect-title">Office Photos (shown on website)</div><div class="fl full"><div class="file-drop" ondragover="this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="handleDrop(event,'office-photos')"><input type="file" multiple accept="image/*" onchange="handleFiles(this.files,'office-photos')"><div class="file-drop-txt">&#128247; Drop office photos or <span>click to browse</span><br><small>JPG, PNG -- up to 3 photos, max 5MB each</small></div></div><div class="pending-files" id="pending-office-photos"></div>'+((o.photos||[]).length?'<div style="margin-top:7px;font-size:11px;color:var(--txt3)">Stored: '+(o.photos||[]).map(p=>'<span style="color:var(--acc)">'+(p.name||'photo')+'</span>').join(', ')+'</div>':'')+'</div></div>';
   document.getElementById('form-modal').classList.add('open');
 }
 
 function openMemberForm(id){
   formType='member';formId=id;pendingFiles=[];const m=id?getMemberById(id):{};
   document.getElementById('form-title').textContent=id?'Edit Member':'Add Member';
-  document.getElementById('form-body').innerHTML='<div class="fg"><div class="fl full"><label>Member Name *</label><input id="f-name" value="'+(m.name||'')+'" placeholder="Company or individual name"></div>'+statusButtons(m.status||'Active',true)+'<div class="fl"><label>Start Date</label><input id="f-start" type="date" value="'+(m.start||'')+'"></div><div class="fl"><label>End Date</label><input id="f-end" type="date" value="'+(m.end||'')+'"></div><div class="fl"><label>Gross Monthly Dues ($)</label><input id="f-dues" type="number" value="'+(m.dues||'')+'" oninput="updNet()"></div><div class="fl"><label>Discount ($)</label><input id="f-discount" type="number" value="'+(m.discount||0)+'" oninput="updNet()"></div><div class="fl full" style="background:var(--sur2);border:1px solid var(--bdr);border-radius:7px;padding:9px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--txt3);margin-bottom:3px">Net Monthly Dues</div><div id="net-prev" style="font-family:\'IBM Plex Mono\',monospace;font-size:17px;color:var(--grn)">-</div></div><div class="fl"><label>Deposit Held ($)</label><input id="f-deposit" type="number" value="'+(m.deposit||'')+'"></div><div class="fl"><label>Billing Email</label><input id="f-email" type="email" value="'+(m.email||'')+'"></div><div class="fl"><label>Phone</label><input id="f-phone" value="'+(m.phone||'')+'"></div><div class="fl full"><label>Notes</label><textarea id="f-notes">'+(m.notes||'')+'</textarea></div><div class="sect-title">Agreements / Documents</div><div class="fl full"><div class="file-drop" ondragover="this.classList.add(\'drag\')" ondragleave="this.classList.remove(\'drag\')" ondrop="handleDrop(event,\'agreements\')"><input type="file" multiple accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" onchange="handleFiles(this.files,\'agreements\')"><div class="file-drop-txt">📎 Drop files or <span>click to browse</span><br><small>PDF, Word, or images &mdash; max 10MB each</small></div></div><div class="pending-files" id="pending-agreements"></div>'+((m.attachments||[]).length?'<div style="margin-top:7px;font-size:11px;color:var(--txt3)">Stored: '+(m.attachments||[]).map(a=>'<span style="color:var(--acc)">'+a.name+'</span>').join(', ')+'</div>':'')+'</div></div>';
+  document.getElementById('form-body').innerHTML='<div class="fg"><div class="fl full"><label>Member Name *</label><input id="f-name" value="'+(m.name||'')+'" placeholder="Company or individual name"></div>'+statusButtons(m.status||'Active',true)+'<div class="fl"><label>Start Date</label><input id="f-start" type="date" value="'+(m.start||'')+'"></div><div class="fl"><label>End Date</label><input id="f-end" type="date" value="'+(m.end||'')+'"></div><div class="fl"><label>Gross Monthly Dues ($)</label><input id="f-dues" type="number" value="'+(m.dues||'')+'" oninput="updNet()"></div><div class="fl"><label>Discount ($)</label><input id="f-discount" type="number" value="'+(m.discount||0)+'" oninput="updNet()"></div><div class="fl full" style="background:var(--sur2);border:1px solid var(--bdr);border-radius:7px;padding:9px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--txt3);margin-bottom:3px">Net Monthly Dues</div><div id="net-prev" style="font-family:\'IBM Plex Mono\',monospace;font-size:17px;color:var(--grn)">-</div></div><div class="fl"><label>Deposit Held ($)</label><input id="f-deposit" type="number" value="'+(m.deposit||'')+'"></div><div class="fl"><label>Billing Email</label><input id="f-email" type="email" value="'+(m.email||'')+'"></div><div class="fl"><label>Phone</label><input id="f-phone" value="'+(m.phone||'')+'"></div><div class="fl full"><label>Notes</label><textarea id="f-notes">'+(m.notes||'')+'</textarea></div><div class="sect-title">Agreements / Documents</div><div class="fl full"><div class="file-drop" ondragover="this.classList.add(\'drag\')" ondragleave="this.classList.remove(\'drag\')" ondrop="handleDrop(event,\'agreements\')"><input type="file" multiple accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" onchange="handleFiles(this.files,\'agreements\')"><div class="file-drop-txt">&#128206; Drop files or <span>click to browse</span><br><small>PDF, Word, or images &mdash; max 10MB each</small></div></div><div class="pending-files" id="pending-agreements"></div>'+((m.attachments||[]).length?'<div style="margin-top:7px;font-size:11px;color:var(--txt3)">Stored: '+(m.attachments||[]).map(a=>'<span style="color:var(--acc)">'+a.name+'</span>').join(', ')+'</div>':'')+'</div></div>';
   updNet();document.getElementById('form-modal').classList.add('open');
 }
 function updNet(){const d=Number(document.getElementById('f-dues')?.value)||0;const disc=Number(document.getElementById('f-discount')?.value)||0;const el=document.getElementById('net-prev');if(el)el.textContent='$'+Math.max(0,d-disc).toLocaleString();}
@@ -900,7 +900,7 @@ function openOccupantForm(id){
   const cOpts=['',...DB.members.map(m=>m.name)].map(n=>'<option value="'+n+'" '+((p.company||'')==n?'selected':'')+'>'+(n||'&mdash; Select &mdash;')+'</option>').join('');
   const oOpts=['',...DB.offices.map(o=>o.num)].map(n=>'<option value="'+n+'" '+((p.office||'')==n?'selected':'')+'>'+(n||'&mdash; None &mdash;')+'</option>').join('');
   document.getElementById('form-title').textContent=id?'Edit Occupant':'Add Occupant';
-  document.getElementById('form-body').innerHTML='<div class="fg"><div class="fl full"><label>Full Name *</label><input id="f-name" value="'+(p.name||'')+'" placeholder="First Last"></div><div class="fl"><label>Member Company *</label><select id="f-company">'+cOpts+'</select></div><div class="fl"><label>Office Number</label><select id="f-office">'+oOpts+'</select></div><div class="fl"><label>Phone</label><input id="f-phone" value="'+(p.phone||'')+'"></div><div class="fl"><label>Email</label><input id="f-email" type="email" value="'+(p.email||'')+'"></div>'+statusButtons(p.status||'Active',false)+'<div class="fl"><label>End Date</label><input id="f-endDate" value="'+(p.endDate||'')+'" placeholder="e.g. 7/31/2026"></div><div class="sect-title">Driver\'s License</div><div class="fl full"><div class="file-drop" ondragover="this.classList.add(\'drag\')" ondragleave="this.classList.remove(\'drag\')" ondrop="handleDrop(event,\'dl\')"><input type="file" accept="image/*,.pdf" onchange="handleFiles(this.files,\'dl\')"><div class="file-drop-txt">🪪 Drop driver\'s license or <span>click to browse</span><br><small>JPG, PNG, PDF &mdash; max 10MB</small></div></div><div class="pending-files" id="pending-dl"></div>'+(p.dlAttachment?'<div style="margin-top:7px;font-size:11px;color:var(--txt3)">Stored: <span style="color:var(--acc)">'+p.dlAttachment.name+'</span></div>':'')+'</div></div>';
+  document.getElementById('form-body').innerHTML='<div class="fg"><div class="fl full"><label>Full Name *</label><input id="f-name" value="'+(p.name||'')+'" placeholder="First Last"></div><div class="fl"><label>Member Company *</label><select id="f-company">'+cOpts+'</select></div><div class="fl"><label>Office Number</label><select id="f-office">'+oOpts+'</select></div><div class="fl"><label>Phone</label><input id="f-phone" value="'+(p.phone||'')+'"></div><div class="fl"><label>Email</label><input id="f-email" type="email" value="'+(p.email||'')+'"></div>'+statusButtons(p.status||'Active',false)+'<div class="fl"><label>End Date</label><input id="f-endDate" value="'+(p.endDate||'')+'" placeholder="e.g. 7/31/2026"></div><div class="sect-title">Driver\'s License</div><div class="fl full"><div class="file-drop" ondragover="this.classList.add(\'drag\')" ondragleave="this.classList.remove(\'drag\')" ondrop="handleDrop(event,\'dl\')"><input type="file" accept="image/*,.pdf" onchange="handleFiles(this.files,\'dl\')"><div class="file-drop-txt">&#127818; Drop driver\'s license or <span>click to browse</span><br><small>JPG, PNG, PDF &mdash; max 10MB</small></div></div><div class="pending-files" id="pending-dl"></div>'+(p.dlAttachment?'<div style="margin-top:7px;font-size:11px;color:var(--txt3)">Stored: <span style="color:var(--acc)">'+p.dlAttachment.name+'</span></div>':'')+'</div></div>';
   document.getElementById('form-modal').classList.add('open');
 }
 
@@ -932,11 +932,11 @@ async function submitForm(){
     const obj={id:formId||uid(),name,phone:document.getElementById('f-phone').value.trim(),date:document.getElementById('f-date').value,comment:document.getElementById('f-comment').value.trim()};
     if(formId){const i=DB.waitlist.findIndex(x=>x.id===formId);DB.waitlist[i]=obj;}else DB.waitlist.push(obj);
   }
-  closeForm();refreshAll();await saveData();toast('Saved ✓');
+  closeForm();refreshAll();await saveData();toast('Saved &#10003;');
 }
 function closeForm(){document.getElementById('form-modal').classList.remove('open');formType=null;formId=null;pendingFiles=[];}
 
-// ═══ DELETE ═══
+// === DELETE ===
 let confirmCallback=null;
 function askDelete(type,id,label){
   document.getElementById('conf-title').textContent='Delete Record?';
@@ -949,7 +949,7 @@ function askDelete(type,id,label){
 function confirmAction(){if(confirmCallback){confirmCallback();confirmCallback=null;}}
 function closeConf(){document.getElementById('conf-modal').classList.remove('open');}
 
-// ═══ NAV ═══
+// === NAV ===
 function showPage(id,btn){document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));document.querySelectorAll('.nb').forEach(b=>b.classList.remove('on'));document.getElementById('page-'+id).classList.add('on');btn.classList.add('on');}
 function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.getElementById(id).classList.remove('open');}
 document.addEventListener('keydown',e=>{if(e.key==='Escape')['form-modal','view-modal','conf-modal','onboard-modal'].forEach(id=>document.getElementById(id).classList.remove('open'));});
