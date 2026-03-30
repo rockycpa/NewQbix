@@ -166,7 +166,7 @@ def send_email(to_email, to_name, subject, html_body, text_body=None):
 
     try:
         context = ssl.create_default_context()
-        with smtplib.SMTP(smtp_host, smtp_port) as server:
+        with smtplib.SMTP(smtp_host, smtp_port, timeout=10) as server:
             server.starttls(context=context)
             server.login(smtp_user, smtp_pass)
             server.sendmail(FROM_EMAIL, to_email, msg.as_string())
@@ -628,16 +628,22 @@ def admin_login():
             session['admin_2fa_sid'] = sid
 
             # Send code via SMS
-            # Send code via email (more reliable than SMS gateway)
-            send_email(
-                ADMIN_EMAIL, 'Qbix Centre Admin',
-                f'Your Qbix Centre login code: {code}',
-                f'<h1 style="letter-spacing:8px;font-family:monospace;color:#1a2744">{code}</h1>'
-                f'<p>This code expires in 10 minutes.</p>',
-                f'Your Qbix Centre login code: {code}\nExpires in 10 minutes.'
-            )
-            # Also try SMS as backup
-            send_sms_code(ADMIN_PHONE, code)
+            # Send code via email
+            try:
+                send_email(
+                    ADMIN_EMAIL, 'Qbix Centre Admin',
+                    f'Your Qbix Centre login code: {code}',
+                    f'<p style="font-size:32px;letter-spacing:8px;font-family:monospace;color:#1a2744"><b>{code}</b></p>'
+                    f'<p>This code expires in 10 minutes.</p>',
+                    f'Your Qbix Centre login code: {code}\nExpires in 10 minutes.'
+                )
+            except Exception as e:
+                print(f'Email send error: {e}')
+            # Also try SMS as backup (non-blocking)
+            try:
+                send_sms_code(ADMIN_PHONE, code)
+            except Exception as e:
+                print(f'SMS send error: {e}')
 
             return redirect(url_for('admin_2fa'))
         else:
