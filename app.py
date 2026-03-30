@@ -29,7 +29,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # ── App setup ────────────────────────────────────────────────────────────────
-app = Flask(__name__)
+app = Flask(__name__, static_folder=str(BASE_DIR / 'static'), static_url_path='/static')
 app.secret_key = os.environ.get('SECRET_KEY', secrets.token_hex(32))
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
 
@@ -416,6 +416,20 @@ def book_request_code():
     member = next((m for m in data['members']
                    if m.get('email','').lower() == email
                    and m.get('status') == 'Active'), None)
+
+    # Also check occupants - find their member company
+    if not member:
+        occ = next((o for o in data['occupants']
+                    if o.get('email','').lower() == email
+                    and o.get('status') == 'Active'), None)
+        if occ:
+            member = next((m for m in data['members']
+                          if m.get('name') == occ.get('company')
+                          and m.get('status') == 'Active'), None)
+            if not member:
+                # Create a pseudo-member from occupant
+                member = {'name': occ.get('name'), 'email': email, 'status': 'Active'}
+
     if not member:
         return jsonify({'ok': False, 'error': 'Email not found in our active member list.'})
 
@@ -756,7 +770,7 @@ def generate_onboard_link():
             f'<p>Thank you for your interest in Qbix Centre! Please click the link below to complete your membership application:</p>'
             f'<p><a href="{link}" style="background:#2563eb;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;display:inline-block">Complete My Application</a></p>'
             f'<p>This link expires in 7 days.</p>'
-            f'<p>If you have any questions, reply to this email or call (478) 787-0532.</p>'
+            f'<p>If you have any questions, reply to this email or call (478) 216-2876.</p>'
             f'<p>We look forward to welcoming you!</p>'
             f'<p>— The Qbix Centre Team</p>',
         )
@@ -1051,7 +1065,7 @@ def send_monthly_usage():
             f'<p><b>Total hours used:</b> {hours_used} of your {included} included hours</p>'
             f'<p><b>Hours remaining this month:</b> {hours_remaining}</p>'
             f'<p>Thank you for being part of the Qbix Centre community. See you next month!</p>'
-            f'<p style="color:#666;font-size:12px">Questions? Reply to this email or call (478) 787-0532</p>',
+            f'<p style="color:#666;font-size:12px">Questions? Reply to this email or call (478) 216-2876</p>',
         )
         sent += 1
 
