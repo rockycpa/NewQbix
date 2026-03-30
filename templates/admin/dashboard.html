@@ -193,6 +193,15 @@ tr.rclick:hover td{background:rgba(255,255,255,.02);cursor:pointer}
 .pending-bar{background:rgba(212,168,67,.1);border:1px solid rgba(212,168,67,.3);border-radius:8px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;gap:12px}
 .pending-count{font-family:'IBM Plex Mono',monospace;font-size:20px;color:var(--acc);font-weight:700}
 </style>
+<script>
+function showPage(id,btn){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.nb').forEach(b=>b.classList.remove('on'));
+  document.getElementById('page-'+id).classList.add('on');
+  btn.classList.add('on');
+}
+function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.getElementById(id).classList.remove('open');}
+</script>
 </head>
 <body>
 <header>
