@@ -29,7 +29,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # ── App setup ────────────────────────────────────────────────────────────────
-app = Flask(__name__, static_folder=str(BASE_DIR / 'static'), static_url_path='/static')
+app = Flask(__name__, static_folder='static', static_url_path='/static')
 app.secret_key = os.environ.get('SECRET_KEY', secrets.token_hex(32))
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
 
