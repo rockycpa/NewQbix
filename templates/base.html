@@ -33,7 +33,7 @@ nav.site-nav{background:var(--navy);padding:0 5%;display:flex;align-items:center
 .nav-logo{font-family:'Playfair Display',serif;font-size:22px;color:var(--gold);font-weight:700;flex:1;display:flex;align-items:center;gap:10px;text-decoration:none}.nav-logo-text{font-family:'Playfair Display',serif;font-size:22px;color:var(--gold)}
 .nav-logo span{color:var(--white);font-size:13px;font-family:'Inter',sans-serif;font-weight:300;margin-left:8px;opacity:.7}
 .nav-links{display:flex;gap:8px;align-items:center}
-.nav-links a{color:rgba(255,255,255,.8);font-size:14px;font-weight:500;padding:8px 14px;border-radius:6px;transition:all .2s}
+.nav-links a{color:rgba(255,255,255,.8);font-size:13px;font-weight:500;padding:6px 10px;border-radius:6px;transition:all .2s}
 .nav-links a:hover,.nav-links a.active{color:#fff;background:rgba(255,255,255,.1)}
 .nav-cta{background:var(--gold)!important;color:var(--navy)!important;font-weight:600!important;padding:8px 18px!important}
 .nav-cta:hover{background:var(--gold2)!important}
@@ -143,7 +143,7 @@ footer a:hover{color:var(--gold)}
 <body>
 
 <nav class="site-nav">
-  <a href="/" class="nav-logo"><img src="/static/img/logo.jpg" alt="Qbix Centre" style="height:38px;width:auto;filter:brightness(0) invert(1)" onerror="this.style.display='none'"><span class="nav-logo-text">Qbix Centre</span> <span>Macon, GA</span></a>
+  <a href="/" class="nav-logo"><span class="nav-logo-text">Qbix Centre</span><span>Macon, GA</span></a>
   <div class="nav-links">
     <a href="/" class="{% if request.endpoint == 'home' %}active{% endif %}">Home</a>
     <a href="/offices" class="{% if request.endpoint == 'offices_page' %}active{% endif %}">Offices</a>
