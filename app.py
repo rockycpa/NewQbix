@@ -632,11 +632,28 @@ def admin_login():
         password = request.form.get('password', '')
 
         if username == ADMIN_USERNAME and check_password(password):
-            # Direct login - 2FA bypassed temporarily
-            session['admin_authenticated'] = True
-            session['admin_login_time']    = datetime.now().isoformat()
-            session.permanent = True
-            return redirect(url_for('admin_dashboard'))
+            # Send 2FA code via SMS
+            code  = generate_code()
+            sid   = secrets.token_urlsafe(16)
+            _pending_2fa[sid] = {
+                'code':    code,
+                'expires': datetime.now() + timedelta(minutes=10),
+                'purpose': 'admin',
+            }
+            session['admin_2fa_sid'] = sid
+
+            # Try SMS first, fall back to email
+            sms_ok = send_sms_code(ADMIN_PHONE, code)
+            if not sms_ok:
+                # Send via email as fallback
+                send_email(
+                    ADMIN_EMAIL, 'Admin',
+                    'Your Qbix Centre login code',
+                    f'<p>Your login code is: <strong style="font-size:24px;letter-spacing:4px">{code}</strong></p><p>Expires in 10 minutes.</p>',
+                    f'Your Qbix Centre login code: {code}\nExpires in 10 minutes.'
+                )
+
+            return redirect(url_for('admin_2fa'))
         else:
             flash('Invalid username or password.', 'error')
 
