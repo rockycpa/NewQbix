@@ -1,47 +1,66 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Verify &mdash; Qbix Centre Admin</title>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Inter',sans-serif;background:#0b0d11;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
-.box{background:#13161e;border:1px solid #252a38;border-radius:14px;padding:40px;width:100%;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,.5);text-align:center}
-.logo{font-family:'Playfair Display',serif;font-size:22px;color:#d4a843;margin-bottom:8px}
-.icon{font-size:48px;margin:20px 0}
-h2{color:#dde2ed;font-size:18px;margin-bottom:10px}
-p{color:#7d8aa0;font-size:14px;margin-bottom:28px;line-height:1.6}
-input{width:100%;padding:14px;background:#1b1f2b;border:1px solid #252a38;border-radius:8px;color:#dde2ed;font-family:'IBM Plex Mono',monospace;font-size:28px;letter-spacing:12px;text-align:center;outline:none;transition:border-color .2s;margin-bottom:16px}
-input:focus{border-color:#d4a843}
-button{width:100%;padding:12px;background:#d4a843;border:none;border-radius:8px;color:#1a0e00;font-family:'Inter',sans-serif;font-size:15px;font-weight:700;cursor:pointer}
-button:hover{opacity:.85}
-.alert{padding:10px 14px;border-radius:7px;font-size:13px;margin-bottom:20px;background:rgba(217,96,96,.15);color:#d96060;border:1px solid rgba(217,96,96,.3)}
-.back{display:block;margin-top:20px;color:#404860;font-size:13px;text-decoration:none}
-.back:hover{color:#7d8aa0}
-</style>
-</head>
-<body>
-<div class="box">
-  <div class="logo">Qbix Centre</div>
-  <div class="icon">📧</div>
-  <h2>Check Your Email</h2>
-  <p>We sent a 6-digit verification code to <strong>qbixcentre@outlook.com</strong>. Enter it below to complete sign in.</p>
+{% extends "base.html" %}
+{% block title %}Available Office Space{% endblock %}
+{% block description %}View available private office spaces at Qbix Centre in Macon, GA. Flexible memberships starting at $425/month with no long-term lease required.{% endblock %}
 
-  {% with messages = get_flashed_messages(with_categories=true) %}
-    {% for category, message in messages %}
-      <div class="alert">{{ message }}</div>
-    {% endfor %}
-  {% endwith %}
+{% block content %}
 
-  <form method="POST">
-    <input type="text" name="code" maxlength="6" placeholder="000000"
-           oninput="this.value=this.value.replace(/\D/g,'')"
-           autocomplete="one-time-code" autofocus required>
-    <button type="submit">Verify &amp; Sign In</button>
-  </form>
-  <a href="/admin/login" class="back">&larr; Back to login</a>
+<div class="hero" style="padding:60px 5%">
+  <h1>Office Space in <span>Macon, GA</span></h1>
+  <p>Flexible private offices for professionals and growing businesses. No long-term commitment required.</p>
 </div>
-</body>
-</html>
+
+<section>
+  <div style="text-align:center;margin-bottom:48px">
+    <div class="section-label">Membership Options</div>
+    <h2 class="section-title">Find Your Perfect Space</h2>
+    <p class="section-sub" style="margin:0 auto">All memberships include 24/7 access, AT&T Fiber internet, Starbucks coffee, 6 conference room hours monthly, free parking, and a professional community.</p>
+  </div>
+
+  {% if vacant %}
+  <div style="margin-bottom:40px">
+    <h3 style="font-family:'Playfair Display',serif;color:var(--navy);font-size:22px;margin-bottom:20px">
+      Available Now <span style="font-family:'Inter',sans-serif;font-size:14px;color:var(--txt2);font-weight:400">&mdash; {{ vacant|length }} office{{ 's' if vacant|length != 1 else '' }} ready for occupancy</span>
+    </h3>
+    <div class="grid-4">
+      {% for o in vacant %}
+      <div class="card" style="border-top:4px solid var(--gold)">
+        {% if o.photos %}
+          <div style="display:flex;gap:6px;margin-bottom:14px;border-radius:8px;overflow:hidden">
+            {% for photo in o.photos[:2] %}
+              <img src="{{ photo.data }}" style="flex:1;height:140px;object-fit:cover;border-radius:6px">
+            {% endfor %}
+          </div>
+        {% endif %}
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+          <div style="font-family:'Playfair Display',serif;font-size:22px;color:var(--navy)">Office {{ o.num }}</div>
+          <span class="badge badge-blue">Available</span>
+        </div>
+        <div style="font-size:13px;color:var(--txt2);margin-bottom:6px">{{ o.sqft }}{% if o.dormer %} + {{ o.dormer }} dormer{% endif %} sq ft</div>
+        {% if o.description %}
+          <p style="font-size:13px;color:var(--txt2);margin-bottom:10px;line-height:1.6">{{ o.description }}</p>
+        {% endif %}
+        <div style="font-size:22px;font-weight:600;color:var(--gold);margin-bottom:14px">
+          {% if o.listDues %}${{ "{:,}".format(o.listDues) }}/month{% else %}Contact for pricing{% endif %}
+        </div>
+        <a href="/contact" class="btn btn-navy btn-sm" style="width:100%;text-align:center;display:block">Inquire About This Office</a>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% else %}
+  <div style="background:#fef3c7;border:1px solid #f59e0b;border-radius:8px;padding:20px;margin-bottom:40px;text-align:center">
+    <strong>We're currently at full capacity!</strong> Join our waiting list and we'll contact you as soon as space becomes available.
+    <div style="margin-top:12px"><a href="/contact" class="btn btn-gold btn-sm">Join Waiting List</a></div>
+  </div>
+  {% endif %}
+
+
+</section>
+
+<section class="section-navy" style="text-align:center">
+  <h2 class="section-title">Ready to See It in Person?</h2>
+  <p class="section-sub" style="margin:0 auto 28px">Schedule a tour and we'll show you around. No pressure &mdash; just come see if Qbix Centre feels right for your business.</p>
+  <a href="/contact" class="btn btn-gold">Schedule a Tour</a>
+</section>
+
+{% endblock %}
