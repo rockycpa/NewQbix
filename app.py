@@ -628,6 +628,15 @@ def admin_login():
             session['admin_2fa_sid'] = sid
 
             # Send code via SMS
+            # Send code via email (more reliable than SMS gateway)
+            send_email(
+                ADMIN_EMAIL, 'Qbix Centre Admin',
+                f'Your Qbix Centre login code: {code}',
+                f'<h1 style="letter-spacing:8px;font-family:monospace;color:#1a2744">{code}</h1>'
+                f'<p>This code expires in 10 minutes.</p>',
+                f'Your Qbix Centre login code: {code}\nExpires in 10 minutes.'
+            )
+            # Also try SMS as backup
             send_sms_code(ADMIN_PHONE, code)
 
             return redirect(url_for('admin_2fa'))
