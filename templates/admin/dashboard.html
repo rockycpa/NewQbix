@@ -669,8 +669,15 @@ function renderOffices(){
     return true;
   });
   document.getElementById('oc-count').textContent=list.length+' offices';
-  const dues=o=>o.status==='Occupied'?duesFor(o.member):o.listDues;
-  document.getElementById('office-grid').innerHTML=list.map(o=>'<div class="ot '+(o.status==='Occupied'?'occ':'vac')+'" onclick="openOfficeMo(\''+esc(o.id)+'\')">'+'<div style="display:flex;justify-content:space-between;align-items:flex-start"><div class="on2">'+o.num+'</div><span class="badge '+(o.status==='Occupied'?'bg':'bb')+'">'+o.status+'</span></div>'+'<div class="oten">'+(o.member||'<em style="color:var(--txt3)">Available</em>')+'</div>'+'<div class="osq">'+(o.sqft?o.sqft+(o.dormer?'+'+o.dormer:'')+' sq ft':'-')+'</div>'+(dues(o)?'<div class="odu">'+f$(dues(o))+'/mo</div>':'')+'</div>').join('')||'<div style="color:var(--txt3);padding:20px">No offices match.</div>';
+  const offDues=o=>{
+    if(o.status!=='Occupied'||!o.member) return o.listDues||null;
+    const m=getMember(o.member);
+    if(!m) return null;
+    const memberOffices=DB.offices.filter(x=>x.member===o.member);
+    const count=memberOffices.length||1;
+    return Math.round(net(m)/count);
+  };
+  document.getElementById('office-grid').innerHTML=list.map(o=>'<div class="ot '+(o.status==='Occupied'?'occ':'vac')+'" onclick="openOfficeMo(\''+esc(o.id)+'\')">'+'<div style="display:flex;justify-content:space-between;align-items:flex-start"><div class="on2">'+o.num+'</div><span class="badge '+(o.status==='Occupied'?'bg':'bb')+'">'+o.status+'</span></div>'+'<div class="oten">'+(o.member||'<em style="color:var(--txt3)">Available</em>')+'</div>'+'<div class="osq">'+(o.sqft?o.sqft+(o.dormer?'+'+o.dormer:'')+' sq ft':'-')+'</div>'+(offDues(o)?'<div class="odu">'+f$(offDues(o))+'/mo</div>':'')+'</div>').join('')||'<div style="color:var(--txt3);padding:20px">No offices match.</div>';
 }
 function setOF(f,btn){ofFilter=f;document.querySelectorAll('#fa,#fo,#fv').forEach(b=>b.classList.remove('on'));btn.classList.add('on');renderOffices();}
 function filterOffices(q){ofSearch=q;renderOffices();}
@@ -685,7 +692,16 @@ function openOfficeMo(id){
   let h='<div class="di"><label>Status</label><value><span class="badge '+(o.status==='Occupied'?'bg':'bb')+'">'+o.status+'</span></value></div>'+'<div class="di"><label>Square Footage</label><value>'+(o.sqft?o.sqft+(o.dormer?' + '+o.dormer+' dormer':'')+' sq ft':'-')+'</value></div>';
   if(o.member&&m){
     const d=Number(m.discount)||0;
-    h+='<div class="di"><label>Net Dues</label><value style="color:var(--grn);font-family:\'IBM Plex Mono\',monospace;font-size:15px">'+f$(net(m))+(d>0?' <span style="font-size:11px;color:var(--txt3)">(- '+f$(d)+')</span>':'')+'</value></div>';
+    const memberOffCount=DB.offices.filter(x=>x.member===o.member).length||1;
+    const offGross=Math.round((Number(m.dues)||0)/memberOffCount);
+    const offDisc=Math.round(d/memberOffCount);
+    const offNet=Math.round(net(m)/memberOffCount);
+    h+='<div class="di full"><label>Dues for this Office</label><div style="margin-top:5px">';
+    h+='<div class="dues-row"><span style="color:var(--txt2)">Gross</span><span class="mono">'+f$(offGross)+'</span></div>';
+    if(d>0)h+='<div class="dues-row"><span style="color:var(--purple)">Discount</span><span class="mono" style="color:var(--purple)">- '+f$(offDisc)+'</span></div>';
+    h+='<div class="dues-row total"><span>Net</span><span class="dues-net">'+f$(offNet)+'</span></div>';
+    if(memberOffCount>1)h+='<div style="font-size:11px;color:var(--txt3);margin-top:4px">Member total: '+f$(net(m))+'/mo across '+memberOffCount+' offices</div>';
+    h+='</div></div>';
     h+='<div class="di"><label>Deposit</label><value class="mono">'+f$(m.deposit)+'</value></div>';
     h+='<div class="di"><label>Tenant Start</label><value>'+(o.tenantStart||'-')+'</value></div>';
     h+='<div class="di"><label>All Offices</label><value class="mono">'+(allOff.join(', ')||'-')+'</value></div>';
@@ -695,9 +711,24 @@ function openOfficeMo(id){
     h+='<div class="di"><label>Listed Rate</label><value style="color:var(--acc);font-family:\'IBM Plex Mono\',monospace">'+(o.listDues?f$(o.listDues)+'/mo':'TBD')+'</value></div>';
   }
   if(occs.length){h+='<div class="divr"></div><div class="di full"><label>Occupants ('+occs.length+')</label><div style="margin-top:5px">'+occs.map(p=>'<div class="occ-tag" onclick="closeMo(null,\'view-modal\');setTimeout(()=>openOccMo(\''+esc(p.id)+'\'),60)"><span class="occ-dot '+(p.status==='Active'?'active':'archive')+'"></span>'+p.name+'</div>').join('')+'</div></div>';}
+  if((o.photos||[]).length){
+    h+='<div class="divr"></div><div class="di full"><label>Photos ('+o.photos.length+')</label><div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">';
+    h+=o.photos.map((p,i)=>'<div style="position:relative"><img src="'+p.data+'" style="height:80px;width:110px;object-fit:cover;border-radius:6px;border:1px solid var(--bdr)"><button onclick="deleteOfficePhoto(\''+esc(o.id)+'\','+i+')" style="position:absolute;top:3px;right:3px;background:var(--red);border:none;border-radius:50%;width:20px;height:20px;color:#fff;cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center;line-height:1">&#x2715;</button></div>').join('');
+    h+='</div></div>';
+  }
   document.getElementById('mo-body').innerHTML=h;
   document.getElementById('mo-actions').innerHTML='<button class="btn-edit" onclick="closeMo(null,\'view-modal\');openOfficeForm(\''+esc(o.id)+'\')">Edit</button>'+'<button class="btn-del" onclick="closeMo(null,\'view-modal\');askDelete(\'office\',\''+esc(o.id)+'\',\'Office '+o.num+'\')">Delete</button>';
   document.getElementById('view-modal').classList.add('open');
+}
+
+function deleteOfficePhoto(officeId, photoIdx){
+  const o=DB.offices.find(x=>x.id===officeId);
+  if(!o||!o.photos)return;
+  o.photos.splice(photoIdx,1);
+  saveData();
+  closeMo(null,'view-modal');
+  setTimeout(()=>openOfficeMo(officeId),60);
+  toast('Photo deleted');
 }
 
 // === MEMBERS ===

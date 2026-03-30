@@ -755,7 +755,6 @@ def api_backup():
         dest  = BACKUP_DIR / f'qbix-backup-{today}.json'
         import shutil
         shutil.copy2(DATA_FILE, dest)
-        # Update lastBackup in data
         data = get_db()
         data['lastBackup'] = today
         save_data(data)
@@ -763,7 +762,31 @@ def api_backup():
     except Exception as e:
         return jsonify({'ok': False, 'error': str(e)}), 500
 
-# ── Onboarding link generator ─────────────────────────────────────────────────
+@app.route('/admin/api/test-email')
+@login_required
+def test_email():
+    """Send a test email to the admin address to verify SMTP works."""
+    import os
+    cfg = {
+        'SMTP_HOST': os.environ.get('SMTP_HOST',''),
+        'SMTP_PORT': os.environ.get('SMTP_PORT',''),
+        'SMTP_USER': os.environ.get('SMTP_USER',''),
+        'SMTP_PASS': '***' if os.environ.get('SMTP_PASS') else '(not set)',
+        'FROM_EMAIL': os.environ.get('FROM_EMAIL',''),
+        'ADMIN_EMAIL': os.environ.get('ADMIN_EMAIL',''),
+        'ADMIN_PHONE': os.environ.get('ADMIN_PHONE',''),
+        'ADMIN_CARRIER': os.environ.get('ADMIN_CARRIER',''),
+    }
+    ok = send_email(
+        ADMIN_EMAIL, 'Rocky',
+        'Qbix Centre — SMTP Test',
+        '<h2>SMTP is working!</h2><p>Your Qbix Centre email configuration is correct.</p>',
+        'SMTP is working! Your Qbix Centre email configuration is correct.'
+    )
+    return jsonify({'ok': ok, 'config': cfg,
+                    'message': 'Email sent!' if ok else 'Email FAILED — check config'})
+
+
 
 @app.route('/admin/api/onboard-link', methods=['POST'])
 @login_required
