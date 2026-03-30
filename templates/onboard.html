@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}Available Office Space{% endblock %}
+{% block description %}View available private office spaces at Qbix Centre in Macon, GA. Flexible memberships starting at $425/month with no long-term lease required.{% endblock %}
+
+{% block content %}
+
+<div class="hero" style="padding:60px 5%">
+  <h1>Office Space in <span>Macon, GA</span></h1>
+  <p>Flexible private offices for professionals and growing businesses. No long-term commitment required.</p>
+</div>
+
+<section>
+  <div style="text-align:center;margin-bottom:48px">
+    <div class="section-label">Membership Options</div>
+    <h2 class="section-title">Find Your Perfect Space</h2>
+    <p class="section-sub" style="margin:0 auto">All memberships include 24/7 access, AT&T Fiber internet, Starbucks coffee, 6 conference room hours monthly, free parking, and a professional community.</p>
+  </div>
+
+  {% if vacant %}
+  <div style="margin-bottom:40px">
+    <h3 style="font-family:'Playfair Display',serif;color:var(--navy);font-size:22px;margin-bottom:20px">
+      Available Now <span style="font-family:'Inter',sans-serif;font-size:14px;color:var(--txt2);font-weight:400">&mdash; {{ vacant|length }} office{{ 's' if vacant|length != 1 else '' }} ready for occupancy</span>
+    </h3>
+    <div class="grid-4">
+      {% for o in vacant %}
+      <div class="office-tile">
+        <div class="office-num">Office {{ o.num }}</div>
+        <div class="office-size">{{ o.sqft }}{% if o.dormer %} + {{ o.dormer }} dormer{% endif %} sq ft</div>
+        <div class="office-price">{% if o.listDues %}${{ "{:,}".format(o.listDues) }}/month{% else %}Contact for pricing{% endif %}</div>
+        <div style="margin-top:14px">
+          <a href="/contact" class="btn btn-navy btn-sm" style="width:100%;text-align:center;display:block">Inquire</a>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% else %}
+  <div style="background:#fef3c7;border:1px solid #f59e0b;border-radius:8px;padding:20px;margin-bottom:40px;text-align:center">
+    <strong>We're currently at full capacity!</strong> Join our waiting list and we'll contact you as soon as space becomes available.
+    <div style="margin-top:12px"><a href="/contact" class="btn btn-gold btn-sm">Join Waiting List</a></div>
+  </div>
+  {% endif %}
+
+  <!-- Pricing table -->
+  <div class="section-light" style="border-radius:var(--r);padding:40px">
+    <h3 style="font-family:'Playfair Display',serif;color:var(--navy);font-size:22px;margin-bottom:24px">Membership Pricing</h3>
+    <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:14px">
+        <thead>
+          <tr style="background:var(--navy);color:#fff">
+            <th style="padding:12px 16px;text-align:left;border-radius:8px 0 0 0">Office / Size</th>
+            <th style="padding:12px 16px;text-align:left">Monthly Fee</th>
+            <th style="padding:12px 16px;text-align:left;border-radius:0 8px 0 0">What's Included</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom:1px solid var(--border)">
+            <td style="padding:14px 16px"><strong>Address Membership</strong></td>
+            <td style="padding:14px 16px;color:var(--gold);font-weight:600">$200/month</td>
+            <td style="padding:14px 16px;color:var(--txt2)">Professional mailing address, mail collection &amp; forwarding</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);background:#fafaf8">
+            <td style="padding:14px 16px"><strong>Offices 11, 35</strong><br><span style="color:var(--txt2);font-size:13px">80&ndash;90 sq ft</span></td>
+            <td style="padding:14px 16px;color:var(--gold);font-weight:600">$425&ndash;$475/month</td>
+            <td style="padding:14px 16px;color:var(--txt2)">Furnished private office, 6 hrs conference room, all amenities</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border)">
+            <td style="padding:14px 16px"><strong>Offices 25&ndash;28</strong><br><span style="color:var(--txt2);font-size:13px">~90 sq ft</span></td>
+            <td style="padding:14px 16px;color:var(--gold);font-weight:600">$525/month</td>
+            <td style="padding:14px 16px;color:var(--txt2)">Same as above</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);background:#fafaf8">
+            <td style="padding:14px 16px"><strong>Offices 21&ndash;24</strong><br><span style="color:var(--txt2);font-size:13px">100&ndash;110 sq ft</span></td>
+            <td style="padding:14px 16px;color:var(--gold);font-weight:600">$575/month</td>
+            <td style="padding:14px 16px;color:var(--txt2)">Same as above</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border)">
+            <td style="padding:14px 16px"><strong>Offices 12, 14, 15, 17, 19, 31&ndash;33, 36</strong><br><span style="color:var(--txt2);font-size:13px">120&ndash;160 sq ft</span></td>
+            <td style="padding:14px 16px;color:var(--gold);font-weight:600">$675/month</td>
+            <td style="padding:14px 16px;color:var(--txt2)">Same as above</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);background:#fafaf8">
+            <td style="padding:14px 16px"><strong>Offices 13, 18</strong><br><span style="color:var(--txt2);font-size:13px">176&ndash;196 sq ft</span></td>
+            <td style="padding:14px 16px;color:var(--gold);font-weight:600">$725/month</td>
+            <td style="padding:14px 16px;color:var(--txt2)">Same as above</td>
+          </tr>
+          <tr>
+            <td style="padding:14px 16px"><strong>Offices 16, 19A, 34</strong><br><span style="color:var(--txt2);font-size:13px">189&ndash;245 sq ft</span></td>
+            <td style="padding:14px 16px;color:var(--gold);font-weight:600">$800/month</td>
+            <td style="padding:14px 16px;color:var(--txt2)">Same as above</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="margin-top:16px;font-size:13px;color:var(--txt2)">* One-time $200 setup fee. One month refundable deposit. Background check required ($35). Six-month initial term.</p>
+  </div>
+</section>
+
+<section class="section-navy" style="text-align:center">
+  <h2 class="section-title">Ready to See It in Person?</h2>
+  <p class="section-sub" style="margin:0 auto 28px">Schedule a tour and we'll show you around. No pressure &mdash; just come see if Qbix Centre feels right for your business.</p>
+  <a href="/contact" class="btn btn-gold">Schedule a Tour</a>
+</section>
+
+{% endblock %}

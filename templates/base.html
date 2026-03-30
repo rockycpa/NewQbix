@@ -1,210 +1,272 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{% block title %}Qbix Centre{% endblock %} &mdash; Professional Coworking in Macon, GA</title>
-<meta name="description" content="{% block description %}Qbix Centre offers private and coworking office spaces in Macon, Georgia. Flexible memberships starting at $425/month.{% endblock %}">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
-{% if ga_id %}
-<script async src="https://www.googletagmanager.com/gtag/js?id={{ ga_id }}"></script>
-<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','{{ ga_id }}');</script>
-{% endif %}
+{% extends "base.html" %}
+{% block title %}Book Conference Room &mdash; Calendar{% endblock %}
+
+{% block extra_css %}
 <style>
-:root {
-  --navy:   #1a2744;
-  --gold:   #c9a84c;
-  --gold2:  #e8c97a;
-  --light:  #f8f6f1;
-  --white:  #ffffff;
-  --txt:    #2d2d2d;
-  --txt2:   #666666;
-  --border: #e2ddd5;
-  --r: 10px;
-}
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Inter',sans-serif;color:var(--txt);background:var(--white);line-height:1.6}
-a{color:var(--navy);text-decoration:none}
-img{max-width:100%}
+.cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.cal-nav{background:none;border:1px solid var(--border);border-radius:6px;width:36px;height:36px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center}
+.cal-nav:hover{background:var(--light)}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cal-day-label{text-align:center;font-size:12px;font-weight:600;color:var(--txt2);padding:8px 0}
+.cal-day{text-align:center;padding:10px 4px;border-radius:7px;cursor:pointer;border:1px solid transparent;transition:all .15s;min-height:60px;position:relative}
+.cal-day:hover:not(.cal-day-past):not(.cal-day-empty){background:var(--light);border-color:var(--border)}
+.cal-day.cal-day-today{border-color:var(--gold);background:#fef3c7}
+.cal-day.cal-day-past{opacity:.4;cursor:default}
+.cal-day.cal-day-empty{cursor:default}
+.cal-day .day-num{font-size:14px;font-weight:500}
+.cal-day .day-slots{display:flex;flex-direction:column;gap:2px;margin-top:4px}
+.slot-pip{font-size:9px;padding:1px 4px;border-radius:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.slot-pip.taken{background:#fee2e2;color:#991b1b}
+.slot-pip.mine{background:#d1fae5;color:#065f46}
 
-/* NAV */
-nav.site-nav{background:var(--navy);padding:0 5%;display:flex;align-items:center;height:70px;position:sticky;top:0;z-index:100;box-shadow:0 2px 20px rgba(0,0,0,.3)}
-.nav-logo{font-family:'Playfair Display',serif;font-size:22px;color:var(--gold);font-weight:700;flex:1}
-.nav-logo span{color:var(--white);font-size:13px;font-family:'Inter',sans-serif;font-weight:300;margin-left:8px;opacity:.7}
-.nav-links{display:flex;gap:8px;align-items:center}
-.nav-links a{color:rgba(255,255,255,.8);font-size:14px;font-weight:500;padding:8px 14px;border-radius:6px;transition:all .2s}
-.nav-links a:hover,.nav-links a.active{color:#fff;background:rgba(255,255,255,.1)}
-.nav-cta{background:var(--gold)!important;color:var(--navy)!important;font-weight:600!important;padding:8px 18px!important}
-.nav-cta:hover{background:var(--gold2)!important}
-.nav-admin{color:rgba(255,255,255,.4)!important;font-size:12px!important}
-
-/* HERO */
-.hero{background:linear-gradient(135deg,var(--navy) 0%,#2d4a7a 100%);color:#fff;padding:90px 5%;text-align:center}
-.hero h1{font-family:'Playfair Display',serif;font-size:clamp(32px,5vw,58px);margin-bottom:18px;line-height:1.15}
-.hero h1 span{color:var(--gold)}
-.hero p{font-size:18px;opacity:.85;max-width:600px;margin:0 auto 32px;line-height:1.7}
-.hero-btns{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
-.btn{display:inline-block;padding:13px 28px;border-radius:8px;font-weight:600;font-size:15px;transition:all .2s;cursor:pointer;border:none;font-family:'Inter',sans-serif}
-.btn-gold{background:var(--gold);color:var(--navy)}
-.btn-gold:hover{background:var(--gold2);transform:translateY(-1px)}
-.btn-outline{background:transparent;color:#fff;border:2px solid rgba(255,255,255,.5)}
-.btn-outline:hover{background:rgba(255,255,255,.1);border-color:#fff}
-.btn-navy{background:var(--navy);color:#fff}
-.btn-navy:hover{background:#253660}
-.btn-sm{padding:8px 18px;font-size:13px}
-
-/* STATS BAR */
-.stats-bar{background:var(--gold);padding:20px 5%;display:flex;justify-content:center;gap:60px;flex-wrap:wrap}
-.stat-item{text-align:center}
-.stat-v{font-family:'Playfair Display',serif;font-size:32px;color:var(--navy);font-weight:700}
-.stat-l{font-size:12px;color:var(--navy);opacity:.7;text-transform:uppercase;letter-spacing:.1em;font-weight:600}
-
-/* SECTIONS */
-section{padding:70px 5%}
-.section-label{font-size:12px;text-transform:uppercase;letter-spacing:.15em;color:var(--gold);font-weight:600;margin-bottom:10px}
-.section-title{font-family:'Playfair Display',serif;font-size:clamp(26px,4vw,40px);margin-bottom:16px;color:var(--navy)}
-.section-sub{color:var(--txt2);font-size:16px;max-width:560px;line-height:1.7}
-.section-light{background:var(--light)}
-.section-navy{background:var(--navy);color:#fff}
-.section-navy .section-title{color:var(--gold)}
-.section-navy .section-sub{color:rgba(255,255,255,.75)}
-
-/* GRID */
-.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:center}
-.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
-.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:20px}
-@media(max-width:900px){.grid-2,.grid-3{grid-template-columns:1fr}.grid-4{grid-template-columns:1fr 1fr}}
-@media(max-width:600px){.grid-4{grid-template-columns:1fr}.nav-links a:not(.nav-cta){display:none}}
-
-/* CARDS */
-.card{background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:28px;transition:all .2s}
-.card:hover{box-shadow:0 8px 30px rgba(0,0,0,.08);transform:translateY(-2px)}
-.card-icon{font-size:28px;margin-bottom:14px}
-.card h3{font-family:'Playfair Display',serif;font-size:20px;margin-bottom:8px;color:var(--navy)}
-.card p{color:var(--txt2);font-size:14px;line-height:1.7}
-
-/* OFFICE TILES */
-.office-tile{background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:22px;border-top:4px solid var(--gold)}
-.office-tile .office-num{font-family:'Playfair Display',serif;font-size:26px;color:var(--navy)}
-.office-tile .office-size{font-size:13px;color:var(--txt2);margin:4px 0}
-.office-tile .office-price{font-size:20px;font-weight:600;color:var(--gold);margin-top:8px}
-
-/* FORMS */
-.form-group{margin-bottom:18px}
-.form-group label{display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:var(--txt)}
-.form-group input,.form-group select,.form-group textarea{width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:7px;font-family:'Inter',sans-serif;font-size:14px;outline:none;transition:border-color .2s;background:#fff}
-.form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:var(--navy)}
-.form-group textarea{resize:vertical;min-height:100px}
-.form-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-@media(max-width:600px){.form-row{grid-template-columns:1fr}}
-.form-card{background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:36px;max-width:600px;margin:0 auto}
-.form-card h2{font-family:'Playfair Display',serif;font-size:26px;color:var(--navy);margin-bottom:6px}
-.form-card .subtitle{color:var(--txt2);font-size:14px;margin-bottom:28px}
-
-/* ALERTS */
-.alert{padding:12px 18px;border-radius:7px;font-size:14px;margin-bottom:20px}
-.alert-success{background:#d1fae5;color:#065f46;border:1px solid #a7f3d0}
-.alert-error{background:#fee2e2;color:#991b1b;border:1px solid #fca5a5}
-.alert-info{background:#dbeafe;color:#1e40af;border:1px solid #93c5fd}
-
-/* FOOTER */
-footer{background:var(--navy);color:rgba(255,255,255,.7);padding:50px 5% 30px;font-size:14px}
-.footer-grid{display:grid;grid-template-columns:2fr 1fr 1fr;gap:40px;margin-bottom:40px}
-@media(max-width:700px){.footer-grid{grid-template-columns:1fr}}
-.footer-brand{font-family:'Playfair Display',serif;font-size:20px;color:var(--gold);margin-bottom:12px}
-footer h4{color:#fff;font-size:13px;text-transform:uppercase;letter-spacing:.1em;margin-bottom:14px}
-footer a{color:rgba(255,255,255,.6);display:block;margin-bottom:8px;font-size:13px;transition:color .2s}
-footer a:hover{color:var(--gold)}
-.footer-bottom{border-top:1px solid rgba(255,255,255,.1);padding-top:24px;display:flex;justify-content:space-between;font-size:12px;opacity:.5;flex-wrap:wrap;gap:8px}
-
-/* TOAST */
-.toast{position:fixed;bottom:24px;right:24px;background:var(--navy);color:#fff;padding:12px 20px;border-radius:8px;font-size:14px;z-index:999;opacity:0;transform:translateY(8px);transition:all .3s;pointer-events:none}
-.toast.show{opacity:1;transform:none}
-
-/* MISC */
-.badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600}
-.badge-green{background:#d1fae5;color:#065f46}
-.badge-blue{background:#dbeafe;color:#1e40af}
-.badge-gold{background:#fef3c7;color:#92400e}
-.badge-red{background:#fee2e2;color:#991b1b}
-.badge-gray{background:#f3f4f6;color:#374151}
-.divider{border:none;border-top:1px solid var(--border);margin:40px 0}
-.text-center{text-align:center}
-.text-gold{color:var(--gold)}
-.text-navy{color:var(--navy)}
-.text-muted{color:var(--txt2)}
-.mt-2{margin-top:8px}.mt-4{margin-top:16px}.mt-6{margin-top:24px}.mt-8{margin-top:32px}
-.mb-2{margin-bottom:8px}.mb-4{margin-bottom:16px}.mb-6{margin-bottom:24px}
-.hidden{display:none}
+.time-picker{background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:24px;margin-top:20px}
+.time-picker h3{font-family:'Playfair Display',serif;color:var(--navy);margin-bottom:16px}
+.time-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px}
+.time-btn{padding:8px;border:1px solid var(--border);border-radius:6px;background:#fff;cursor:pointer;font-size:13px;transition:all .15s;text-align:center}
+.time-btn:hover{border-color:var(--navy);background:var(--light)}
+.time-btn.selected{background:var(--navy);color:#fff;border-color:var(--navy)}
+.time-btn.unavailable{opacity:.4;cursor:default;background:#f3f4f6}
 </style>
-{% block extra_css %}{% endblock %}
-</head>
-<body>
+{% endblock %}
 
-<nav class="site-nav">
-  <div class="nav-logo">Qbix Centre <span>Macon, GA</span></div>
-  <div class="nav-links">
-    <a href="/" class="{% if request.endpoint == 'home' %}active{% endif %}">Home</a>
-    <a href="/offices" class="{% if request.endpoint == 'offices_page' %}active{% endif %}">Offices</a>
-    <a href="/amenities" class="{% if request.endpoint == 'amenities' %}active{% endif %}">Amenities</a>
-    <a href="/news" class="{% if request.endpoint == 'news' %}active{% endif %}">News</a>
-    <a href="/contact" class="{% if request.endpoint == 'contact' %}active{% endif %}">Contact</a>
-    <a href="/book" class="btn btn-gold btn-sm">Book Conference Room</a>
-    <a href="/admin" class="nav-admin">Admin</a>
+{% block content %}
+<div style="background:var(--navy);padding:20px 5%;color:#fff;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+  <div>
+    <div style="font-family:'Playfair Display',serif;font-size:20px;color:var(--gold)">Conference Room Booking</div>
+    <div style="font-size:13px;opacity:.75;margin-top:2px">Welcome, {{ member_name }} &mdash; {{ included_hours }} hours included monthly</div>
   </div>
-</nav>
+  <a href="/book" style="color:rgba(255,255,255,.6);font-size:13px">Sign out</a>
+</div>
 
-{% with messages = get_flashed_messages(with_categories=true) %}
-  {% if messages %}
-    <div style="padding:0 5%">
-    {% for category, message in messages %}
-      <div class="alert alert-{{ 'success' if category == 'success' else 'error' }}">{{ message }}</div>
-    {% endfor %}
-    </div>
-  {% endif %}
-{% endwith %}
+<section style="max-width:900px;margin:0 auto">
+  <div style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap">
 
-{% block content %}{% endblock %}
+    <!-- Calendar -->
+    <div style="flex:1;min-width:300px">
+      <div class="cal-header">
+        <button class="cal-nav" onclick="prevMonth()">◀</button>
+        <div style="font-family:'Playfair Display',serif;font-size:20px;color:var(--navy)" id="cal-title"></div>
+        <button class="cal-nav" onclick="nextMonth()">▶</button>
+      </div>
+      <div class="cal-grid" id="cal-grid">
+        <div class="cal-day-label">Mon</div>
+        <div class="cal-day-label">Tue</div>
+        <div class="cal-day-label">Wed</div>
+        <div class="cal-day-label">Thu</div>
+        <div class="cal-day-label">Fri</div>
+        <div class="cal-day-label">Sat</div>
+        <div class="cal-day-label">Sun</div>
+      </div>
+    </div>
 
-<footer>
-  <div class="footer-grid">
-    <div>
-      <div class="footer-brand">Qbix Centre</div>
-      <p>Professional coworking and private office space in Macon, Georgia. A community built for productivity.</p>
-      <p style="margin-top:12px">500A Northside Crossing<br>Macon, GA 31210</p>
+    <!-- Booking panel -->
+    <div style="width:300px">
+      <div id="booking-panel" class="time-picker" style="display:none">
+        <h3 id="panel-date"></h3>
+        <div class="form-group">
+          <label style="font-size:13px">Meeting Title</label>
+          <input type="text" id="booking-title" placeholder="e.g. Client Meeting" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:14px;outline:none">
+        </div>
+        <div class="form-group" style="margin-top:12px">
+          <label style="font-size:13px">Start Time</label>
+          <select id="start-time" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:14px" onchange="updateEndTimes()">
+          </select>
+        </div>
+        <div class="form-group" style="margin-top:12px">
+          <label style="font-size:13px">End Time</label>
+          <select id="end-time" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:14px">
+          </select>
+        </div>
+        <button onclick="confirmBooking()" class="btn btn-gold" style="width:100%;margin-top:16px">Confirm Booking</button>
+      </div>
+
+      <div id="success-panel" class="time-picker" style="display:none;text-align:center">
+        <div style="font-size:40px;margin-bottom:12px">✅</div>
+        <h3>Booking Confirmed!</h3>
+        <p style="color:var(--txt2);font-size:14px;margin-top:8px" id="confirm-msg"></p>
+        <button onclick="location.reload()" class="btn btn-navy btn-sm" style="margin-top:16px">Book Another</button>
+      </div>
+
+      <!-- Upcoming bookings -->
+      <div class="time-picker" style="margin-top:16px">
+        <h3 style="font-size:16px">My Upcoming Bookings</h3>
+        <div id="my-bookings" style="margin-top:12px;font-size:13px;color:var(--txt2)">Loading...</div>
+      </div>
     </div>
-    <div>
-      <h4>Quick Links</h4>
-      <a href="/offices">Available Offices</a>
-      <a href="/amenities">Amenities</a>
-      <a href="/book">Book Conference Room</a>
-      <a href="/news">News</a>
-      <a href="/contact">Contact Us</a>
-    </div>
-    <div>
-      <h4>Contact</h4>
-      <a href="tel:4787870532">(478) 787-0532</a>
-      <a href="mailto:qbixcentre@outlook.com">qbixcentre@outlook.com</a>
-      <p style="margin-top:16px;font-size:13px">Open 24/7 for members</p>
-    </div>
+
   </div>
-  <div class="footer-bottom">
-    <span>&copy; {{ now.year if now else '2026' }} RoseAn Properties, LLC. All rights reserved.</span>
-    <span>Qbix Centre &mdash; Macon, GA</span>
-  </div>
-</footer>
+</section>
 
-<div class="toast" id="toast"></div>
+{% block extra_js %}
 <script>
-function toast(msg, color){
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.style.background = color || '#1a2744';
-  t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 3000);
+const TOKEN = '{{ token }}';
+const MEMBER = '{{ member_name }}';
+let currentYear  = new Date().getFullYear();
+let currentMonth = new Date().getMonth() + 1;
+let selectedDate = null;
+let bookedSlots  = [];
+
+const TIMES = ['7:00','7:30','8:00','8:30','9:00','9:30','10:00','10:30','11:00','11:30',
+               '12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30','16:00',
+               '16:30','17:00','17:30','18:00'];
+
+async function loadSlots(){
+  const r = await fetch(`/book/slots?token=${TOKEN}&year=${currentYear}&month=${currentMonth}`);
+  const result = await r.json();
+  bookedSlots = result.ok ? result.slots : [];
+  renderCalendar();
+  loadMyBookings();
 }
+
+function renderCalendar(){
+  const grid = document.getElementById('cal-grid');
+  // Remove day cells (keep headers)
+  while(grid.children.length > 7) grid.removeChild(grid.lastChild);
+
+  document.getElementById('cal-title').textContent =
+    new Date(currentYear, currentMonth-1, 1).toLocaleDateString('en-US',{month:'long',year:'numeric'});
+
+  const firstDay = new Date(currentYear, currentMonth-1, 1).getDay(); // 0=Sun
+  const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  // Offset: Mon=0, need to convert Sun=0 to Mon=0
+  const offset = (firstDay === 0) ? 6 : firstDay - 1;
+  for(let i=0; i<offset; i++){
+    const empty = document.createElement('div');
+    empty.className = 'cal-day cal-day-empty'; grid.appendChild(empty);
+  }
+
+  for(let d=1; d<=daysInMonth; d++){
+    const dt = new Date(currentYear, currentMonth-1, d);
+    const ds = `${currentYear}-${String(currentMonth).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isPast = dt < today;
+    const isToday = dt.getTime() === today.getTime();
+    const dayBookings = bookedSlots.filter(b => b.date === ds);
+
+    const cell = document.createElement('div');
+    cell.className = 'cal-day' + (isPast?' cal-day-past':'') + (isToday?' cal-day-today':'');
+
+    let html = `<div class="day-num">${d}</div><div class="day-slots">`;
+    dayBookings.forEach(b => {
+      const isMe = b.memberName === MEMBER;
+      html += `<div class="slot-pip ${isMe?'mine':'taken'}">${b.start}&ndash;${b.end}</div>`;
+    });
+    html += '</div>';
+    cell.innerHTML = html;
+
+    if(!isPast){
+      cell.onclick = () => selectDate(ds, dt.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'}), dayBookings);
+    }
+    grid.appendChild(cell);
+  }
+}
+
+function selectDate(dateStr, dateLabel, dayBookings){
+  selectedDate = dateStr;
+  const panel = document.getElementById('booking-panel');
+  document.getElementById('success-panel').style.display = 'none';
+  panel.style.display = 'block';
+  document.getElementById('panel-date').textContent = dateLabel;
+
+  // Build start time options (exclude taken slots)
+  const takenRanges = dayBookings.map(b => ({s:b.start,e:b.end}));
+  const startSel = document.getElementById('start-time');
+  startSel.innerHTML = '';
+  TIMES.slice(0,-1).forEach(t => {
+    const blocked = takenRanges.some(r => t >= r.s && t < r.e);
+    if(!blocked){
+      const opt = document.createElement('option');
+      opt.value = t; opt.textContent = formatTime(t); startSel.appendChild(opt);
+    }
+  });
+  updateEndTimes();
+}
+
+function updateEndTimes(){
+  const start = document.getElementById('start-time').value;
+  const startIdx = TIMES.indexOf(start);
+  const endSel = document.getElementById('end-time');
+  endSel.innerHTML = '';
+  const dayBookings = bookedSlots.filter(b => b.date === selectedDate);
+  const takenRanges = dayBookings.map(b => ({s:b.start,e:b.end}));
+
+  for(let i=startIdx+1; i<TIMES.length; i++){
+    const t = TIMES[i];
+    // Stop if this slot is taken
+    const blocked = takenRanges.some(r => t > r.s && t <= r.e);
+    if(blocked) break;
+    const opt = document.createElement('option');
+    opt.value = t; opt.textContent = formatTime(t); endSel.appendChild(opt);
+  }
+}
+
+function formatTime(t){
+  const [h,m] = t.split(':').map(Number);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const h12 = h > 12 ? h-12 : h === 0 ? 12 : h;
+  return `${h12}:${String(m).padStart(2,'0')} ${ampm}`;
+}
+
+async function confirmBooking(){
+  const start = document.getElementById('start-time').value;
+  const end   = document.getElementById('end-time').value;
+  const title = document.getElementById('booking-title').value || 'Meeting';
+
+  if(!start || !end){ toast('Please select start and end times.','#dc2626'); return; }
+
+  const btn = document.querySelector('#booking-panel .btn-gold');
+  btn.disabled=true; btn.textContent='Booking...';
+
+  const r = await fetch('/book/create',{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({token:TOKEN, date:selectedDate, start, end, title})
+  });
+  const result = await r.json();
+
+  if(result.ok){
+    document.getElementById('booking-panel').style.display='none';
+    document.getElementById('success-panel').style.display='block';
+    document.getElementById('confirm-msg').textContent =
+      `${selectedDate} from ${formatTime(start)} to ${formatTime(end)}. A confirmation has been sent to your email.`;
+    loadSlots();
+  } else {
+    toast(result.error || 'Booking failed.','#dc2626');
+    btn.disabled=false; btn.textContent='Confirm Booking';
+  }
+}
+
+async function loadMyBookings(){
+  const today = new Date().toISOString().slice(0,10);
+  const upcoming = bookedSlots
+    .filter(b => b.memberName===MEMBER && b.date >= today)
+    .sort((a,b) => (a.date+a.start).localeCompare(b.date+b.start))
+    .slice(0,5);
+
+  const el = document.getElementById('my-bookings');
+  if(!upcoming.length){
+    el.textContent = 'No upcoming bookings.'; return;
+  }
+  el.innerHTML = upcoming.map(b =>
+    `<div style="padding:8px 0;border-bottom:1px solid var(--border)">
+      <div style="font-weight:500;color:var(--txt)">${b.date}</div>
+      <div style="color:var(--txt2)">${b.start}&ndash;${b.end} · ${b.title||'Meeting'}</div>
+    </div>`
+  ).join('');
+}
+
+function prevMonth(){
+  currentMonth--;
+  if(currentMonth < 1){ currentMonth=12; currentYear--; }
+  loadSlots();
+}
+function nextMonth(){
+  currentMonth++;
+  if(currentMonth > 12){ currentMonth=1; currentYear++; }
+  loadSlots();
+}
+
+loadSlots();
 </script>
-{% block extra_js %}{% endblock %}
-</body>
-</html>
+{% endblock %}
+{% endblock %}

@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block title %}Coworking & Office Space for Rent{% endblock %}
+
+{% block content %}
+
+<!-- HERO -->
+<div class="hero">
+  <h1>Your Professional Home<br>in <span>Macon, Georgia</span></h1>
+  <p>Private offices and coworking space in North Macon. No long-term leases. 24/7 access. A community built for professionals.</p>
+  <div class="hero-btns">
+    <a href="/contact" class="btn btn-gold">Schedule a Tour</a>
+    <a href="/offices" class="btn btn-outline">View Available Offices</a>
+  </div>
+</div>
+
+<!-- STATS -->
+<div class="stats-bar">
+  <div class="stat-item">
+    <div class="stat-v">{{ occupied }}</div>
+    <div class="stat-l">Offices Occupied</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-v">{{ vacant|length }}</div>
+    <div class="stat-l">Available Now</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-v">24/7</div>
+    <div class="stat-l">Access</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-v">$425</div>
+    <div class="stat-l">Starting Monthly</div>
+  </div>
+</div>
+
+<!-- WHY QBIX -->
+<section>
+  <div style="text-align:center;margin-bottom:48px">
+    <div class="section-label">Why Choose Qbix Centre</div>
+    <h2 class="section-title">Everything You Need to Do Your Best Work</h2>
+    <p class="section-sub" style="margin:0 auto">A professional environment designed for focus, community, and flexibility &mdash; without the overhead of a traditional office.</p>
+  </div>
+  <div class="grid-3">
+    <div class="card">
+      <div class="card-icon">🏢</div>
+      <h3>Private Offices</h3>
+      <p>Furnished, lockable private offices ranging from 80 to 245 sq ft. Height-adjustable sit/stand desks included.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">⚡</div>
+      <h3>AT&T Gigabit Fiber</h3>
+      <p>Enterprise-grade internet with both Wi-Fi and Ethernet. Fast and reliable so you can focus on work.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">☕</div>
+      <h3>Complimentary Starbucks</h3>
+      <p>Unlimited Starbucks coffee, soft drinks, and water. A full kitchenette with refrigerator and microwave.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">📅</div>
+      <h3>Conference Room</h3>
+      <p>240 sq ft conference room with 8×4 glass whiteboard and full TV projection. 6 hours included monthly.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">🔑</div>
+      <h3>24/7 Access</h3>
+      <p>Your card key and access code get you in anytime. Work on your schedule, not ours.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">🚗</div>
+      <h3>Free Parking</h3>
+      <p>Ample free parking right outside the door. Easy access just minutes from I-75 and the Tom Hill area.</p>
+    </div>
+  </div>
+</section>
+
+<!-- AVAILABLE OFFICES -->
+{% if vacant %}
+<section class="section-light">
+  <div style="text-align:center;margin-bottom:40px">
+    <div class="section-label">Available Now</div>
+    <h2 class="section-title">Open Offices</h2>
+    <p class="section-sub" style="margin:0 auto">These offices are available for immediate occupancy. Contact us to schedule a tour.</p>
+  </div>
+  <div class="grid-4">
+    {% for o in vacant %}
+    <div class="office-tile">
+      <div class="office-num">Office {{ o.num }}</div>
+      <div class="office-size">{{ o.sqft }}{% if o.dormer %} + {{ o.dormer }} dormer{% endif %} sq ft</div>
+      <div class="office-price">{% if o.listDues %}${{ "{:,}".format(o.listDues) }}/mo{% else %}Contact for pricing{% endif %}</div>
+    </div>
+    {% endfor %}
+  </div>
+  <div class="text-center mt-8">
+    <a href="/contact" class="btn btn-navy">Schedule a Tour</a>
+    <a href="/offices" class="btn btn-outline" style="color:var(--navy);border-color:var(--navy);margin-left:12px">See All Office Options</a>
+  </div>
+</section>
+{% endif %}
+
+<!-- LOCATION -->
+<section class="section-navy">
+  <div class="grid-2">
+    <div>
+      <div class="section-label" style="color:var(--gold2)">Prime North Macon Location</div>
+      <h2 class="section-title">Convenient & Professional</h2>
+      <p class="section-sub">Located at 500A Northside Crossing, just minutes from I-75 and the Tom Hill shopping area. Easy access for you and your clients.</p>
+      <div style="margin-top:28px;display:flex;flex-direction:column;gap:12px">
+        <div style="color:rgba(255,255,255,.8)">📍 500A Northside Crossing, Macon, GA 31210</div>
+        <div style="color:rgba(255,255,255,.8)">📞 <a href="tel:4787870532" style="color:var(--gold)">(478) 787-0532</a></div>
+        <div style="color:rgba(255,255,255,.8)">✉️ <a href="mailto:qbixcentre@outlook.com" style="color:var(--gold)">qbixcentre@outlook.com</a></div>
+      </div>
+      <div style="margin-top:28px">
+        <a href="/contact" class="btn btn-gold">Get in Touch</a>
+      </div>
+    </div>
+    <div>
+      <iframe
+        src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3322!2d-83.7!3d32.9!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2s500A+Northside+Crossing+Macon+GA!5e0!3m2!1sen!2sus!4v1"
+        width="100%" height="320" style="border:0;border-radius:10px;opacity:.9" allowfullscreen loading="lazy">
+      </iframe>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section style="text-align:center;padding:80px 5%">
+  <div class="section-label">Ready to Get Started?</div>
+  <h2 class="section-title">Join the Qbix Centre Community</h2>
+  <p class="section-sub" style="margin:0 auto 32px">Come take a tour and see if Qbix Centre is the right fit for your business. No pressure, just a conversation.</p>
+  <a href="/contact" class="btn btn-gold" style="font-size:16px;padding:15px 36px">Schedule Your Tour Today</a>
+</section>
+
+{% endblock %}

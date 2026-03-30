@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}{{ post.subject }}{% endblock %}
+
+{% block content %}
+<section style="max-width:800px;margin:0 auto">
+  <a href="/news" style="color:var(--txt2);font-size:14px">&larr; Back to News</a>
+  <div style="margin-top:32px">
+    <div style="font-size:13px;color:var(--txt2);margin-bottom:10px">{{ post.date[:10] if post.date else '' }}</div>
+    <h1 style="font-family:'Playfair Display',serif;font-size:36px;color:var(--navy);margin-bottom:32px">{{ post.subject }}</h1>
+    <div style="line-height:1.8;font-size:16px">{{ post.body | safe }}</div>
+  </div>
+</section>
+{% endblock %}

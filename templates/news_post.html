@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Amenities & Features{% endblock %}
+
+{% block content %}
+<div class="hero" style="padding:60px 5%">
+  <h1>Everything You Need,<br><span>Already Included</span></h1>
+  <p>No surprise fees. No add-ons. Just a complete professional workspace ready for you on day one.</p>
+</div>
+
+<section>
+  <div class="grid-2" style="gap:60px">
+    <div>
+      <div class="section-label">Internet & Tech</div>
+      <h2 class="section-title">Enterprise-Grade Connectivity</h2>
+      <p class="section-sub">AT&T Gigabit fiber internet &mdash; both Wi-Fi and Ethernet available in every office. Fast, reliable, and secure.</p>
+      <ul style="margin-top:24px;list-style:none;display:flex;flex-direction:column;gap:12px">
+        <li style="display:flex;gap:12px;align-items:flex-start"><span style="color:var(--gold);font-size:18px">✓</span><span>AT&T Gigabit Fiber &mdash; 1,000 Mbps</span></li>
+        <li style="display:flex;gap:12px;align-items:flex-start"><span style="color:var(--gold);font-size:18px">✓</span><span>Wi-Fi throughout building</span></li>
+        <li style="display:flex;gap:12px;align-items:flex-start"><span style="color:var(--gold);font-size:18px">✓</span><span>Ethernet in every office</span></li>
+        <li style="display:flex;gap:12px;align-items:flex-start"><span style="color:var(--gold);font-size:18px">✓</span><span>Full-color laser printer &amp; scanner</span></li>
+        <li style="display:flex;gap:12px;align-items:flex-start"><span style="color:var(--gold);font-size:18px">✓</span><span>200 B&amp;W / 100 color pages monthly</span></li>
+      </ul>
+    </div>
+    <div>
+      <div class="section-label">Office Features</div>
+      <h2 class="section-title">Move-In Ready</h2>
+      <p class="section-sub">Every office comes fully furnished with professional-grade furniture. Just bring your laptop.</p>
+      <ul style="margin-top:24px;list-style:none;display:flex;flex-direction:column;gap:12px">
+        <li style="display:flex;gap:12px;align-items:flex-start"><span style="color:var(--gold);font-size:18px">✓</span><span>Height-adjustable sit/stand desks</span></li>
+        <li style="display:flex;gap:12px;align-items:flex-start"><span style="color:var(--gold);font-size:18px">✓</span><span>Ergonomic chairs</span></li>
+        <li style="display:flex;gap:12px;align-items:flex-start"><span style="color:var(--gold);font-size:18px">✓</span><span>Lockable private offices</span></li>
+        <li style="display:flex;gap:12px;align-items:flex-start"><span style="color:var(--gold);font-size:18px">✓</span><span>24/7 card key &amp; code access</span></li>
+        <li style="display:flex;gap:12px;align-items:flex-start"><span style="color:var(--gold);font-size:18px">✓</span><span>Secure shredding bin</span></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="section-light">
+  <div class="grid-3">
+    <div class="card">
+      <div class="card-icon">📅</div>
+      <h3>Conference Room</h3>
+      <p>240 sq ft professional conference room with an 8×4 glass whiteboard and full TV projection system. 6 hours included per office per month. Book online 24/7.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">☕</div>
+      <h3>Kitchenette</h3>
+      <p>Fully stocked with Starbucks coffee, soft drinks, and water &mdash; all complimentary. Refrigerator, microwave, and everything you need for a comfortable workday.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">📬</div>
+      <h3>Mail Handling</h3>
+      <p>Professional business address at 500A Northside Crossing. Mail collected and held for you, or forwarded on request. Available as a standalone membership too.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">🚗</div>
+      <h3>Free Parking</h3>
+      <p>Ample free parking right outside the building for you and your clients. Easy in, easy out &mdash; no parking stress.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">🧹</div>
+      <h3>Janitorial Service</h3>
+      <p>Regular professional cleaning keeps the building spotless. Common areas, restrooms, and kitchenette maintained to a high standard.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">👥</div>
+      <h3>Professional Community</h3>
+      <p>Share the building with other established businesses and professionals. Networking, referrals, and a collegial atmosphere come naturally.</p>
+    </div>
+  </div>
+</section>
+
+<section style="text-align:center">
+  <h2 class="section-title">Come See It for Yourself</h2>
+  <p class="section-sub" style="margin:0 auto 28px">A tour takes about 20 minutes and answers every question. We'd love to show you around.</p>
+  <a href="/contact" class="btn btn-gold">Schedule a Tour</a>
+</section>
+{% endblock %}
