@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Verify — Qbix Centre Admin</title>
+<title>Verify &mdash; Qbix Centre Admin</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -25,9 +25,9 @@ button:hover{opacity:.85}
 <body>
 <div class="box">
   <div class="logo">Qbix Centre</div>
-  <div class="icon">📱</div>
-  <h2>Check Your Phone</h2>
-  <p>We sent a 6-digit verification code to your phone. Enter it below to complete sign in.</p>
+  <div class="icon">📧</div>
+  <h2>Check Your Email</h2>
+  <p>We sent a 6-digit verification code to <strong>qbixcentre@outlook.com</strong>. Enter it below to complete sign in.</p>
 
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% for category, message in messages %}
@@ -41,7 +41,7 @@ button:hover{opacity:.85}
            autocomplete="one-time-code" autofocus required>
     <button type="submit">Verify &amp; Sign In</button>
   </form>
-  <a href="/admin/login" class="back">← Back to login</a>
+  <a href="/admin/login" class="back">&larr; Back to login</a>
 </div>
 </body>
 </html>

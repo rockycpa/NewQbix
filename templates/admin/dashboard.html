@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Qbix Centre — Management Portal</title>
+<title>Qbix Centre &mdash; Management Portal</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#0b0d11;--sur:#13161e;--sur2:#1b1f2b;--bdr:#252a38;--acc:#d4a843;--blue:#5b9bd5;--grn:#4db887;--red:#d96060;--purple:#9b7ed4;--txt:#dde2ed;--txt2:#7d8aa0;--txt3:#404860;--r:10px}
@@ -222,7 +222,7 @@ tr.rclick:hover td{background:rgba(255,255,255,.02);cursor:pointer}
 
 <!-- DASHBOARD -->
 <div class="page on" id="page-dashboard">
-  <div class="pg-title">Dashboard</div><div class="pg-sub">Live overview — Qbix Centre</div>
+  <div class="pg-title">Dashboard</div><div class="pg-sub">Live overview &mdash; Qbix Centre</div>
 
   {% if pending %}
   <div class="pending-bar">
@@ -232,7 +232,7 @@ tr.rclick:hover td{background:rgba(255,255,255,.02);cursor:pointer}
       <div style="font-size:12px;color:var(--txt2)">
         {% for m in pending[:3] %}{{ m.name }}{% if not loop.last %}, {% endif %}{% endfor %}
         {% if pending|length > 3 %} + {{ pending|length - 3 }} more{% endif %}
-        — <a href="#" onclick="showPage('members', document.querySelectorAll('.nb')[2]);setMF('Pending',document.getElementById('mf-pending'))" style="color:var(--acc)">Review now →</a>
+        &mdash; <a href="#" onclick="showPage('members', document.querySelectorAll('.nb')[2]);setMF('Pending',document.getElementById('mf-pending'))" style="color:var(--acc)">Review now &rarr;</a>
       </div>
     </div>
   </div>
@@ -276,7 +276,7 @@ tr.rclick:hover td{background:rgba(255,255,255,.02);cursor:pointer}
         {% if upcoming_bookings %}
           {% for b in upcoming_bookings[:5] %}
           <div style="padding:5px 0;border-bottom:1px solid var(--bdr);font-size:12px">
-            <div style="font-weight:500">{{ b.date }} {{ b.start }}–{{ b.end }}</div>
+            <div style="font-weight:500">{{ b.date }} {{ b.start }}&ndash;{{ b.end }}</div>
             <div style="color:var(--txt2)">{{ b.memberName }}: {{ b.title or 'Meeting' }}</div>
           </div>
           {% endfor %}
@@ -395,19 +395,19 @@ tr.rclick:hover td{background:rgba(255,255,255,.02);cursor:pointer}
 
 <!-- NEWSLETTER -->
 <div class="page" id="page-newsletter">
-  <div class="pg-title">&#128240; Newsletter</div><div class="pg-sub">AI-assisted monthly newsletter — ~3 cents per draft</div>
+  <div class="pg-title">&#128240; Newsletter</div><div class="pg-sub">AI-assisted monthly newsletter &mdash; ~3 cents per draft</div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start">
     <div class="card">
       <div class="ct">Generate Draft</div>
       <div class="compose-field">
         <label>Additional Notes for AI</label>
-        <textarea id="nl-notes" placeholder="e.g. 'We just got new chairs in the kitchenette' or 'Spring is here — encourage use of the conference room'" style="min-height:90px"></textarea>
+        <textarea id="nl-notes" placeholder="e.g. 'We just got new chairs in the kitchenette' or 'Spring is here &mdash; encourage use of the conference room'" style="min-height:90px"></textarea>
       </div>
       <button onclick="generateNewsletter()" class="btn-save" style="width:100%" id="nl-gen-btn">&#10024; Generate Draft with AI</button>
       <div id="nl-draft-area" style="display:none;margin-top:16px">
         <div class="compose-field">
           <label>Subject</label>
-          <input id="nl-subject" placeholder="e.g. Qbix Centre — April 2026 Newsletter">
+          <input id="nl-subject" placeholder="e.g. Qbix Centre &mdash; April 2026 Newsletter">
         </div>
         <div class="compose-field">
           <label>Newsletter Body (edit as needed)</label>
@@ -584,7 +584,7 @@ function buildDash(){
 function buildBookingsTab(){
   const today=new Date().toISOString().slice(0,10);
   const rows=(DB.bookings||[]).filter(b=>b.status!=='cancelled').sort((a,b)=>(a.date+a.start).localeCompare(b.date+b.start));
-  document.getElementById('bookings-tbody').innerHTML=rows.map(b=>`<tr><td class="mono">${b.date}</td><td class="mono">${b.start}–${b.end}</td><td>${b.memberName}</td><td>${b.title||'Meeting'}</td><td><span class="badge ${b.date<today?'br':'bg'}">${b.date<today?'Past':'Upcoming'}</span></td><td><button class="btn-sm del" onclick="adminCancelBooking('${b.id}')">Cancel</button></td></tr>`).join('')||'<tr><td colspan="6" style="text-align:center;color:var(--txt3);padding:20px">No bookings</td></tr>';
+  document.getElementById('bookings-tbody').innerHTML=rows.map(b=>`<tr><td class="mono">${b.date}</td><td class="mono">${b.start}&ndash;${b.end}</td><td>${b.memberName}</td><td>${b.title||'Meeting'}</td><td><span class="badge ${b.date<today?'br':'bg'}">${b.date<today?'Past':'Upcoming'}</span></td><td><button class="btn-sm del" onclick="adminCancelBooking('${b.id}')">Cancel</button></td></tr>`).join('')||'<tr><td colspan="6" style="text-align:center;color:var(--txt3);padding:20px">No bookings</td></tr>';
 }
 
 async function adminCancelBooking(id){
@@ -614,7 +614,7 @@ async function generateNewsletter(){
     const result=await r.json();
     if(result.ok){
       const now=new Date();
-      document.getElementById('nl-subject').value=`Qbix Centre — ${now.toLocaleDateString('en-US',{month:'long',year:'numeric'})} Newsletter`;
+      document.getElementById('nl-subject').value=`Qbix Centre &mdash; ${now.toLocaleDateString('en-US',{month:'long',year:'numeric'})} Newsletter`;
       document.getElementById('nl-body').value=result.draft;
       document.getElementById('nl-draft-area').style.display='block';
       toast('Draft generated! Review and edit before sending.');
@@ -664,7 +664,7 @@ function openOfficeMo(id){
   const occs=occsForOffice(o.num);
   const allOff=o.member?officesFor(o.member):[];
   document.getElementById('mo-title').textContent='Office '+o.num;
-  document.getElementById('mo-sub').textContent=o.status+(o.member?' — '+o.member:' — Available');
+  document.getElementById('mo-sub').textContent=o.status+(o.member?' &mdash; '+o.member:' &mdash; Available');
   let h='<div class="di"><label>Status</label><value><span class="badge '+(o.status==='Occupied'?'bg':'bb')+'">'+o.status+'</span></value></div>'+'<div class="di"><label>Square Footage</label><value>'+(o.sqft?o.sqft+(o.dormer?' + '+o.dormer+' dormer':'')+' sq ft':'-')+'</value></div>';
   if(o.member&&m){
     const d=Number(m.discount)||0;
@@ -704,7 +704,7 @@ function setMF(f,btn){mFilter=f;document.querySelectorAll('#mf-active,#mf-pendin
 function openMemberMo(id){
   const m=getMemberById(id);const offs=officesFor(m.name);const occs=occupantsFor(m.name);const d=Number(m.discount)||0;const atts=m.attachments||[];
   document.getElementById('mo-title').textContent=m.name;
-  document.getElementById('mo-sub').textContent=m.status+' Member — Offices: '+(offs.join(', ')||'-');
+  document.getElementById('mo-sub').textContent=m.status+' Member &mdash; Offices: '+(offs.join(', ')||'-');
   let h='<div class="di"><label>Status</label><value><span class="badge '+(m.status==='Active'?'bg':m.status==='Pending'?'ba':'br')+'">'+m.status+'</span></value></div>';
   h+='<div class="di"><label>Member Since</label><value>'+fD(m.start)+'</value></div>';
   h+='<div class="di full"><label>Monthly Dues</label><div style="margin-top:5px"><div class="dues-row"><span style="color:var(--txt2)">Gross</span><span class="mono">'+f$(m.dues)+'</span></div>'+(d>0?'<div class="dues-row"><span style="color:var(--purple)">Discount</span><span class="mono" style="color:var(--purple)">- '+f$(d)+'</span></div>':'')+'<div class="dues-row total"><span>Net</span><span class="dues-net">'+f$(net(m))+'</span></div></div></div>';
@@ -738,7 +738,7 @@ function downloadAgreement(id){
   if(!m.agreementSent){m.agreementSent=new Date().toISOString().slice(0,10);saveData();renderMembers();}
 }
 function markAgreementSent(id){const m=getMemberById(id);m.agreementSent=new Date().toISOString().slice(0,10);saveData();closeMo(null,'view-modal');setTimeout(()=>openMemberMo(id),60);toast('Marked as sent');}
-function markAgreementSigned(id){const m=getMemberById(id);m.agreementSigned=new Date().toISOString().slice(0,10);if(m.status==='Pending')m.status='Active';saveData();closeMo(null,'view-modal');setTimeout(()=>openMemberMo(id),60);toast('Marked as signed — status set to Active ✓');}
+function markAgreementSigned(id){const m=getMemberById(id);m.agreementSigned=new Date().toISOString().slice(0,10);if(m.status==='Pending')m.status='Active';saveData();closeMo(null,'view-modal');setTimeout(()=>openMemberMo(id),60);toast('Marked as signed &mdash; status set to Active ✓');}
 
 // Onboarding link
 function openOnboardLink(){document.getElementById('ob-name').value='';document.getElementById('ob-email').value='';document.getElementById('ob-result').style.display='none';document.getElementById('onboard-modal').classList.add('open');}
@@ -751,7 +751,7 @@ async function generateOnboardLink(){
     document.getElementById('ob-result').style.display='block';
     document.getElementById('ob-link').textContent=result.link;
     navigator.clipboard.writeText(result.link).catch(()=>{});
-    toast('Link generated & copied'+(email?' — emailed to '+email:''));
+    toast('Link generated & copied'+(email?' &mdash; emailed to '+email:''));
   } else toast('Error: '+result.error,'var(--red)');
 }
 
@@ -778,7 +778,7 @@ function setOccF(f,btn){occFilter=f;document.querySelectorAll('#of-active,#of-pe
 function openOccMo(id){
   const o=getOccById(id);
   document.getElementById('mo-title').textContent=o.name;
-  document.getElementById('mo-sub').textContent=o.company+(o.office?' — Office '+o.office:'');
+  document.getElementById('mo-sub').textContent=o.company+(o.office?' &mdash; Office '+o.office:'');
   let h='<div class="di"><label>Status</label><value><span class="badge '+(o.status==='Active'?'bg':o.status==='Pending'?'ba':'br')+'">'+o.status+'</span></value></div>';
   h+='<div class="di"><label>Office</label><value class="mono">'+(o.office?'Office '+o.office:'-')+'</value></div>';
   h+='<div class="di"><label>Phone</label><value class="mono">'+(o.phone||'-')+'</value></div>';
@@ -814,7 +814,7 @@ function buildNotify(){
   document.getElementById('gc-everyone').textContent=all.length;
   document.getElementById('gc-email').textContent=all.filter(p=>p.email).length;
   document.getElementById('gc-phone').textContent=all.filter(p=>p.phone).length;
-  document.getElementById('individual-list').innerHTML=getUniqPeople('everyone').map(p=>'<div style="display:flex;align-items:center;gap:7px;padding:5px 4px;border-radius:6px;cursor:pointer" onclick="toggleIndividual(\''+esc(p.id)+'\',\''+esc(p.name)+'\',\''+esc(p.email||'')+'\',\''+esc(p.phone||'')+'\',\''+esc(p.office||'')+'\',\''+esc(p.company||'')+'\',\''+p.type+'\')">'+'<div style="width:14px;height:14px;border-radius:3px;border:1px solid var(--bdr);background:var(--sur2);flex-shrink:0;font-size:10px;display:flex;align-items:center;justify-content:center" id="indv-chk-'+p.id+'"></div>'+'<div style="flex:1;min-width:0"><div style="font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+p.name+'</div><div style="font-size:10px;color:var(--txt3)">'+(p.type==='member'?'Member':'Occupant')+(p.office?' — Ofc '+p.office:'')+'</div></div>'+'<div style="display:flex;gap:3px">'+(p.email?'<span style="font-size:10px;color:var(--blue)">✉</span>':'')+(p.phone?'<span style="font-size:10px;color:var(--grn)">📱</span>':'')+'</div></div>').join('');
+  document.getElementById('individual-list').innerHTML=getUniqPeople('everyone').map(p=>'<div style="display:flex;align-items:center;gap:7px;padding:5px 4px;border-radius:6px;cursor:pointer" onclick="toggleIndividual(\''+esc(p.id)+'\',\''+esc(p.name)+'\',\''+esc(p.email||'')+'\',\''+esc(p.phone||'')+'\',\''+esc(p.office||'')+'\',\''+esc(p.company||'')+'\',\''+p.type+'\')">'+'<div style="width:14px;height:14px;border-radius:3px;border:1px solid var(--bdr);background:var(--sur2);flex-shrink:0;font-size:10px;display:flex;align-items:center;justify-content:center" id="indv-chk-'+p.id+'"></div>'+'<div style="flex:1;min-width:0"><div style="font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+p.name+'</div><div style="font-size:10px;color:var(--txt3)">'+(p.type==='member'?'Member':'Occupant')+(p.office?' &mdash; Ofc '+p.office:'')+'</div></div>'+'<div style="display:flex;gap:3px">'+(p.email?'<span style="font-size:10px;color:var(--blue)">✉</span>':'')+(p.phone?'<span style="font-size:10px;color:var(--grn)">📱</span>':'')+'</div></div>').join('');
   renderTemplates();
   selectGroup('all-members',document.getElementById('grp-all-members'));
 }
@@ -831,7 +831,7 @@ function getUniqPeople(group){
 function selectGroup(group,btn){document.querySelectorAll('.group-btn').forEach(b=>b.classList.remove('on'));btn.classList.add('on');selectedRecipients=getUniqPeople(group);renderRecipients();syncCheckboxes();}
 function toggleIndividual(id,name,email,phone,office,company,type){const idx=selectedRecipients.findIndex(r=>r.id===id);if(idx>=0)selectedRecipients.splice(idx,1);else{selectedRecipients.push({id,name,email,phone,office,company,type,dues:0});if(type==='member'){const m=getMemberById(id);if(m)selectedRecipients[selectedRecipients.length-1].dues=net(m);}}document.querySelectorAll('.group-btn').forEach(b=>b.classList.remove('on'));renderRecipients();syncCheckboxes();}
 function syncCheckboxes(){const ids=new Set(selectedRecipients.map(r=>r.id));document.querySelectorAll('[id^="indv-chk-"]').forEach(el=>{const pid=el.id.replace('indv-chk-','');el.textContent=ids.has(pid)?'✓':'';el.style.borderColor=ids.has(pid)?'var(--blue)':'var(--bdr)';el.style.background=ids.has(pid)?'var(--blue)':'var(--sur2)';el.style.color='#fff';});}
-function renderRecipients(){const withEmail=selectedRecipients.filter(r=>r.email);const withPhone=selectedRecipients.filter(r=>r.phone&&!r.email);document.getElementById('recipient-area').innerHTML=[...withEmail.map(r=>'<span class="chip">'+r.name+'<button class="chip-rm" onclick="removeRecipient(\''+r.id+'\')">✕</button></span>'),...withPhone.map(r=>'<span class="chip phone-chip">📱 '+r.name+'<button class="chip-rm" onclick="removeRecipient(\''+r.id+'\')">✕</button></span>')].join('');document.getElementById('recip-count').textContent='('+selectedRecipients.length+' — '+withEmail.length+' email — '+selectedRecipients.filter(r=>r.phone).length+' phone)';}
+function renderRecipients(){const withEmail=selectedRecipients.filter(r=>r.email);const withPhone=selectedRecipients.filter(r=>r.phone&&!r.email);document.getElementById('recipient-area').innerHTML=[...withEmail.map(r=>'<span class="chip">'+r.name+'<button class="chip-rm" onclick="removeRecipient(\''+r.id+'\')">✕</button></span>'),...withPhone.map(r=>'<span class="chip phone-chip">📱 '+r.name+'<button class="chip-rm" onclick="removeRecipient(\''+r.id+'\')">✕</button></span>')].join('');document.getElementById('recip-count').textContent='('+selectedRecipients.length+' &mdash; '+withEmail.length+' email &mdash; '+selectedRecipients.filter(r=>r.phone).length+' phone)';}
 function removeRecipient(id){selectedRecipients=selectedRecipients.filter(r=>r.id!==id);document.querySelectorAll('.group-btn').forEach(b=>b.classList.remove('on'));renderRecipients();syncCheckboxes();}
 function insertMerge(tag){const ta=document.getElementById('msg-body');const s=ta.selectionStart,e=ta.selectionEnd;ta.value=ta.value.slice(0,s)+tag+ta.value.slice(e);ta.selectionStart=ta.selectionEnd=s+tag.length;ta.focus();}
 function applyMerge(tpl,p){return tpl.replace(/\{name\}/g,p.name||'').replace(/\{office\}/g,p.office?'Office '+p.office:'').replace(/\{company\}/g,p.company||'').replace(/\{dues\}/g,p.dues?'$'+Number(p.dues).toLocaleString():'');}
@@ -864,7 +864,7 @@ function statusButtons(cur,includesPending){
 
 function openOfficeForm(id){
   formType='office';formId=id;const o=id?DB.offices.find(x=>x.id===id):{};
-  const mOpts=['',...DB.members.map(m=>m.name)].map(n=>'<option value="'+n+'" '+((o.member||'')==n?'selected':'')+'>'+(n||'— Vacant —')+'</option>').join('');
+  const mOpts=['',...DB.members.map(m=>m.name)].map(n=>'<option value="'+n+'" '+((o.member||'')==n?'selected':'')+'>'+(n||'&mdash; Vacant &mdash;')+'</option>').join('');
   document.getElementById('form-title').textContent=id?'Edit Office':'Add Office';
   document.getElementById('form-body').innerHTML='<div class="fg"><div class="fl"><label>Office Number *</label><input id="f-num" value="'+(o.num||'')+'" placeholder="e.g. 37"></div><div class="fl"><label>Status</label><select id="f-status"><option value="Occupied" '+(o.status==='Occupied'?'selected':'')+'>Occupied</option><option value="Vacant" '+(o.status==='Vacant'?'selected':'')+'>Vacant</option></select></div><div class="fl"><label>Member / Tenant</label><select id="f-member">'+mOpts+'</select></div><div class="fl"><label>Tenant Start</label><input id="f-tstart" value="'+(o.tenantStart||'')+'" placeholder="e.g. 9/1/2025"></div><div class="fl"><label>Square Footage</label><input id="f-sqft" type="number" value="'+(o.sqft||'')+'"></div><div class="fl"><label>Dormer Sq Ft</label><input id="f-dormer" type="number" value="'+(o.dormer||'')+'"></div><div class="fl"><label>Listed Rate (Vacant $/mo)</label><input id="f-ldues" type="number" value="'+(o.listDues||'')+'"></div></div>';
   document.getElementById('form-modal').classList.add('open');
@@ -873,17 +873,17 @@ function openOfficeForm(id){
 function openMemberForm(id){
   formType='member';formId=id;pendingFiles=[];const m=id?getMemberById(id):{};
   document.getElementById('form-title').textContent=id?'Edit Member':'Add Member';
-  document.getElementById('form-body').innerHTML='<div class="fg"><div class="fl full"><label>Member Name *</label><input id="f-name" value="'+(m.name||'')+'" placeholder="Company or individual name"></div>'+statusButtons(m.status||'Active',true)+'<div class="fl"><label>Start Date</label><input id="f-start" type="date" value="'+(m.start||'')+'"></div><div class="fl"><label>End Date</label><input id="f-end" type="date" value="'+(m.end||'')+'"></div><div class="fl"><label>Gross Monthly Dues ($)</label><input id="f-dues" type="number" value="'+(m.dues||'')+'" oninput="updNet()"></div><div class="fl"><label>Discount ($)</label><input id="f-discount" type="number" value="'+(m.discount||0)+'" oninput="updNet()"></div><div class="fl full" style="background:var(--sur2);border:1px solid var(--bdr);border-radius:7px;padding:9px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--txt3);margin-bottom:3px">Net Monthly Dues</div><div id="net-prev" style="font-family:\'IBM Plex Mono\',monospace;font-size:17px;color:var(--grn)">-</div></div><div class="fl"><label>Deposit Held ($)</label><input id="f-deposit" type="number" value="'+(m.deposit||'')+'"></div><div class="fl"><label>Billing Email</label><input id="f-email" type="email" value="'+(m.email||'')+'"></div><div class="fl"><label>Phone</label><input id="f-phone" value="'+(m.phone||'')+'"></div><div class="fl full"><label>Notes</label><textarea id="f-notes">'+(m.notes||'')+'</textarea></div><div class="sect-title">Agreements / Documents</div><div class="fl full"><div class="file-drop" ondragover="this.classList.add(\'drag\')" ondragleave="this.classList.remove(\'drag\')" ondrop="handleDrop(event,\'agreements\')"><input type="file" multiple accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" onchange="handleFiles(this.files,\'agreements\')"><div class="file-drop-txt">📎 Drop files or <span>click to browse</span><br><small>PDF, Word, or images — max 10MB each</small></div></div><div class="pending-files" id="pending-agreements"></div>'+((m.attachments||[]).length?'<div style="margin-top:7px;font-size:11px;color:var(--txt3)">Stored: '+(m.attachments||[]).map(a=>'<span style="color:var(--acc)">'+a.name+'</span>').join(', ')+'</div>':'')+'</div></div>';
+  document.getElementById('form-body').innerHTML='<div class="fg"><div class="fl full"><label>Member Name *</label><input id="f-name" value="'+(m.name||'')+'" placeholder="Company or individual name"></div>'+statusButtons(m.status||'Active',true)+'<div class="fl"><label>Start Date</label><input id="f-start" type="date" value="'+(m.start||'')+'"></div><div class="fl"><label>End Date</label><input id="f-end" type="date" value="'+(m.end||'')+'"></div><div class="fl"><label>Gross Monthly Dues ($)</label><input id="f-dues" type="number" value="'+(m.dues||'')+'" oninput="updNet()"></div><div class="fl"><label>Discount ($)</label><input id="f-discount" type="number" value="'+(m.discount||0)+'" oninput="updNet()"></div><div class="fl full" style="background:var(--sur2);border:1px solid var(--bdr);border-radius:7px;padding:9px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--txt3);margin-bottom:3px">Net Monthly Dues</div><div id="net-prev" style="font-family:\'IBM Plex Mono\',monospace;font-size:17px;color:var(--grn)">-</div></div><div class="fl"><label>Deposit Held ($)</label><input id="f-deposit" type="number" value="'+(m.deposit||'')+'"></div><div class="fl"><label>Billing Email</label><input id="f-email" type="email" value="'+(m.email||'')+'"></div><div class="fl"><label>Phone</label><input id="f-phone" value="'+(m.phone||'')+'"></div><div class="fl full"><label>Notes</label><textarea id="f-notes">'+(m.notes||'')+'</textarea></div><div class="sect-title">Agreements / Documents</div><div class="fl full"><div class="file-drop" ondragover="this.classList.add(\'drag\')" ondragleave="this.classList.remove(\'drag\')" ondrop="handleDrop(event,\'agreements\')"><input type="file" multiple accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" onchange="handleFiles(this.files,\'agreements\')"><div class="file-drop-txt">📎 Drop files or <span>click to browse</span><br><small>PDF, Word, or images &mdash; max 10MB each</small></div></div><div class="pending-files" id="pending-agreements"></div>'+((m.attachments||[]).length?'<div style="margin-top:7px;font-size:11px;color:var(--txt3)">Stored: '+(m.attachments||[]).map(a=>'<span style="color:var(--acc)">'+a.name+'</span>').join(', ')+'</div>':'')+'</div></div>';
   updNet();document.getElementById('form-modal').classList.add('open');
 }
 function updNet(){const d=Number(document.getElementById('f-dues')?.value)||0;const disc=Number(document.getElementById('f-discount')?.value)||0;const el=document.getElementById('net-prev');if(el)el.textContent='$'+Math.max(0,d-disc).toLocaleString();}
 
 function openOccupantForm(id){
   formType='occupant';formId=id;pendingFiles=[];const p=id?getOccById(id):{};
-  const cOpts=['',...DB.members.map(m=>m.name)].map(n=>'<option value="'+n+'" '+((p.company||'')==n?'selected':'')+'>'+(n||'— Select —')+'</option>').join('');
-  const oOpts=['',...DB.offices.map(o=>o.num)].map(n=>'<option value="'+n+'" '+((p.office||'')==n?'selected':'')+'>'+(n||'— None —')+'</option>').join('');
+  const cOpts=['',...DB.members.map(m=>m.name)].map(n=>'<option value="'+n+'" '+((p.company||'')==n?'selected':'')+'>'+(n||'&mdash; Select &mdash;')+'</option>').join('');
+  const oOpts=['',...DB.offices.map(o=>o.num)].map(n=>'<option value="'+n+'" '+((p.office||'')==n?'selected':'')+'>'+(n||'&mdash; None &mdash;')+'</option>').join('');
   document.getElementById('form-title').textContent=id?'Edit Occupant':'Add Occupant';
-  document.getElementById('form-body').innerHTML='<div class="fg"><div class="fl full"><label>Full Name *</label><input id="f-name" value="'+(p.name||'')+'" placeholder="First Last"></div><div class="fl"><label>Member Company *</label><select id="f-company">'+cOpts+'</select></div><div class="fl"><label>Office Number</label><select id="f-office">'+oOpts+'</select></div><div class="fl"><label>Phone</label><input id="f-phone" value="'+(p.phone||'')+'"></div><div class="fl"><label>Email</label><input id="f-email" type="email" value="'+(p.email||'')+'"></div>'+statusButtons(p.status||'Active',false)+'<div class="fl"><label>End Date</label><input id="f-endDate" value="'+(p.endDate||'')+'" placeholder="e.g. 7/31/2026"></div><div class="sect-title">Driver\'s License</div><div class="fl full"><div class="file-drop" ondragover="this.classList.add(\'drag\')" ondragleave="this.classList.remove(\'drag\')" ondrop="handleDrop(event,\'dl\')"><input type="file" accept="image/*,.pdf" onchange="handleFiles(this.files,\'dl\')"><div class="file-drop-txt">🪪 Drop driver\'s license or <span>click to browse</span><br><small>JPG, PNG, PDF — max 10MB</small></div></div><div class="pending-files" id="pending-dl"></div>'+(p.dlAttachment?'<div style="margin-top:7px;font-size:11px;color:var(--txt3)">Stored: <span style="color:var(--acc)">'+p.dlAttachment.name+'</span></div>':'')+'</div></div>';
+  document.getElementById('form-body').innerHTML='<div class="fg"><div class="fl full"><label>Full Name *</label><input id="f-name" value="'+(p.name||'')+'" placeholder="First Last"></div><div class="fl"><label>Member Company *</label><select id="f-company">'+cOpts+'</select></div><div class="fl"><label>Office Number</label><select id="f-office">'+oOpts+'</select></div><div class="fl"><label>Phone</label><input id="f-phone" value="'+(p.phone||'')+'"></div><div class="fl"><label>Email</label><input id="f-email" type="email" value="'+(p.email||'')+'"></div>'+statusButtons(p.status||'Active',false)+'<div class="fl"><label>End Date</label><input id="f-endDate" value="'+(p.endDate||'')+'" placeholder="e.g. 7/31/2026"></div><div class="sect-title">Driver\'s License</div><div class="fl full"><div class="file-drop" ondragover="this.classList.add(\'drag\')" ondragleave="this.classList.remove(\'drag\')" ondrop="handleDrop(event,\'dl\')"><input type="file" accept="image/*,.pdf" onchange="handleFiles(this.files,\'dl\')"><div class="file-drop-txt">🪪 Drop driver\'s license or <span>click to browse</span><br><small>JPG, PNG, PDF &mdash; max 10MB</small></div></div><div class="pending-files" id="pending-dl"></div>'+(p.dlAttachment?'<div style="margin-top:7px;font-size:11px;color:var(--txt3)">Stored: <span style="color:var(--acc)">'+p.dlAttachment.name+'</span></div>':'')+'</div></div>';
   document.getElementById('form-modal').classList.add('open');
 }
 

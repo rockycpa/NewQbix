@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Book Conference Room — Calendar{% endblock %}
+{% block title %}Book Conference Room &mdash; Calendar{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -33,7 +33,7 @@
 <div style="background:var(--navy);padding:20px 5%;color:#fff;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
   <div>
     <div style="font-family:'Playfair Display',serif;font-size:20px;color:var(--gold)">Conference Room Booking</div>
-    <div style="font-size:13px;opacity:.75;margin-top:2px">Welcome, {{ member_name }} — {{ included_hours }} hours included monthly</div>
+    <div style="font-size:13px;opacity:.75;margin-top:2px">Welcome, {{ member_name }} &mdash; {{ included_hours }} hours included monthly</div>
   </div>
   <a href="/book" style="color:rgba(255,255,255,.6);font-size:13px">Sign out</a>
 </div>
@@ -150,7 +150,7 @@ function renderCalendar(){
     let html = `<div class="day-num">${d}</div><div class="day-slots">`;
     dayBookings.forEach(b => {
       const isMe = b.memberName === MEMBER;
-      html += `<div class="slot-pip ${isMe?'mine':'taken'}">${b.start}–${b.end}</div>`;
+      html += `<div class="slot-pip ${isMe?'mine':'taken'}">${b.start}&ndash;${b.end}</div>`;
     });
     html += '</div>';
     cell.innerHTML = html;
@@ -250,7 +250,7 @@ async function loadMyBookings(){
   el.innerHTML = upcoming.map(b =>
     `<div style="padding:8px 0;border-bottom:1px solid var(--border)">
       <div style="font-weight:500;color:var(--txt)">${b.date}</div>
-      <div style="color:var(--txt2)">${b.start}–${b.end} · ${b.title||'Meeting'}</div>
+      <div style="color:var(--txt2)">${b.start}&ndash;${b.end} · ${b.title||'Meeting'}</div>
     </div>`
   ).join('');
 }
