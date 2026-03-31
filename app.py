@@ -766,7 +766,7 @@ def api_backup():
 @login_required
 def test_email():
     """Send a test email to the admin address to verify SMTP works."""
-    import os
+    import os, smtplib, ssl
     cfg = {
         'SMTP_HOST': os.environ.get('SMTP_HOST',''),
         'SMTP_PORT': os.environ.get('SMTP_PORT',''),
@@ -777,14 +777,25 @@ def test_email():
         'ADMIN_PHONE': os.environ.get('ADMIN_PHONE',''),
         'ADMIN_CARRIER': os.environ.get('ADMIN_CARRIER',''),
     }
-    ok = send_email(
-        ADMIN_EMAIL, 'Rocky',
-        'Qbix Centre — SMTP Test',
-        '<h2>SMTP is working!</h2><p>Your Qbix Centre email configuration is correct.</p>',
-        'SMTP is working! Your Qbix Centre email configuration is correct.'
-    )
+    # Try SMTP directly and capture the exact error
+    error_msg = None
+    try:
+        smtp_host = os.environ.get('SMTP_HOST','')
+        smtp_port = int(os.environ.get('SMTP_PORT', 587))
+        smtp_user = os.environ.get('SMTP_USER','')
+        smtp_pass = os.environ.get('SMTP_PASS','')
+        ctx = ssl.create_default_context()
+        with smtplib.SMTP(smtp_host, smtp_port, timeout=10) as server:
+            server.starttls(context=ctx)
+            server.login(smtp_user, smtp_pass)
+            server.sendmail(smtp_user, ADMIN_EMAIL, f"Subject: Qbix Test\n\nSMTP is working!")
+        ok = True
+    except Exception as e:
+        ok = False
+        error_msg = str(e)
+
     return jsonify({'ok': ok, 'config': cfg,
-                    'message': 'Email sent!' if ok else 'Email FAILED — check config'})
+                    'message': 'Email sent!' if ok else 'FAILED: '+str(error_msg)})
 
 
 
