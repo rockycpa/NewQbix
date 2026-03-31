@@ -146,9 +146,9 @@ def hours_included(data, member_name):
 
 # ── Email helper ──────────────────────────────────────────────────────────────
 def send_email(to_email, to_name, subject, html_body, text_body=None):
-    """Send email via SMTP. Configure SMTP_* env vars."""
+    """Send email via SMTP. Supports port 465 (SSL) and 587 (STARTTLS)."""
     smtp_host = os.environ.get('SMTP_HOST', 'smtp.gmail.com')
-    smtp_port = int(os.environ.get('SMTP_PORT', 587))
+    smtp_port = int(os.environ.get('SMTP_PORT', 465))
     smtp_user = os.environ.get('SMTP_USER', '')
     smtp_pass = os.environ.get('SMTP_PASS', '')
 
@@ -167,10 +167,17 @@ def send_email(to_email, to_name, subject, html_body, text_body=None):
 
     try:
         context = ssl.create_default_context()
-        with smtplib.SMTP(smtp_host, smtp_port, timeout=10) as server:
-            server.starttls(context=context)
-            server.login(smtp_user, smtp_pass)
-            server.sendmail(FROM_EMAIL, to_email, msg.as_string())
+        if smtp_port == 465:
+            # SSL from the start
+            with smtplib.SMTP_SSL(smtp_host, smtp_port, context=context, timeout=10) as server:
+                server.login(smtp_user, smtp_pass)
+                server.sendmail(FROM_EMAIL, to_email, msg.as_string())
+        else:
+            # STARTTLS (port 587)
+            with smtplib.SMTP(smtp_host, smtp_port, timeout=10) as server:
+                server.starttls(context=context)
+                server.login(smtp_user, smtp_pass)
+                server.sendmail(FROM_EMAIL, to_email, msg.as_string())
         return True
     except Exception as e:
         print(f"[EMAIL ERROR] {e}")
@@ -196,7 +203,7 @@ def send_sms_code(phone, code):
     msg['To']      = sms_email
 
     smtp_host = os.environ.get('SMTP_HOST', 'smtp.gmail.com')
-    smtp_port = int(os.environ.get('SMTP_PORT', 587))
+    smtp_port = int(os.environ.get('SMTP_PORT', 465))
     smtp_user = os.environ.get('SMTP_USER', '')
     smtp_pass = os.environ.get('SMTP_PASS', '')
 
@@ -206,10 +213,15 @@ def send_sms_code(phone, code):
 
     try:
         context = ssl.create_default_context()
-        with smtplib.SMTP(smtp_host, smtp_port) as server:
-            server.starttls(context=context)
-            server.login(smtp_user, smtp_pass)
-            server.sendmail(FROM_EMAIL, sms_email, msg.as_string())
+        if smtp_port == 465:
+            with smtplib.SMTP_SSL(smtp_host, smtp_port, context=context, timeout=10) as server:
+                server.login(smtp_user, smtp_pass)
+                server.sendmail(FROM_EMAIL, sms_email, msg.as_string())
+        else:
+            with smtplib.SMTP(smtp_host, smtp_port) as server:
+                server.starttls(context=context)
+                server.login(smtp_user, smtp_pass)
+                server.sendmail(FROM_EMAIL, sms_email, msg.as_string())
         return True
     except Exception as e:
         print(f"[SMS ERROR] {e}")
@@ -781,14 +793,19 @@ def test_email():
     error_msg = None
     try:
         smtp_host = os.environ.get('SMTP_HOST','')
-        smtp_port = int(os.environ.get('SMTP_PORT', 587))
+        smtp_port = int(os.environ.get('SMTP_PORT', 465))
         smtp_user = os.environ.get('SMTP_USER','')
         smtp_pass = os.environ.get('SMTP_PASS','')
         ctx = ssl.create_default_context()
-        with smtplib.SMTP(smtp_host, smtp_port, timeout=10) as server:
-            server.starttls(context=ctx)
-            server.login(smtp_user, smtp_pass)
-            server.sendmail(smtp_user, ADMIN_EMAIL, f"Subject: Qbix Test\n\nSMTP is working!")
+        if smtp_port == 465:
+            with smtplib.SMTP_SSL(smtp_host, smtp_port, context=ctx, timeout=10) as server:
+                server.login(smtp_user, smtp_pass)
+                server.sendmail(smtp_user, ADMIN_EMAIL, f"Subject: Qbix Test\n\nSMTP is working!")
+        else:
+            with smtplib.SMTP(smtp_host, smtp_port, timeout=10) as server:
+                server.starttls(context=ctx)
+                server.login(smtp_user, smtp_pass)
+                server.sendmail(smtp_user, ADMIN_EMAIL, f"Subject: Qbix Test\n\nSMTP is working!")
         ok = True
     except Exception as e:
         ok = False
