@@ -146,43 +146,35 @@ def hours_included(data, member_name):
 
 # ── Email helper ──────────────────────────────────────────────────────────────
 def send_email(to_email, to_name, subject, html_body, text_body=None):
-    """Send email via Resend HTTP API (works on Railway - no SMTP port blocking)."""
-    import urllib.request, urllib.error, json as _json
+    """Send email via Amazon SES SMTP (port 2587 works on Railway)."""
+    smtp_host = os.environ.get('SMTP_HOST', 'email-smtp.us-east-2.amazonaws.com')
+    smtp_port = int(os.environ.get('SMTP_PORT', 2587))
+    smtp_user = os.environ.get('SMTP_USER', '')
+    smtp_pass = os.environ.get('SMTP_PASS', '')
 
-    api_key = os.environ.get('RESEND_API_KEY', '')
-
-    if not api_key:
-        print(f"[EMAIL] No RESEND_API_KEY set — would send to {to_email}: {subject}")
+    if not smtp_user:
+        print(f"[EMAIL] No SMTP_USER set — would send to {to_email}: {subject}")
         return False
 
-    payload = {
-        'from':    f"{FROM_NAME} <{FROM_EMAIL}>",
-        'to':      [to_email],
-        'subject': subject,
-        'html':    html_body,
-    }
+    msg = MIMEMultipart('alternative')
+    msg['Subject'] = subject
+    msg['From']    = f"{FROM_NAME} <{FROM_EMAIL}>"
+    msg['To']      = f"{to_name} <{to_email}>"
+
     if text_body:
-        payload['text'] = text_body
+        msg.attach(MIMEText(text_body, 'plain'))
+    msg.attach(MIMEText(html_body, 'html'))
 
     try:
-        data = _json.dumps(payload).encode('utf-8')
-        req  = urllib.request.Request(
-            'https://api.resend.com/emails',
-            data=data,
-            headers={
-                'Authorization': f'Bearer {api_key}',
-                'Content-Type':  'application/json',
-            },
-            method='POST'
-        )
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            return resp.status in (200, 201)
-    except urllib.error.HTTPError as e:
-        body = e.read().decode('utf-8', errors='ignore')
-        print(f"[RESEND ERROR] HTTP {e.code}: {body}")
-        return False
+        context = ssl.create_default_context()
+        with smtplib.SMTP(smtp_host, smtp_port, timeout=15) as server:
+            server.starttls(context=context)
+            server.login(smtp_user, smtp_pass)
+            server.sendmail(FROM_EMAIL, to_email, msg.as_string())
+        print(f"[EMAIL] Sent to {to_email}: {subject}")
+        return True
     except Exception as e:
-        print(f"[RESEND ERROR] {e}")
+        print(f"[EMAIL ERROR] {e}")
         return False
 
 
@@ -753,41 +745,34 @@ def api_backup():
 @app.route('/admin/api/test-email')
 @login_required
 def test_email():
-    """Send a test email to verify Resend configuration."""
-    import os, urllib.request, urllib.error, json as _json
-    api_key = os.environ.get('RESEND_API_KEY', '')
+    """Send a test email to verify Amazon SES SMTP configuration."""
+    import os
     cfg = {
-        'method':      'Resend API',
-        'RESEND_KEY':  'configured' if api_key else '(not set)',
+        'method':      'Amazon SES SMTP',
+        'SMTP_HOST':   os.environ.get('SMTP_HOST', ''),
+        'SMTP_PORT':   os.environ.get('SMTP_PORT', ''),
+        'SMTP_USER':   os.environ.get('SMTP_USER', '')[:8]+'...' if os.environ.get('SMTP_USER') else '(not set)',
+        'SMTP_PASS':   '***' if os.environ.get('SMTP_PASS') else '(not set)',
         'FROM_EMAIL':  os.environ.get('FROM_EMAIL', ''),
-        'FROM_NAME':   os.environ.get('FROM_NAME', ''),
         'ADMIN_EMAIL': os.environ.get('ADMIN_EMAIL', ''),
     }
-    # Call Resend directly so we can capture exact error
+    # Try directly so we can capture exact error
     error_detail = None
     ok = False
     try:
-        payload = {
-            'from':    f"{FROM_NAME} <{FROM_EMAIL}>",
-            'to':      [ADMIN_EMAIL],
-            'subject': 'Qbix Centre — Email Test',
-            'html':    '<h2>Email is working!</h2><p>Resend is configured correctly.</p>',
-        }
-        data = _json.dumps(payload).encode('utf-8')
-        req  = urllib.request.Request(
-            'https://api.resend.com/emails',
-            data=data,
-            headers={
-                'Authorization': f'Bearer {api_key}',
-                'Content-Type':  'application/json',
-            },
-            method='POST'
-        )
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            ok = resp.status in (200, 201)
-            error_detail = f"HTTP {resp.status}"
-    except urllib.error.HTTPError as e:
-        error_detail = f"HTTP {e.code}: {e.read().decode('utf-8', errors='ignore')}"
+        import smtplib, ssl
+        smtp_host = os.environ.get('SMTP_HOST', '')
+        smtp_port = int(os.environ.get('SMTP_PORT', 2587))
+        smtp_user = os.environ.get('SMTP_USER', '')
+        smtp_pass = os.environ.get('SMTP_PASS', '')
+        context = ssl.create_default_context()
+        with smtplib.SMTP(smtp_host, smtp_port, timeout=15) as server:
+            server.starttls(context=context)
+            server.login(smtp_user, smtp_pass)
+            server.sendmail(FROM_EMAIL, ADMIN_EMAIL,
+                f"Subject: Qbix Centre Email Test\nFrom: {FROM_EMAIL}\nTo: {ADMIN_EMAIL}\n\nAmazon SES is working!")
+        ok = True
+        error_detail = "Sent successfully"
     except Exception as e:
         error_detail = str(e)
 
