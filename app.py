@@ -754,7 +754,7 @@ def api_backup():
 @login_required
 def test_email():
     """Send a test email to verify Resend configuration."""
-    import os
+    import os, urllib.request, urllib.error, json as _json
     api_key = os.environ.get('RESEND_API_KEY', '')
     cfg = {
         'method':      'Resend API',
@@ -763,14 +763,36 @@ def test_email():
         'FROM_NAME':   os.environ.get('FROM_NAME', ''),
         'ADMIN_EMAIL': os.environ.get('ADMIN_EMAIL', ''),
     }
-    ok = send_email(
-        ADMIN_EMAIL, 'Rocky',
-        'Qbix Centre — Email Test',
-        '<h2>Email is working!</h2><p>Your Qbix Centre email is configured correctly via Resend.</p>',
-        'Email is working! Qbix Centre email configured correctly via Resend.'
-    )
+    # Call Resend directly so we can capture exact error
+    error_detail = None
+    ok = False
+    try:
+        payload = {
+            'from':    f"{FROM_NAME} <{FROM_EMAIL}>",
+            'to':      [ADMIN_EMAIL],
+            'subject': 'Qbix Centre — Email Test',
+            'html':    '<h2>Email is working!</h2><p>Resend is configured correctly.</p>',
+        }
+        data = _json.dumps(payload).encode('utf-8')
+        req  = urllib.request.Request(
+            'https://api.resend.com/emails',
+            data=data,
+            headers={
+                'Authorization': f'Bearer {api_key}',
+                'Content-Type':  'application/json',
+            },
+            method='POST'
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            ok = resp.status in (200, 201)
+            error_detail = f"HTTP {resp.status}"
+    except urllib.error.HTTPError as e:
+        error_detail = f"HTTP {e.code}: {e.read().decode('utf-8', errors='ignore')}"
+    except Exception as e:
+        error_detail = str(e)
+
     return jsonify({'ok': ok, 'config': cfg,
-                    'message': 'Email sent! Check your inbox.' if ok else 'FAILED — check Resend API key and FROM_EMAIL'})
+                    'message': 'Email sent! Check your inbox.' if ok else f'FAILED: {error_detail}'})
 
 
 
