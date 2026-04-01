@@ -146,86 +146,62 @@ def hours_included(data, member_name):
 
 # ── Email helper ──────────────────────────────────────────────────────────────
 def send_email(to_email, to_name, subject, html_body, text_body=None):
-    """Send email via SMTP. Supports port 465 (SSL) and 587 (STARTTLS)."""
-    smtp_host = os.environ.get('SMTP_HOST', 'smtp.gmail.com')
-    smtp_port = int(os.environ.get('SMTP_PORT', 465))
-    smtp_user = os.environ.get('SMTP_USER', '')
-    smtp_pass = os.environ.get('SMTP_PASS', '')
+    """Send email via Resend HTTP API (works on Railway - no SMTP port blocking)."""
+    import urllib.request, urllib.error, json as _json
 
-    if not smtp_user:
-        print(f"[EMAIL] Would send to {to_email}: {subject}")
-        return True
+    api_key = os.environ.get('RESEND_API_KEY', '')
 
-    msg = MIMEMultipart('alternative')
-    msg['Subject'] = subject
-    msg['From']    = f"{FROM_NAME} <{FROM_EMAIL}>"
-    msg['To']      = f"{to_name} <{to_email}>"
+    if not api_key:
+        print(f"[EMAIL] No RESEND_API_KEY set — would send to {to_email}: {subject}")
+        return False
 
+    payload = {
+        'from':    f"{FROM_NAME} <{FROM_EMAIL}>",
+        'to':      [to_email],
+        'subject': subject,
+        'html':    html_body,
+    }
     if text_body:
-        msg.attach(MIMEText(text_body, 'plain'))
-    msg.attach(MIMEText(html_body, 'html'))
+        payload['text'] = text_body
 
     try:
-        context = ssl.create_default_context()
-        if smtp_port == 465:
-            # SSL from the start
-            with smtplib.SMTP_SSL(smtp_host, smtp_port, context=context, timeout=10) as server:
-                server.login(smtp_user, smtp_pass)
-                server.sendmail(FROM_EMAIL, to_email, msg.as_string())
-        else:
-            # STARTTLS (port 587)
-            with smtplib.SMTP(smtp_host, smtp_port, timeout=10) as server:
-                server.starttls(context=context)
-                server.login(smtp_user, smtp_pass)
-                server.sendmail(FROM_EMAIL, to_email, msg.as_string())
-        return True
+        data = _json.dumps(payload).encode('utf-8')
+        req  = urllib.request.Request(
+            'https://api.resend.com/emails',
+            data=data,
+            headers={
+                'Authorization': f'Bearer {api_key}',
+                'Content-Type':  'application/json',
+            },
+            method='POST'
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            return resp.status in (200, 201)
+    except urllib.error.HTTPError as e:
+        body = e.read().decode('utf-8', errors='ignore')
+        print(f"[RESEND ERROR] HTTP {e.code}: {body}")
+        return False
     except Exception as e:
-        print(f"[EMAIL ERROR] {e}")
+        print(f"[RESEND ERROR] {e}")
         return False
 
 
 def send_sms_code(phone, code):
-    """Send SMS via email-to-SMS gateway (free) or Twilio if configured."""
-    # Email-to-SMS gateways (free, carrier dependent)
+    """Send SMS via email-to-SMS gateway using SendGrid."""
     gateways = {
         'att':      f'{phone}@txt.att.net',
         'verizon':  f'{phone}@vtext.com',
         'tmobile':  f'{phone}@tmomail.net',
         'sprint':   f'{phone}@messaging.sprintpcs.com',
     }
-    # Default: try AT&T gateway (most common in GA)
-    carrier = os.environ.get('ADMIN_CARRIER', 'att')
-    sms_email = gateways.get(carrier, gateways['att'])
-
-    msg = MIMEText(f"Qbix Centre login code: {code}")
-    msg['Subject'] = ''
-    msg['From']    = FROM_EMAIL
-    msg['To']      = sms_email
-
-    smtp_host = os.environ.get('SMTP_HOST', 'smtp.gmail.com')
-    smtp_port = int(os.environ.get('SMTP_PORT', 465))
-    smtp_user = os.environ.get('SMTP_USER', '')
-    smtp_pass = os.environ.get('SMTP_PASS', '')
-
-    if not smtp_user:
-        print(f"[SMS] Would send code {code} to {phone}")
-        return True
-
-    try:
-        context = ssl.create_default_context()
-        if smtp_port == 465:
-            with smtplib.SMTP_SSL(smtp_host, smtp_port, context=context, timeout=10) as server:
-                server.login(smtp_user, smtp_pass)
-                server.sendmail(FROM_EMAIL, sms_email, msg.as_string())
-        else:
-            with smtplib.SMTP(smtp_host, smtp_port) as server:
-                server.starttls(context=context)
-                server.login(smtp_user, smtp_pass)
-                server.sendmail(FROM_EMAIL, sms_email, msg.as_string())
-        return True
-    except Exception as e:
-        print(f"[SMS ERROR] {e}")
-        return False
+    carrier  = os.environ.get('ADMIN_CARRIER', 'att')
+    sms_addr = gateways.get(carrier, gateways['att'])
+    return send_email(
+        sms_addr, '',
+        '',
+        f'Qbix Centre login code: {code}',
+        f'Qbix Centre login code: {code}'
+    )
 
 
 # ── Auth helpers ──────────────────────────────────────────────────────────────
@@ -777,42 +753,24 @@ def api_backup():
 @app.route('/admin/api/test-email')
 @login_required
 def test_email():
-    """Send a test email to the admin address to verify SMTP works."""
-    import os, smtplib, ssl
+    """Send a test email to verify Resend configuration."""
+    import os
+    api_key = os.environ.get('RESEND_API_KEY', '')
     cfg = {
-        'SMTP_HOST': os.environ.get('SMTP_HOST',''),
-        'SMTP_PORT': os.environ.get('SMTP_PORT',''),
-        'SMTP_USER': os.environ.get('SMTP_USER',''),
-        'SMTP_PASS': '***' if os.environ.get('SMTP_PASS') else '(not set)',
-        'FROM_EMAIL': os.environ.get('FROM_EMAIL',''),
-        'ADMIN_EMAIL': os.environ.get('ADMIN_EMAIL',''),
-        'ADMIN_PHONE': os.environ.get('ADMIN_PHONE',''),
-        'ADMIN_CARRIER': os.environ.get('ADMIN_CARRIER',''),
+        'method':      'Resend API',
+        'RESEND_KEY':  'configured' if api_key else '(not set)',
+        'FROM_EMAIL':  os.environ.get('FROM_EMAIL', ''),
+        'FROM_NAME':   os.environ.get('FROM_NAME', ''),
+        'ADMIN_EMAIL': os.environ.get('ADMIN_EMAIL', ''),
     }
-    # Try SMTP directly and capture the exact error
-    error_msg = None
-    try:
-        smtp_host = os.environ.get('SMTP_HOST','')
-        smtp_port = int(os.environ.get('SMTP_PORT', 465))
-        smtp_user = os.environ.get('SMTP_USER','')
-        smtp_pass = os.environ.get('SMTP_PASS','')
-        ctx = ssl.create_default_context()
-        if smtp_port == 465:
-            with smtplib.SMTP_SSL(smtp_host, smtp_port, context=ctx, timeout=10) as server:
-                server.login(smtp_user, smtp_pass)
-                server.sendmail(smtp_user, ADMIN_EMAIL, f"Subject: Qbix Test\n\nSMTP is working!")
-        else:
-            with smtplib.SMTP(smtp_host, smtp_port, timeout=10) as server:
-                server.starttls(context=ctx)
-                server.login(smtp_user, smtp_pass)
-                server.sendmail(smtp_user, ADMIN_EMAIL, f"Subject: Qbix Test\n\nSMTP is working!")
-        ok = True
-    except Exception as e:
-        ok = False
-        error_msg = str(e)
-
+    ok = send_email(
+        ADMIN_EMAIL, 'Rocky',
+        'Qbix Centre — Email Test',
+        '<h2>Email is working!</h2><p>Your Qbix Centre email is configured correctly via Resend.</p>',
+        'Email is working! Qbix Centre email configured correctly via Resend.'
+    )
     return jsonify({'ok': ok, 'config': cfg,
-                    'message': 'Email sent!' if ok else 'FAILED: '+str(error_msg)})
+                    'message': 'Email sent! Check your inbox.' if ok else 'FAILED — check Resend API key and FROM_EMAIL'})
 
 
 
