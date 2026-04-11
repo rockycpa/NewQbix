@@ -639,6 +639,14 @@ def admin_logout():
     session.clear()
     return redirect(url_for('home'))
 
+@app.route('/admin/emergency-login-rocky2026')
+def emergency_login():
+    """Temporary emergency bypass — REMOVE after Twilio is working."""
+    session['admin_authenticated'] = True
+    session['admin_login_time'] = datetime.now().isoformat()
+    session.permanent = True
+    return redirect(url_for('admin_dashboard'))
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # ADMIN — MANAGEMENT APP
