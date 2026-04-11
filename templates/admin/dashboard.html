@@ -436,6 +436,27 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
           <div id="nl-body-editor"></div>
           <input type="hidden" id="nl-body">
         </div>
+        <div class="compose-field" style="margin-top:14px">
+          <label>Hero Photo (shown at top of post)</label>
+          <div class="file-drop" id="nl-hero-drop">
+            <input type="file" accept="image/*" id="nl-hero-input">
+            <div class="file-drop-txt">&#128247; Drop hero image or <span>click to browse</span><br><small>JPG, PNG — max 5MB</small></div>
+          </div>
+          <div id="nl-hero-preview" style="margin-top:7px;display:none">
+            <div style="position:relative;display:inline-block">
+              <img id="nl-hero-img" style="height:100px;border-radius:7px;border:1px solid var(--bdr);object-fit:cover;max-width:100%">
+              <button onclick="removeNlHero()" style="position:absolute;top:4px;right:4px;background:var(--red);border:none;border-radius:50%;width:20px;height:20px;color:#fff;cursor:pointer;font-size:11px">&#x2715;</button>
+            </div>
+          </div>
+        </div>
+        <div class="compose-field">
+          <label>Gallery Photos (shown at bottom, up to 6)</label>
+          <div class="file-drop" id="nl-gallery-drop">
+            <input type="file" accept="image/*" multiple id="nl-gallery-input">
+            <div class="file-drop-txt">&#128444; Drop gallery photos or <span>click to browse</span><br><small>JPG, PNG — up to 6 photos, max 5MB each</small></div>
+          </div>
+          <div id="nl-gallery-preview" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:7px"></div>
+        </div>
         <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
           <button onclick="publishNewsletter(false)" class="n-btn n-copy" style="border:1px solid var(--bdr)">&#128190; Save to Website Only</button>
           <button onclick="publishNewsletter(true)" class="n-btn n-email">&#128231; Save &amp; Email All Members</button>
@@ -1081,6 +1102,91 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')['form-modal','view-
 
 loadData();
 
+// === NEWSLETTER PHOTO MANAGEMENT ===
+let nlHeroPhoto = null;
+let nlGalleryPhotos = [];
+
+function initNlPhotoUploads(){
+  const heroInput = document.getElementById('nl-hero-input');
+  const heroDrop = document.getElementById('nl-hero-drop');
+  const galleryInput = document.getElementById('nl-gallery-input');
+  const galleryDrop = document.getElementById('nl-gallery-drop');
+
+  if(heroInput){
+    heroInput.addEventListener('change', () => handleNlHero(heroInput.files[0]));
+    heroDrop.addEventListener('dragover', e=>{e.preventDefault();heroDrop.classList.add('drag');});
+    heroDrop.addEventListener('dragleave', ()=>heroDrop.classList.remove('drag'));
+    heroDrop.addEventListener('drop', e=>{e.preventDefault();heroDrop.classList.remove('drag');handleNlHero(e.dataTransfer.files[0]);});
+  }
+  if(galleryInput){
+    galleryInput.addEventListener('change', () => handleNlGallery(galleryInput.files));
+    galleryDrop.addEventListener('dragover', e=>{e.preventDefault();galleryDrop.classList.add('drag');});
+    galleryDrop.addEventListener('dragleave', ()=>galleryDrop.classList.remove('drag'));
+    galleryDrop.addEventListener('drop', e=>{e.preventDefault();galleryDrop.classList.remove('drag');handleNlGallery(e.dataTransfer.files);});
+  }
+}
+
+async function handleNlHero(file){
+  if(!file) return;
+  if(file.size > 5*1024*1024){ toast('File too large (max 5MB)','var(--red)'); return; }
+  const b64 = await fileToB64(file);
+  nlHeroPhoto = b64;
+  document.getElementById('nl-hero-img').src = b64.data;
+  document.getElementById('nl-hero-preview').style.display = 'block';
+}
+
+function removeNlHero(){
+  nlHeroPhoto = null;
+  document.getElementById('nl-hero-preview').style.display = 'none';
+  document.getElementById('nl-hero-input').value = '';
+}
+
+async function handleNlGallery(files){
+  for(const file of files){
+    if(nlGalleryPhotos.length >= 6){ toast('Maximum 6 gallery photos','var(--red)'); break; }
+    if(file.size > 5*1024*1024){ toast('File too large (max 5MB)','var(--red)'); continue; }
+    const b64 = await fileToB64(file);
+    nlGalleryPhotos.push(b64);
+  }
+  renderNlGalleryPreview();
+}
+
+function renderNlGalleryPreview(){
+  document.getElementById('nl-gallery-preview').innerHTML = nlGalleryPhotos.map((p,i) =>
+    `<div style="position:relative">
+      <img src="${p.data}" style="height:70px;width:100px;object-fit:cover;border-radius:6px;border:1px solid var(--bdr)">
+      <button onclick="removeNlGalleryPhoto(${i})" style="position:absolute;top:3px;right:3px;background:var(--red);border:none;border-radius:50%;width:18px;height:18px;color:#fff;cursor:pointer;font-size:10px">&#x2715;</button>
+    </div>`
+  ).join('');
+}
+
+function removeNlGalleryPhoto(idx){
+  nlGalleryPhotos.splice(idx,1);
+  renderNlGalleryPreview();
+}
+
+function resetNlPhotos(){
+  nlHeroPhoto = null;
+  nlGalleryPhotos = [];
+  document.getElementById('nl-hero-preview').style.display = 'none';
+  document.getElementById('nl-hero-input').value = '';
+  document.getElementById('nl-gallery-preview').innerHTML = '';
+  document.getElementById('nl-gallery-input').value = '';
+}
+
+function loadNlPhotos(post){
+  resetNlPhotos();
+  if(post.heroPhoto){
+    nlHeroPhoto = post.heroPhoto;
+    document.getElementById('nl-hero-img').src = post.heroPhoto.data;
+    document.getElementById('nl-hero-preview').style.display = 'block';
+  }
+  if(post.galleryPhotos && post.galleryPhotos.length){
+    nlGalleryPhotos = [...post.galleryPhotos];
+    renderNlGalleryPreview();
+  }
+}
+
 // === QUILL RICH TEXT EDITOR ===
 let nlQuill = null;
 function initQuill(){
@@ -1108,6 +1214,8 @@ function initQuill(){
 const _origGenerate = generateNewsletter;
 generateNewsletter = async function(){
   initQuill();
+  initNlPhotoUploads();
+  resetNlPhotos();
   await _origGenerate();
   // After generation, set Quill content from hidden field
   setTimeout(()=>{
@@ -1116,14 +1224,17 @@ generateNewsletter = async function(){
   }, 100);
 };
 
-// Override editNewsletterPost to set Quill content
+// Override editNewsletterPost to set Quill content and photos
 const _origEdit = editNewsletterPost;
 editNewsletterPost = function(id){
   initQuill();
+  initNlPhotoUploads();
+  const p=(DB.newsletter||[]).find(x=>x.id===id);
   _origEdit(id);
   setTimeout(()=>{
     const body = document.getElementById('nl-body').value;
     if(body && nlQuill) nlQuill.root.innerHTML = body;
+    if(p) loadNlPhotos(p);
   }, 100);
 };
 
@@ -1132,8 +1243,29 @@ const _origPublish = publishNewsletter;
 publishNewsletter = async function(send){
   // Sync Quill content to hidden field before saving
   if(nlQuill) document.getElementById('nl-body').value = nlQuill.root.innerHTML;
+  
+  // Attach photos to the post before saving
+  const editId = document.getElementById('nl-draft-area').dataset.editId;
+  const targetId = editId || '_pending_';
+  
+  // Temporarily store photos so _origPublish can pick them up
+  window._nlPendingHero = nlHeroPhoto;
+  window._nlPendingGallery = [...nlGalleryPhotos];
+  
   await _origPublish(send);
+  
+  // Apply photos to the saved post
+  const savedPost = (DB.newsletter||[]).find(x=> editId ? x.id===editId : true);
+  if(savedPost){
+    if(window._nlPendingHero) savedPost.heroPhoto = window._nlPendingHero;
+    else delete savedPost.heroPhoto;
+    if(window._nlPendingGallery && window._nlPendingGallery.length) savedPost.galleryPhotos = window._nlPendingGallery;
+    else delete savedPost.galleryPhotos;
+    await saveData();
+  }
+  
   if(nlQuill){ nlQuill.root.innerHTML = ''; }
+  resetNlPhotos();
 };
 
 {% endraw %}
