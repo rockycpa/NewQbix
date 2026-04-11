@@ -18,6 +18,7 @@ from functools import wraps
 from pathlib import Path
 import psycopg2
 from psycopg2.extras import RealDictCursor
+import tempfile
 
 from flask import (Flask, render_template, request, jsonify, redirect,
                    url_for, session, flash, send_file, abort)
@@ -1426,7 +1427,107 @@ def send_monthly_usage():
 @app.route('/admin/api/analytics')
 @login_required
 def get_analytics():
-    """Return website visit stats for the admin dashboard."""
+    """Return GA4 website visit stats for the admin dashboard."""
+    ga_json = os.environ.get('GA_SERVICE_ACCOUNT_JSON', '')
+    ga_property = os.environ.get('GA_PROPERTY_ID', '')
+
+    if not ga_json or not ga_property:
+        # Fall back to built-in tracking if GA not configured
+        return get_analytics_builtin()
+
+    try:
+        from google.analytics.data_v1beta import BetaAnalyticsDataClient
+        from google.analytics.data_v1beta.types import (
+            RunReportRequest, DateRange, Metric, Dimension, OrderBy
+        )
+        from google.oauth2 import service_account
+
+        # Write credentials to temp file
+        creds_dict = json.loads(ga_json)
+        creds = service_account.Credentials.from_service_account_info(
+            creds_dict,
+            scopes=['https://www.googleapis.com/auth/analytics.readonly']
+        )
+        client = BetaAnalyticsDataClient(credentials=creds)
+        property_id = f"properties/{ga_property}"
+
+        # Today's sessions
+        today_req = RunReportRequest(
+            property=property_id,
+            date_ranges=[DateRange(start_date='today', end_date='today')],
+            metrics=[Metric(name='sessions')],
+        )
+        today_resp = client.run_report(today_req)
+        today = int(today_resp.rows[0].metric_values[0].value) if today_resp.rows else 0
+
+        # Last 7 days
+        week_req = RunReportRequest(
+            property=property_id,
+            date_ranges=[DateRange(start_date='7daysAgo', end_date='today')],
+            metrics=[Metric(name='sessions')],
+        )
+        week_resp = client.run_report(week_req)
+        week = int(week_resp.rows[0].metric_values[0].value) if week_resp.rows else 0
+
+        # Last 30 days
+        month_req = RunReportRequest(
+            property=property_id,
+            date_ranges=[DateRange(start_date='30daysAgo', end_date='today')],
+            metrics=[Metric(name='sessions')],
+        )
+        month_resp = client.run_report(month_req)
+        month = int(month_resp.rows[0].metric_values[0].value) if month_resp.rows else 0
+
+        # Daily for sparkline (last 30 days)
+        daily_req = RunReportRequest(
+            property=property_id,
+            date_ranges=[DateRange(start_date='30daysAgo', end_date='today')],
+            dimensions=[Dimension(name='date')],
+            metrics=[Metric(name='sessions')],
+            order_bys=[OrderBy(dimension=OrderBy.DimensionOrderBy(dimension_name='date'))],
+        )
+        daily_resp = client.run_report(daily_req)
+        daily = []
+        for row in daily_resp.rows:
+            raw = row.dimension_values[0].value  # YYYYMMDD
+            day = f"{raw[:4]}-{raw[4:6]}-{raw[6:]}"
+            views = int(row.metric_values[0].value)
+            daily.append({'day': day, 'views': views})
+
+        # Top pages this month
+        pages_req = RunReportRequest(
+            property=property_id,
+            date_ranges=[DateRange(start_date='30daysAgo', end_date='today')],
+            dimensions=[Dimension(name='pagePath')],
+            metrics=[Metric(name='sessions')],
+            order_bys=[OrderBy(metric=OrderBy.MetricOrderBy(metric_name='sessions'), desc=True)],
+            limit=5,
+        )
+        pages_resp = client.run_report(pages_req)
+        top_pages = [
+            {'path': row.dimension_values[0].value, 'views': int(row.metric_values[0].value)}
+            for row in pages_resp.rows
+        ]
+
+        return jsonify({
+            'ok': True,
+            'source': 'ga4',
+            'today': today,
+            'week': week,
+            'month': month,
+            'total': month,
+            'daily': daily,
+            'top_pages': top_pages,
+        })
+
+    except Exception as e:
+        print(f"[GA4 ERROR] {e}")
+        # Fall back to built-in on error
+        return get_analytics_builtin()
+
+
+def get_analytics_builtin():
+    """Fall back to built-in page tracking."""
     try:
         with get_conn() as conn:
             with conn.cursor() as cur:
@@ -1435,52 +1536,28 @@ def get_analytics():
                 week_start  = today_start - timedelta(days=7)
                 month_start = today_start - timedelta(days=30)
 
-                # Today
                 cur.execute("SELECT COUNT(*) FROM qbix_pageviews WHERE visited_at >= %s", (today_start,))
                 today = cur.fetchone()[0]
-
-                # This week
                 cur.execute("SELECT COUNT(*) FROM qbix_pageviews WHERE visited_at >= %s", (week_start,))
                 week = cur.fetchone()[0]
-
-                # This month
                 cur.execute("SELECT COUNT(*) FROM qbix_pageviews WHERE visited_at >= %s", (month_start,))
                 month = cur.fetchone()[0]
-
-                # Last 30 days by day for sparkline
                 cur.execute("""
                     SELECT DATE(visited_at) as day, COUNT(*) as views
-                    FROM qbix_pageviews
-                    WHERE visited_at >= %s
-                    GROUP BY DATE(visited_at)
-                    ORDER BY day
+                    FROM qbix_pageviews WHERE visited_at >= %s
+                    GROUP BY DATE(visited_at) ORDER BY day
                 """, (month_start,))
                 daily = [{'day': str(r[0]), 'views': r[1]} for r in cur.fetchall()]
-
-                # Top pages this month
                 cur.execute("""
-                    SELECT path, COUNT(*) as views
-                    FROM qbix_pageviews
-                    WHERE visited_at >= %s
-                    GROUP BY path
-                    ORDER BY views DESC
-                    LIMIT 5
+                    SELECT path, COUNT(*) as views FROM qbix_pageviews
+                    WHERE visited_at >= %s GROUP BY path ORDER BY views DESC LIMIT 5
                 """, (month_start,))
                 top_pages = [{'path': r[0], 'views': r[1]} for r in cur.fetchall()]
-
-                # Total all time
                 cur.execute("SELECT COUNT(*) FROM qbix_pageviews")
                 total = cur.fetchone()[0]
 
-        return jsonify({
-            'ok': True,
-            'today': today,
-            'week': week,
-            'month': month,
-            'total': total,
-            'daily': daily,
-            'top_pages': top_pages,
-        })
+        return jsonify({'ok': True, 'source': 'builtin', 'today': today, 'week': week,
+                       'month': month, 'total': total, 'daily': daily, 'top_pages': top_pages})
     except Exception as e:
         return jsonify({'ok': False, 'error': str(e)}), 500
 
