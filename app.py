@@ -127,6 +127,16 @@ def init_db():
                     updated_at TIMESTAMP DEFAULT NOW()
                 )
             """)
+            # Analytics table
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS qbix_pageviews (
+                    id SERIAL PRIMARY KEY,
+                    path VARCHAR(255) NOT NULL,
+                    visited_at TIMESTAMP DEFAULT NOW(),
+                    referrer VARCHAR(500),
+                    user_agent VARCHAR(500)
+                )
+            """)
             # Check if data exists
             cur.execute("SELECT COUNT(*) FROM qbix_store WHERE id = 1")
             count = cur.fetchone()[0]
@@ -181,6 +191,30 @@ def save_data(data):
 
 def get_db():
     return load_data()
+
+def track_pageview(path):
+    """Record a page visit to the analytics table."""
+    try:
+        # Skip admin, static, health routes and bots
+        skip = ['/admin', '/static', '/health', '/favicon', '/book/slots',
+                '/book/verify', '/book/create', '/book/cancel', '/book/request-code']
+        if any(path.startswith(s) for s in skip):
+            return
+        referrer = request.referrer or ''
+        ua = request.user_agent.string or ''
+        # Skip obvious bots
+        bot_keywords = ['bot', 'crawler', 'spider', 'slurp', 'bingpreview', 'facebookexternalhit']
+        if any(k in ua.lower() for k in bot_keywords):
+            return
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "INSERT INTO qbix_pageviews (path, referrer, user_agent) VALUES (%s, %s, %s)",
+                    (path[:255], referrer[:500], ua[:500])
+                )
+            conn.commit()
+    except Exception as e:
+        print(f"[ANALYTICS] track error: {e}")
 
 # Initialize database on startup
 if DATABASE_URL:
@@ -274,6 +308,7 @@ def health():
 
 @app.route('/')
 def home():
+    track_pageview('/')
     data = get_db()
     occupied = len([o for o in data['offices'] if o['status'] == 'Occupied'])
     total    = len(data['offices'])
@@ -284,16 +319,19 @@ def home():
 
 @app.route('/offices')
 def offices_page():
+    track_pageview('/offices')
     data = get_db()
     vacant = [o for o in data['offices'] if o['status'] == 'Vacant']
     return render_template('public/offices.html', vacant=vacant, ga_id=GA_MEASUREMENT_ID)
 
 @app.route('/amenities')
 def amenities():
+    track_pageview('/amenities')
     return render_template('public/amenities.html', ga_id=GA_MEASUREMENT_ID)
 
 @app.route('/contact')
 def contact():
+    track_pageview('/contact')
     return render_template('public/contact.html', ga_id=GA_MEASUREMENT_ID)
 
 @app.route('/contact', methods=['POST'])
@@ -314,6 +352,7 @@ def contact_submit():
 
 @app.route('/news')
 def news():
+    track_pageview('/news')
     data = get_db()
     posts = sorted(data.get('newsletter', []), key=lambda x: x.get('date',''), reverse=True)
     return render_template('public/news.html', posts=posts, ga_id=GA_MEASUREMENT_ID)
@@ -333,6 +372,7 @@ def news_post(post_id):
 
 @app.route('/onboard')
 def onboard_home():
+    track_pageview('/onboard')
     """Landing page linked from website — general interest form."""
     return render_template('public/onboard_home.html', ga_id=GA_MEASUREMENT_ID)
 
@@ -1379,6 +1419,70 @@ def send_monthly_usage():
         sent += 1
 
     return jsonify({'ok': True, 'sent': sent})
+
+
+# ── Analytics API ────────────────────────────────────────────────────────────
+
+@app.route('/admin/api/analytics')
+@login_required
+def get_analytics():
+    """Return website visit stats for the admin dashboard."""
+    try:
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                now = datetime.now()
+                today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+                week_start  = today_start - timedelta(days=7)
+                month_start = today_start - timedelta(days=30)
+
+                # Today
+                cur.execute("SELECT COUNT(*) FROM qbix_pageviews WHERE visited_at >= %s", (today_start,))
+                today = cur.fetchone()[0]
+
+                # This week
+                cur.execute("SELECT COUNT(*) FROM qbix_pageviews WHERE visited_at >= %s", (week_start,))
+                week = cur.fetchone()[0]
+
+                # This month
+                cur.execute("SELECT COUNT(*) FROM qbix_pageviews WHERE visited_at >= %s", (month_start,))
+                month = cur.fetchone()[0]
+
+                # Last 30 days by day for sparkline
+                cur.execute("""
+                    SELECT DATE(visited_at) as day, COUNT(*) as views
+                    FROM qbix_pageviews
+                    WHERE visited_at >= %s
+                    GROUP BY DATE(visited_at)
+                    ORDER BY day
+                """, (month_start,))
+                daily = [{'day': str(r[0]), 'views': r[1]} for r in cur.fetchall()]
+
+                # Top pages this month
+                cur.execute("""
+                    SELECT path, COUNT(*) as views
+                    FROM qbix_pageviews
+                    WHERE visited_at >= %s
+                    GROUP BY path
+                    ORDER BY views DESC
+                    LIMIT 5
+                """, (month_start,))
+                top_pages = [{'path': r[0], 'views': r[1]} for r in cur.fetchall()]
+
+                # Total all time
+                cur.execute("SELECT COUNT(*) FROM qbix_pageviews")
+                total = cur.fetchone()[0]
+
+        return jsonify({
+            'ok': True,
+            'today': today,
+            'week': week,
+            'month': month,
+            'total': total,
+            'daily': daily,
+            'top_pages': top_pages,
+        })
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
 
 
 # ── Setup route (first run only) ─────────────────────────────────────────────
