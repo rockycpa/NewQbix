@@ -619,8 +619,38 @@ async function sendMonthlyUsage(){
 }
 
 function buildNewsletterHistory(){
-  const posts=(DB.newsletter||[]).slice().reverse().slice(0,10);
-  document.getElementById('nl-history').innerHTML=posts.length?posts.map(p=>`<div style="padding:8px 0;border-bottom:1px solid var(--bdr)"><div style="font-size:12px;color:var(--txt3)">${p.date?p.date.slice(0,10):''} ${p.sent?'&middot; Emailed to members':''}</div><div style="font-size:13px;font-weight:500;margin-top:2px">${p.subject}</div></div>`).join(''):'<div style="color:var(--txt3);font-size:13px">No newsletters yet</div>';
+  const posts=(DB.newsletter||[]).slice().reverse();
+  document.getElementById('nl-history').innerHTML=posts.length?posts.map(p=>`
+    <div style="padding:10px 0;border-bottom:1px solid var(--bdr)">
+      <div style="font-size:11px;color:var(--txt3);margin-bottom:3px">${p.date?p.date.slice(0,10):''} ${p.sent?'&middot; Emailed to members':''}</div>
+      <div style="font-size:13px;font-weight:500;margin-bottom:6px">${p.subject}</div>
+      <div style="display:flex;gap:6px">
+        <button class="btn-sm" onclick="editNewsletterPost('${p.id}')">&#9998; Edit</button>
+        <button class="btn-sm del" onclick="deleteNewsletterPost('${p.id}','${p.subject.replace(/'/g,"\'")}')">&#x2715; Delete</button>
+      </div>
+    </div>`).join(''):'<div style="color:var(--txt3);font-size:13px">No newsletters yet</div>';
+}
+
+function editNewsletterPost(id){
+  const p=(DB.newsletter||[]).find(x=>x.id===id);
+  if(!p)return;
+  // Populate the draft area with this post's content for editing
+  document.getElementById('nl-subject').value=p.subject||'';
+  document.getElementById('nl-body').value=p.body||'';
+  document.getElementById('nl-draft-area').style.display='block';
+  // Store editing id
+  document.getElementById('nl-draft-area').dataset.editId=id;
+  // Scroll to draft area
+  document.getElementById('nl-draft-area').scrollIntoView({behavior:'smooth'});
+  toast('Post loaded for editing — update and save when ready');
+}
+
+function deleteNewsletterPost(id, title){
+  if(!confirm('Delete "'+title+'"? This cannot be undone.'))return;
+  DB.newsletter=(DB.newsletter||[]).filter(x=>x.id!==id);
+  saveData();
+  buildNewsletterHistory();
+  toast('Post deleted','var(--red)');
 }
 
 async function generateNewsletter(){
@@ -644,13 +674,36 @@ async function publishNewsletter(send){
   const subject=document.getElementById('nl-subject').value.trim();
   const body=document.getElementById('nl-body').value.trim();
   if(!subject||!body){toast('Subject and body required','var(--red)');return;}
+  
+  const editId=document.getElementById('nl-draft-area').dataset.editId;
+  
+  if(editId && !send){
+    // Editing existing post — update locally
+    const p=(DB.newsletter||[]).find(x=>x.id===editId);
+    if(p){p.subject=subject;p.body=body;}
+    await saveData();
+    buildNewsletterHistory();
+    document.getElementById('nl-draft-area').style.display='none';
+    document.getElementById('nl-draft-area').dataset.editId='';
+    document.getElementById('nl-notes').value='';
+    toast('Post updated &#10003;');
+    return;
+  }
+  
   const r=await fetch('/admin/api/publish-newsletter',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({subject,body,send})});
   const result=await r.json();
   if(result.ok){
     if(!DB.newsletter)DB.newsletter=[];
-    DB.newsletter.push({id:result.postId,subject,body,date:new Date().toISOString(),sent:send});
+    if(editId){
+      // Replace existing post
+      const idx=DB.newsletter.findIndex(x=>x.id===editId);
+      if(idx>=0)DB.newsletter[idx]={id:editId,subject,body,date:DB.newsletter[idx].date,sent:send||DB.newsletter[idx].sent};
+    } else {
+      DB.newsletter.push({id:result.postId,subject,body,date:new Date().toISOString(),sent:send});
+    }
     buildNewsletterHistory();
     document.getElementById('nl-draft-area').style.display='none';
+    document.getElementById('nl-draft-area').dataset.editId='';
     document.getElementById('nl-notes').value='';
     toast(send?`Newsletter sent to ${result.sent} members &#10003;`:'Newsletter saved to website &#10003;');
   } else toast('Error: '+result.error,'var(--red)');
