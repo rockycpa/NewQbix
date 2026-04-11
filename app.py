@@ -16,6 +16,8 @@ import pyotp
 from datetime import datetime, timedelta
 from functools import wraps
 from pathlib import Path
+import psycopg2
+from psycopg2.extras import RealDictCursor
 
 from flask import (Flask, render_template, request, jsonify, redirect,
                    url_for, session, flash, send_file, abort)
@@ -31,7 +33,6 @@ app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
 BASE_DIR  = Path(__file__).parent
-DATA_FILE = BASE_DIR / os.environ.get('DATA_FILE', 'qbix_data.json')
 BACKUP_DIR = BASE_DIR / 'backups'
 
 # ── Config from environment ───────────────────────────────────────────────────
@@ -104,13 +105,48 @@ DEFAULT_DATA = {
 }
 
 
-# ── Data helpers ──────────────────────────────────────────────────────────────
+# ── Database helpers ─────────────────────────────────────────────────────────
 _data_lock = threading.Lock()
+DATABASE_URL = os.environ.get('DATABASE_URL', '')
+
+def get_conn():
+    """Get a PostgreSQL connection."""
+    return psycopg2.connect(DATABASE_URL)
+
+def init_db():
+    """Create the data table if it doesn't exist and seed with DEFAULT_DATA."""
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS qbix_store (
+                    id INTEGER PRIMARY KEY DEFAULT 1,
+                    data JSONB NOT NULL,
+                    updated_at TIMESTAMP DEFAULT NOW()
+                )
+            """)
+            # Check if data exists
+            cur.execute("SELECT COUNT(*) FROM qbix_store WHERE id = 1")
+            count = cur.fetchone()[0]
+            if count == 0:
+                # Seed with default data
+                cur.execute(
+                    "INSERT INTO qbix_store (id, data) VALUES (1, %s)",
+                    (json.dumps(DEFAULT_DATA),)
+                )
+        conn.commit()
+    print("[DB] Database initialized")
 
 def load_data():
-    if DATA_FILE.exists():
-        with open(DATA_FILE, 'r', encoding='utf-8') as f:
-            d = json.load(f)
+    """Load data from PostgreSQL."""
+    try:
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT data FROM qbix_store WHERE id = 1")
+                row = cur.fetchone()
+                if row:
+                    d = row[0] if isinstance(row[0], dict) else json.loads(row[0])
+                else:
+                    d = json.loads(json.dumps(DEFAULT_DATA))
         # Migrate: ensure new fields exist
         d.setdefault('bookings', [])
         d.setdefault('newsletter', [])
@@ -122,15 +158,35 @@ def load_data():
         for p in d.get('occupants', []):
             p.setdefault('dlAttachment', None)
         return d
-    return json.loads(json.dumps(DEFAULT_DATA))
+    except Exception as e:
+        print(f"[DB ERROR] load_data: {e}")
+        return json.loads(json.dumps(DEFAULT_DATA))
 
 def save_data(data):
+    """Save data to PostgreSQL."""
     with _data_lock:
-        with open(DATA_FILE, 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
+        try:
+            with get_conn() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "UPDATE qbix_store SET data = %s, updated_at = NOW() WHERE id = 1",
+                        (json.dumps(data),)
+                    )
+                conn.commit()
+        except Exception as e:
+            print(f"[DB ERROR] save_data: {e}")
 
 def get_db():
     return load_data()
+
+# Initialize database on startup
+if DATABASE_URL:
+    try:
+        init_db()
+    except Exception as e:
+        print(f"[DB] Init failed: {e}")
+else:
+    print("[DB] No DATABASE_URL set — running without database")
 
 def net_dues(member):
     return max(0, (member.get('dues') or 0) - (member.get('discount') or 0))
@@ -704,15 +760,30 @@ def api_save():
 @login_required
 def api_backup():
     try:
-        BACKUP_DIR.mkdir(exist_ok=True)
-        today = datetime.now().strftime('%Y-%m-%d')
-        dest  = BACKUP_DIR / f'qbix-backup-{today}.json'
-        import shutil
-        shutil.copy2(DATA_FILE, dest)
         data = get_db()
+        today = datetime.now().strftime('%Y-%m-%d')
         data['lastBackup'] = today
         save_data(data)
-        return jsonify({'ok': True, 'path': str(dest)})
+        # Return the data as a downloadable JSON file
+        import io
+        buf = io.BytesIO(json.dumps(data, indent=2, ensure_ascii=False).encode('utf-8'))
+        buf.seek(0)
+        return send_file(buf, as_attachment=True,
+                        download_name=f'qbix-backup-{today}.json',
+                        mimetype='application/json')
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+@app.route('/admin/api/import-data', methods=['POST'])
+@login_required
+def import_data():
+    """Import JSON data into PostgreSQL — use once to migrate existing data."""
+    try:
+        data = request.json
+        if not data or 'offices' not in data:
+            return jsonify({'ok': False, 'error': 'Invalid data format'}), 400
+        save_data(data)
+        return jsonify({'ok': True, 'message': 'Data imported successfully'})
     except Exception as e:
         return jsonify({'ok': False, 'error': str(e)}), 500
 
