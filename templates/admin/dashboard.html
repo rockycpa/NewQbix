@@ -5,6 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Qbix Centre &mdash; Management Portal</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.snow.min.css" rel="stylesheet">
+<style>
+.ql-toolbar{background:var(--sur2);border:1px solid var(--bdr)!important;border-bottom:none!important;border-radius:7px 7px 0 0}
+.ql-container{background:var(--sur2);border:1px solid var(--bdr)!important;border-radius:0 0 7px 7px;font-family:'IBM Plex Sans',sans-serif;font-size:14px;color:var(--txt);min-height:220px}
+.ql-editor{min-height:220px;line-height:1.7;color:var(--txt)}
+.ql-editor p{margin-bottom:8px}
+.ql-toolbar .ql-stroke{stroke:var(--txt2)}
+.ql-toolbar .ql-fill{fill:var(--txt2)}
+.ql-toolbar .ql-picker{color:var(--txt2)}
+.ql-toolbar button:hover .ql-stroke,.ql-toolbar .ql-active .ql-stroke{stroke:var(--acc)!important}
+.ql-toolbar button:hover .ql-fill,.ql-toolbar .ql-active .ql-fill{fill:var(--acc)!important}
+.ql-toolbar .ql-picker-label:hover,.ql-toolbar .ql-active{color:var(--acc)!important}
+</style>
 <style>
 :root{--bg:#0b0d11;--sur:#13161e;--sur2:#1b1f2b;--bdr:#252a38;--acc:#d4a843;--blue:#5b9bd5;--grn:#4db887;--red:#d96060;--purple:#9b7ed4;--txt:#dde2ed;--txt2:#7d8aa0;--txt3:#404860;--r:10px}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -420,7 +433,8 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
         </div>
         <div class="compose-field">
           <label>Newsletter Body (edit as needed)</label>
-          <textarea id="nl-body" style="min-height:200px"></textarea>
+          <div id="nl-body-editor"></div>
+          <input type="hidden" id="nl-body">
         </div>
         <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
           <button onclick="publishNewsletter(false)" class="n-btn n-copy" style="border:1px solid var(--bdr)">&#128190; Save to Website Only</button>
@@ -1066,7 +1080,64 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
 document.addEventListener('keydown',e=>{if(e.key==='Escape')['form-modal','view-modal','conf-modal','onboard-modal'].forEach(id=>document.getElementById(id).classList.remove('open'));});
 
 loadData();
+
+// === QUILL RICH TEXT EDITOR ===
+let nlQuill = null;
+function initQuill(){
+  if(nlQuill) return;
+  nlQuill = new Quill('#nl-body-editor', {
+    theme: 'snow',
+    modules: {
+      toolbar: [
+        ['bold','italic','underline'],
+        [{'list':'ordered'},{'list':'bullet'}],
+        [{'header':[1,2,3,false]}],
+        ['link'],
+        ['clean']
+      ]
+    },
+    placeholder: 'Write your newsletter here...'
+  });
+  // Keep hidden input in sync
+  nlQuill.on('text-change', () => {
+    document.getElementById('nl-body').value = nlQuill.root.innerHTML;
+  });
+}
+
+// Override generateNewsletter to set Quill content
+const _origGenerate = generateNewsletter;
+generateNewsletter = async function(){
+  initQuill();
+  await _origGenerate();
+  // After generation, set Quill content from hidden field
+  setTimeout(()=>{
+    const body = document.getElementById('nl-body').value;
+    if(body && nlQuill) nlQuill.root.innerHTML = body;
+  }, 100);
+};
+
+// Override editNewsletterPost to set Quill content
+const _origEdit = editNewsletterPost;
+editNewsletterPost = function(id){
+  initQuill();
+  _origEdit(id);
+  setTimeout(()=>{
+    const body = document.getElementById('nl-body').value;
+    if(body && nlQuill) nlQuill.root.innerHTML = body;
+  }, 100);
+};
+
+// Make sure Quill is ready when draft area is shown
+const _origPublish = publishNewsletter;
+publishNewsletter = async function(send){
+  // Sync Quill content to hidden field before saving
+  if(nlQuill) document.getElementById('nl-body').value = nlQuill.root.innerHTML;
+  await _origPublish(send);
+  if(nlQuill){ nlQuill.root.innerHTML = ''; }
+};
+
 {% endraw %}
 </script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js"></script>
 </body>
 </html>
