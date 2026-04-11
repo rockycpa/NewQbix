@@ -108,6 +108,9 @@ DEFAULT_DATA = {
 # ── Database helpers ─────────────────────────────────────────────────────────
 _data_lock = threading.Lock()
 DATABASE_URL = os.environ.get('DATABASE_URL', '')
+# Railway uses postgres:// but psycopg2 needs postgresql://
+if DATABASE_URL.startswith('postgres://'):
+    DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
 
 def get_conn():
     """Get a PostgreSQL connection."""
