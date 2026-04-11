@@ -10,14 +10,10 @@ import os
 import secrets
 import hashlib
 import hmac
-import smtplib
-import ssl
 import threading
 import time
 import pyotp
 from datetime import datetime, timedelta
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 from functools import wraps
 from pathlib import Path
 
@@ -39,14 +35,17 @@ DATA_FILE = BASE_DIR / os.environ.get('DATA_FILE', 'qbix_data.json')
 BACKUP_DIR = BASE_DIR / 'backups'
 
 # ── Config from environment ───────────────────────────────────────────────────
-ADMIN_USERNAME    = os.environ.get('ADMIN_USERNAME', 'admin')
-ADMIN_EMAIL       = os.environ.get('ADMIN_EMAIL', 'qbixcentre@outlook.com')
-ADMIN_PHONE       = os.environ.get('ADMIN_PHONE', '4787379107')
-APP_URL           = os.environ.get('APP_URL', 'http://localhost:5000')
-FROM_EMAIL        = os.environ.get('FROM_EMAIL', 'noreply@qbixcentre.com')
-FROM_NAME         = os.environ.get('FROM_NAME', 'Qbix Centre')
-ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY', '')
-GA_MEASUREMENT_ID = os.environ.get('GA_MEASUREMENT_ID', '')
+ADMIN_USERNAME      = os.environ.get('ADMIN_USERNAME', 'admin')
+ADMIN_EMAIL         = os.environ.get('ADMIN_EMAIL', 'qbixcentre@outlook.com')
+ADMIN_PHONE         = os.environ.get('ADMIN_PHONE', '4787379107')
+APP_URL             = os.environ.get('APP_URL', 'http://localhost:5000')
+ANTHROPIC_API_KEY   = os.environ.get('ANTHROPIC_API_KEY', '')
+GA_MEASUREMENT_ID   = os.environ.get('GA_MEASUREMENT_ID', '')
+
+# Twilio SMS config
+TWILIO_ACCOUNT_SID  = os.environ.get('TWILIO_ACCOUNT_SID', '')
+TWILIO_AUTH_TOKEN   = os.environ.get('TWILIO_AUTH_TOKEN', '')
+TWILIO_PHONE_NUMBER = os.environ.get('TWILIO_PHONE_NUMBER', '')
 
 # TOTP secret for 2FA (generated once and stored in env)
 TOTP_SECRET = os.environ.get('TOTP_SECRET', pyotp.random_base32())
@@ -144,56 +143,35 @@ def hours_included(data, member_name):
     return len(offices_for(data, member_name)) * 6
 
 
-# ── Email helper ──────────────────────────────────────────────────────────────
-def send_email(to_email, to_name, subject, html_body, text_body=None):
-    """Send email via Amazon SES SMTP (port 2587 works on Railway)."""
-    smtp_host = os.environ.get('SMTP_HOST', 'email-smtp.us-east-2.amazonaws.com')
-    smtp_port = int(os.environ.get('SMTP_PORT', 2587))
-    smtp_user = os.environ.get('SMTP_USER', '')
-    smtp_pass = os.environ.get('SMTP_PASS', '')
-
-    if not smtp_user:
-        print(f"[EMAIL] No SMTP_USER set — would send to {to_email}: {subject}")
+# ── SMS helper (Twilio) ───────────────────────────────────────────────────────
+def send_sms(to_phone, message):
+    """Send SMS via Twilio. Phone number should be 10 digits, e.g. 4787379107."""
+    if not TWILIO_ACCOUNT_SID or not TWILIO_AUTH_TOKEN or not TWILIO_PHONE_NUMBER:
+        print(f"[SMS] Twilio not configured — would send to {to_phone}: {message}")
         return False
 
-    msg = MIMEMultipart('alternative')
-    msg['Subject'] = subject
-    msg['From']    = f"{FROM_NAME} <{FROM_EMAIL}>"
-    msg['To']      = f"{to_name} <{to_email}>"
-
-    if text_body:
-        msg.attach(MIMEText(text_body, 'plain'))
-    msg.attach(MIMEText(html_body, 'html'))
+    # Normalize phone to E.164 format
+    digits = ''.join(filter(str.isdigit, str(to_phone)))
+    if len(digits) == 10:
+        to_e164 = f'+1{digits}'
+    elif len(digits) == 11 and digits.startswith('1'):
+        to_e164 = f'+{digits}'
+    else:
+        to_e164 = f'+{digits}'
 
     try:
-        context = ssl.create_default_context()
-        with smtplib.SMTP(smtp_host, smtp_port, timeout=15) as server:
-            server.starttls(context=context)
-            server.login(smtp_user, smtp_pass)
-            server.sendmail(FROM_EMAIL, to_email, msg.as_string())
-        print(f"[EMAIL] Sent to {to_email}: {subject}")
+        from twilio.rest import Client
+        client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+        client.messages.create(
+            body=message,
+            from_=TWILIO_PHONE_NUMBER,
+            to=to_e164
+        )
+        print(f"[SMS] Sent to {to_e164}")
         return True
     except Exception as e:
-        print(f"[EMAIL ERROR] {e}")
+        print(f"[SMS ERROR] {e}")
         return False
-
-
-def send_sms_code(phone, code):
-    """Send SMS via email-to-SMS gateway using SendGrid."""
-    gateways = {
-        'att':      f'{phone}@txt.att.net',
-        'verizon':  f'{phone}@vtext.com',
-        'tmobile':  f'{phone}@tmomail.net',
-        'sprint':   f'{phone}@messaging.sprintpcs.com',
-    }
-    carrier  = os.environ.get('ADMIN_CARRIER', 'att')
-    sms_addr = gateways.get(carrier, gateways['att'])
-    return send_email(
-        sms_addr, '',
-        '',
-        f'Qbix Centre login code: {code}',
-        f'Qbix Centre login code: {code}'
-    )
 
 
 # ── Auth helpers ──────────────────────────────────────────────────────────────
@@ -422,14 +400,20 @@ def book_request_code():
         'expires': datetime.now() + timedelta(minutes=10),
     }
 
-    send_email(
-        email, member['name'],
-        'Your Qbix Centre booking code',
-        f'<p>Your conference room booking code is:</p>'
-        f'<h1 style="letter-spacing:8px;color:#2563eb">{code}</h1>'
-        f'<p>This code expires in 10 minutes.</p>',
-        f'Your Qbix Centre booking code: {code}\nExpires in 10 minutes.'
-    )
+    # Look up member phone for SMS
+    member_phone = member.get('phone', '')
+    if not member_phone:
+        # Try occupants for phone
+        occ2 = next((o for o in data['occupants']
+                     if o.get('email','').lower() == email
+                     and o.get('status') == 'Active'), None)
+        if occ2:
+            member_phone = occ2.get('phone', '')
+
+    if member_phone:
+        send_sms(member_phone, f'Qbix Centre booking code: {code}. Expires in 10 minutes.')
+    else:
+        print(f"[BOOKING] No phone found for {email} — code not sent")
 
     return jsonify({'ok': True, 'token': token})
 
@@ -540,18 +524,12 @@ def book_create():
     data.setdefault('bookings', []).append(booking)
     save_data(data)
 
-    # Confirmation email to member
-    send_email(
-        entry['email'], entry['name'],
-        f'Conference Room Booking Confirmed — {date_str}',
-        f'<p>Hi {entry["name"]},</p>'
-        f'<p>Your conference room booking is confirmed:</p>'
-        f'<ul><li><b>Date:</b> {date_str}</li>'
-        f'<li><b>Time:</b> {start_time} – {end_time}</li>'
-        f'<li><b>Room:</b> Qbix Centre Conference Room</li></ul>'
-        f'<p>We look forward to seeing you!</p>'
-        f'<p style="color:#666;font-size:12px">500A Northside Crossing, Macon, GA 31210</p>',
-    )
+    # Confirmation SMS to member
+    if member.get('phone'):
+        send_sms(member['phone'],
+            f'Qbix Centre: Booking confirmed for {date_str} {start_time}-{end_time}. '
+            f'500A Northside Crossing, Macon GA. See you then!'
+        )
 
     # Schedule reminder (24h before) in background thread
     def send_reminder():
@@ -561,15 +539,11 @@ def book_create():
             wait = (reminder_dt - datetime.now()).total_seconds()
             if wait > 0:
                 time.sleep(wait)
-            send_email(
-                entry['email'], entry['name'],
-                f'Reminder: Conference Room Tomorrow at {start_time}',
-                f'<p>Hi {entry["name"]},</p>'
-                f'<p>Just a reminder that you have the Qbix Centre conference room booked tomorrow:</p>'
-                f'<ul><li><b>Date:</b> {date_str}</li>'
-                f'<li><b>Time:</b> {start_time} – {end_time}</li></ul>'
-                f'<p>See you tomorrow!</p>',
-            )
+            if member.get('phone'):
+                send_sms(member['phone'],
+                    f'Qbix Centre reminder: You have the conference room tomorrow {date_str} at {start_time}. '
+                    f'500A Northside Crossing, Macon GA.'
+                )
         except Exception as e:
             print(f'Reminder error: {e}')
 
@@ -622,16 +596,8 @@ def admin_login():
             }
             session['admin_2fa_sid'] = sid
 
-            # Try SMS first, fall back to email
-            sms_ok = send_sms_code(ADMIN_PHONE, code)
-            if not sms_ok:
-                # Send via email as fallback
-                send_email(
-                    ADMIN_EMAIL, 'Admin',
-                    'Your Qbix Centre login code',
-                    f'<p>Your login code is: <strong style="font-size:24px;letter-spacing:4px">{code}</strong></p><p>Expires in 10 minutes.</p>',
-                    f'Your Qbix Centre login code: {code}\nExpires in 10 minutes.'
-                )
+            # Send 2FA code via Twilio SMS
+            send_sms(ADMIN_PHONE, f'Qbix Centre admin login code: {code}. Expires in 10 minutes.')
 
             return redirect(url_for('admin_2fa'))
         else:
@@ -742,42 +708,22 @@ def api_backup():
     except Exception as e:
         return jsonify({'ok': False, 'error': str(e)}), 500
 
-@app.route('/admin/api/test-email')
+@app.route('/admin/api/test-sms')
 @login_required
-def test_email():
-    """Send a test email to verify Amazon SES SMTP configuration."""
-    import os
+def test_sms():
+    """Send a test SMS to verify Twilio configuration."""
     cfg = {
-        'method':      'Amazon SES SMTP',
-        'SMTP_HOST':   os.environ.get('SMTP_HOST', ''),
-        'SMTP_PORT':   os.environ.get('SMTP_PORT', ''),
-        'SMTP_USER':   os.environ.get('SMTP_USER', '')[:8]+'...' if os.environ.get('SMTP_USER') else '(not set)',
-        'SMTP_PASS':   '***' if os.environ.get('SMTP_PASS') else '(not set)',
-        'FROM_EMAIL':  os.environ.get('FROM_EMAIL', ''),
-        'ADMIN_EMAIL': os.environ.get('ADMIN_EMAIL', ''),
+        'method':               'Twilio SMS',
+        'TWILIO_ACCOUNT_SID':   TWILIO_ACCOUNT_SID[:8]+'...' if TWILIO_ACCOUNT_SID else '(not set)',
+        'TWILIO_PHONE_NUMBER':  TWILIO_PHONE_NUMBER or '(not set)',
+        'ADMIN_PHONE':          ADMIN_PHONE or '(not set)',
     }
-    # Try directly so we can capture exact error
-    error_detail = None
-    ok = False
-    try:
-        import smtplib, ssl
-        smtp_host = os.environ.get('SMTP_HOST', '')
-        smtp_port = int(os.environ.get('SMTP_PORT', 2587))
-        smtp_user = os.environ.get('SMTP_USER', '')
-        smtp_pass = os.environ.get('SMTP_PASS', '')
-        context = ssl.create_default_context()
-        with smtplib.SMTP(smtp_host, smtp_port, timeout=15) as server:
-            server.starttls(context=context)
-            server.login(smtp_user, smtp_pass)
-            server.sendmail(FROM_EMAIL, ADMIN_EMAIL,
-                f"Subject: Qbix Centre Email Test\nFrom: {FROM_EMAIL}\nTo: {ADMIN_EMAIL}\n\nAmazon SES is working!")
-        ok = True
-        error_detail = "Sent successfully"
-    except Exception as e:
-        error_detail = str(e)
-
-    return jsonify({'ok': ok, 'config': cfg,
-                    'message': 'Email sent! Check your inbox.' if ok else f'FAILED: {error_detail}'})
+    ok = send_sms(ADMIN_PHONE, 'Qbix Centre test SMS — Twilio is working!')
+    return jsonify({
+        'ok': ok,
+        'config': cfg,
+        'message': f'Test SMS sent to {ADMIN_PHONE}! Check your phone.' if ok else 'FAILED: Check Railway Twilio variables.'
+    })
 
 
 
