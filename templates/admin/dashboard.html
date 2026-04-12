@@ -1053,6 +1053,14 @@ function openOfficeForm(id){
   formType='office';formId=id;const o=id?DB.offices.find(x=>x.id===id):{};
   const mOpts=['',...DB.members.map(m=>m.name)].map(n=>'<option value="'+n+'" '+((o.member||'')==n?'selected':'')+'>'+(n||'-- Vacant --')+'</option>').join('');
   document.getElementById('form-title').textContent=id?'Edit Office':'Add Office';
+  // Build existing photos preview with delete buttons
+  const existingPhotosHtml = (o.photos||[]).length
+    ? '<div style="margin-top:10px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--txt3);margin-bottom:6px;font-weight:600">Current Photos (click X to remove)</div>'
+      + '<div style="display:flex;gap:6px;flex-wrap:wrap" id="existing-photos-preview">'
+      + (o.photos||[]).map((p,i)=>`<div style="position:relative" id="existing-photo-${i}"><img src="${p.data}" style="height:70px;width:100px;object-fit:cover;border-radius:6px;border:1px solid var(--bdr)"><button type="button" onclick="removeExistingPhoto(${i})" style="position:absolute;top:3px;right:3px;background:var(--red);border:none;border-radius:50%;width:18px;height:18px;color:#fff;cursor:pointer;font-size:10px;line-height:1;display:flex;align-items:center;justify-content:center">&#x2715;</button></div>`).join('')
+      + '</div><div style="font-size:11px;color:var(--txt3);margin-top:5px">Adding new photos below will add to existing (up to 6 total).</div></div>'
+    : '';
+
   document.getElementById('form-body').innerHTML='<div class="fg">'
     +'<div class="fl"><label>Office Number *</label><input id="f-num" value="'+(o.num||'')+'" placeholder="e.g. 37"></div>'
     +'<div class="fl"><label>Status</label><select id="f-status"><option value="Occupied" '+(o.status==='Occupied'?'selected':'')+'>Occupied</option><option value="Vacant" '+(o.status==='Vacant'?'selected':'')+'>Vacant</option></select></div>'
@@ -1063,9 +1071,8 @@ function openOfficeForm(id){
     +'<div class="fl"><label>Listed Rate (Vacant $/mo)</label><input id="f-ldues" type="number" value="'+(o.listDues||'')+'"></div>'
     +'<div class="fl full"><label>Description (shown on website for vacant offices)</label><textarea id="f-desc" style="min-height:70px">'+(o.description||'')+'</textarea></div>'
     +'<div class="sect-title">Office Photos (shown on website for vacant offices)</div>'
-    +'<div class="fl full"><div class="file-drop" id="office-drop-zone"><input type="file" multiple accept="image/*" id="office-photo-input"><div class="file-drop-txt">&#128247; Drop photos or <span>click to browse</span><br><small>JPG, PNG &mdash; up to 3 photos, max 5MB each</small></div></div>'
+    +'<div class="fl full">'+existingPhotosHtml+'<div class="file-drop" id="office-drop-zone" style="margin-top:10px"><input type="file" multiple accept="image/*" id="office-photo-input"><div class="file-drop-txt">&#128247; Add more photos or <span>click to browse</span><br><small>JPG, PNG &mdash; up to 6 photos total, max 5MB each</small></div></div>'
     +'<div class="pending-files" id="pending-office-photos"></div>'
-    +((o.photos||[]).length?'<div style="margin-top:7px;font-size:11px;color:var(--txt3)">Stored photos: '+(o.photos||[]).map((p,i)=>'<span style="color:var(--acc)">Photo '+(i+1)+'</span>').join(', ')+'<br><small style="color:var(--txt3)">Uploading new photos replaces existing ones.</small></div>':'')
     +'</div></div>';
   const dz=document.getElementById('office-drop-zone');
   if(dz){dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag');});dz.addEventListener('dragleave',()=>dz.classList.remove('drag'));dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('drag');handleFiles(e.dataTransfer.files,'office-photos');});}
@@ -1112,7 +1119,10 @@ async function submitForm(){
     const num=document.getElementById('f-num').value.trim();if(!num){alert('Office number required.');return;}
     const existing=formId?DB.offices.find(x=>x.id===formId):{photos:[]};
     const newPhotos=pendingFiles.filter(f=>f.type&&f.type.startsWith('image/'));
-    const obj={id:formId||uid(),num,status:document.getElementById('f-status').value,member:document.getElementById('f-member').value,tenantStart:document.getElementById('f-tstart').value,sqft:Number(document.getElementById('f-sqft').value)||null,dormer:Number(document.getElementById('f-dormer').value)||null,listDues:Number(document.getElementById('f-ldues').value)||null,description:document.getElementById('f-desc')?.value||'',photos:newPhotos.length?newPhotos.slice(0,3):(existing.photos||[])};
+    // Merge new photos with remaining existing photos (after deletions)
+    const remainingExisting = _remainingOfficePhotos || (existing.photos||[]);
+    const mergedPhotos = [...remainingExisting, ...newPhotos].slice(0,6);
+    const obj={id:formId||uid(),num,status:document.getElementById('f-status').value,member:document.getElementById('f-member').value,tenantStart:document.getElementById('f-tstart').value,sqft:Number(document.getElementById('f-sqft').value)||null,dormer:Number(document.getElementById('f-dormer').value)||null,listDues:Number(document.getElementById('f-ldues').value)||null,description:document.getElementById('f-desc')?.value||'',photos:mergedPhotos};
     if(formId){const i=DB.offices.findIndex(x=>x.id===formId);DB.offices[i]=obj;}else DB.offices.push(obj);
   } else if(formType==='member'){
     const name=document.getElementById('f-name').value.trim();if(!name){alert('Member name required.');return;}
@@ -1131,7 +1141,25 @@ async function submitForm(){
   }
   closeForm();refreshAll();await saveData();toast('Saved &#10003;');
 }
-function closeForm(){document.getElementById('form-modal').classList.remove('open');formType=null;formId=null;pendingFiles=[];}
+function closeForm(){document.getElementById('form-modal').classList.remove('open');formType=null;formId=null;pendingFiles=[];_remainingOfficePhotos=null;}
+
+let _remainingOfficePhotos = null;
+
+function removeExistingPhoto(idx){
+  const o = DB.offices.find(x=>x.id===formId);
+  if(!o) return;
+  // Initialize remaining photos from current office if not already tracking
+  if(!_remainingOfficePhotos) _remainingOfficePhotos = [...(o.photos||[])];
+  _remainingOfficePhotos.splice(idx, 1);
+  // Remove from DOM and re-render remaining
+  const preview = document.getElementById('existing-photos-preview');
+  if(preview){
+    preview.innerHTML = _remainingOfficePhotos.map((p,i)=>
+      `<div style="position:relative" id="existing-photo-${i}"><img src="${p.data}" style="height:70px;width:100px;object-fit:cover;border-radius:6px;border:1px solid var(--bdr)"><button type="button" onclick="removeExistingPhoto(${i})" style="position:absolute;top:3px;right:3px;background:var(--red);border:none;border-radius:50%;width:18px;height:18px;color:#fff;cursor:pointer;font-size:10px;line-height:1;display:flex;align-items:center;justify-content:center">&#x2715;</button></div>`
+    ).join('');
+  }
+  toast('Photo removed — click Save to confirm');
+}
 
 // === DELETE ===
 let confirmCallback=null;
