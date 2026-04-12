@@ -831,6 +831,42 @@ def import_data():
     except Exception as e:
         return jsonify({'ok': False, 'error': str(e)}), 500
 
+@app.route('/admin/api/import-photos', methods=['POST'])
+@login_required
+def import_photos():
+    """Import photos from WordPress export into posts and offices."""
+    try:
+        payload = request.json
+        post_updates   = payload.get('post_updates', {})
+        office_updates = payload.get('office_updates', {})
+
+        data = get_db()
+
+        post_count = 0
+        for title, updates in post_updates.items():
+            post = next((p for p in data.get('newsletter', []) if p.get('subject') == title), None)
+            if post:
+                if 'heroPhoto' in updates:
+                    post['heroPhoto'] = updates['heroPhoto']
+                if 'galleryPhotos' in updates:
+                    post['galleryPhotos'] = updates['galleryPhotos']
+                post_count += 1
+
+        office_count = 0
+        for num, updates in office_updates.items():
+            office = next((o for o in data.get('offices', []) if o.get('num') == num), None)
+            if office:
+                if 'photos' in updates:
+                    office['photos'] = updates['photos']
+                if 'heroPhoto' in updates:
+                    office['heroPhoto'] = updates['heroPhoto']
+                office_count += 1
+
+        save_data(data)
+        return jsonify({'ok': True, 'posts': post_count, 'offices': office_count})
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
 @app.route('/admin/api/test-sms')
 @login_required
 def test_sms():
