@@ -117,7 +117,7 @@ tr.rclick:hover td{background:rgba(255,255,255,.02);cursor:pointer}
 .fi h2{font-family:'Playfair Display',serif;font-size:18px;margin-bottom:14px}
 .fg{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
 .fl{display:flex;flex-direction:column;gap:3px}
-.fl label{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--txt3);font-weight:600}
+.fl label{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--txt2);font-weight:600}
 .fl input,.fl select,.fl textarea{background:var(--sur2);border:1px solid var(--bdr);border-radius:7px;color:var(--txt);font-family:'IBM Plex Sans',sans-serif;font-size:13px;padding:7px 10px;outline:none;transition:border-color .15s;width:100%}
 .fl input:focus,.fl select:focus,.fl textarea:focus{border-color:var(--acc)}
 .fl textarea{resize:vertical;min-height:65px;line-height:1.5}
@@ -354,7 +354,7 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
     <button class="btn-add" onclick="openMemberForm(null)" style="background:var(--grn)">+ Add Member</button>
   </div>
   <div class="card"><div class="tw"><table>
-    <thead><tr><th>Member</th><th>Status</th><th>Start</th><th>End</th><th>Gross</th><th>Discount</th><th>Net Dues</th><th>Deposit</th><th>Agreement</th><th>Docs</th></tr></thead>
+    <thead><tr><th style="width:36px"></th><th style="cursor:pointer" onclick="sortMembers('name')">Member <span id="ms-name">↕</span></th><th>Status</th><th style="cursor:pointer" onclick="sortMembers('start')">Start <span id="ms-start">↕</span></th><th>End</th><th>Gross</th><th>Discount</th><th>Net Dues</th><th>Deposit</th><th>Agreement</th><th>Docs</th></tr></thead>
     <tbody id="m-tbody"></tbody>
   </table></div></div>
 </div>
@@ -372,7 +372,7 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
     <button class="btn-add" onclick="openOccupantForm(null)">+ Add Occupant</button>
   </div>
   <div class="card"><div class="tw"><table>
-    <thead><tr><th>Name</th><th>Company</th><th>Office</th><th>Phone</th><th>Email</th><th>Status</th><th>End Date</th><th>Driver's License</th></tr></thead>
+    <thead><tr><th style="width:44px">Photo</th><th style="cursor:pointer" onclick="sortOccupants('name')">Name <span id="os-name">↕</span></th><th style="cursor:pointer" onclick="sortOccupants('company')">Company <span id="os-company">↕</span></th><th>Office</th><th>Phone</th><th>Email</th><th>Status</th><th>End Date</th><th>Driver's License</th></tr></thead>
     <tbody id="occ-tbody"></tbody>
   </table></div></div>
 </div>
@@ -871,19 +871,48 @@ function deleteOfficePhoto(officeId, photoIdx){
 }
 
 // === MEMBERS ===
-let mSearch='',mFilter='Active';
+let mSearch='',mFilter='Active',mSort={col:'name',dir:1};
+function getLogo(email){
+  if(!email||!email.includes('@'))return '';
+  const domain=email.split('@')[1];
+  if(!domain||['gmail.com','yahoo.com','outlook.com','hotmail.com','icloud.com','aol.com','live.com','att.net'].includes(domain))return '';
+  return 'https://www.google.com/s2/favicons?domain='+domain+'&sz=32';
+}
+function sortMembers(col){
+  if(mSort.col===col)mSort.dir*=-1;else{mSort.col=col;mSort.dir=1;}
+  ['name','start'].forEach(c=>{const el=document.getElementById('ms-'+c);if(el)el.textContent=mSort.col===c?(mSort.dir===1?'↑':'↓'):'↕';});
+  renderMembers();
+}
 function renderMembers(){
-  const list=DB.members.filter(m=>{
+  let list=DB.members.filter(m=>{
     if(mFilter!=='all'&&m.status!==mFilter)return false;
     const q=mSearch.toLowerCase();
     return!q||m.name.toLowerCase().includes(q)||(m.email||'').toLowerCase().includes(q);
+  });
+  list.sort((a,b)=>{
+    const av=mSort.col==='start'?(a.start||''):(a.name||'');
+    const bv=mSort.col==='start'?(b.start||''):(b.name||'');
+    return av.localeCompare(bv)*mSort.dir;
   });
   document.getElementById('m-count').textContent=list.length+' members';
   document.getElementById('m-tbody').innerHTML=list.map(m=>{
     const d=Number(m.discount)||0;const atts=m.attachments||[];
     const agStatus=m.agreementSigned?'<span class="badge bg">Signed</span>':m.agreementSent?'<span class="badge ba">Sent</span>':'<span class="badge br">Pending</span>';
-    return '<tr class="rclick" onclick="openMemberMo(\''+esc(m.id)+'\')">'+'<td><strong>'+m.name+'</strong></td>'+'<td><span class="badge '+(m.status==='Active'?'bg':m.status==='Pending'?'ba':'br')+'">'+m.status+'</span></td>'+'<td class="mono">'+fD(m.start)+'</td>'+'<td class="mono" style="color:'+(m.end?'var(--red)':'var(--txt3)')+'">'+fD(m.end)+'</td>'+'<td class="mono">'+f$(m.dues)+'</td>'+'<td class="mono" style="color:'+(d>0?'var(--purple)':'var(--txt3)')+'">'+(d>0?'-'+f$(d):'-')+'</td>'+'<td class="mono" style="color:var(--grn)">'+f$(net(m))+'</td>'+'<td class="mono">'+f$(m.deposit)+'</td>'+'<td>'+agStatus+'</td>'+'<td style="font-size:12px;color:'+(atts.length?'var(--acc)':'var(--txt3)')+'">&#128206; '+(atts.length||'-')+'</td></tr>';
-  }).join('')||'<tr><td colspan="10" style="color:var(--txt3);text-align:center;padding:20px">No members found</td></tr>';
+    const logo=getLogo(m.email);
+    const logoCell=logo?'<td style="padding:4px 8px"><img src="'+logo+'" style="width:24px;height:24px;border-radius:4px;object-fit:contain" onerror="this.style.display=\'none\'" title="'+m.name+'"></td>':'<td></td>';
+    return '<tr class="rclick" onclick="openMemberMo(\''+esc(m.id)+'\')">'
+      +logoCell
+      +'<td><strong>'+m.name+'</strong></td>'
+      +'<td><span class="badge '+(m.status==='Active'?'bg':m.status==='Pending'?'ba':'br')+'">'+m.status+'</span></td>'
+      +'<td class="mono">'+fD(m.start)+'</td>'
+      +'<td class="mono" style="color:'+(m.end?'var(--red)':'var(--txt3)')+'">'+fD(m.end)+'</td>'
+      +'<td class="mono">'+f$(m.dues)+'</td>'
+      +'<td class="mono" style="color:'+(d>0?'var(--purple)':'var(--txt3)')+'">'+(d>0?'-'+f$(d):'-')+'</td>'
+      +'<td class="mono" style="color:var(--grn)">'+f$(net(m))+'</td>'
+      +'<td class="mono">'+f$(m.deposit)+'</td>'
+      +'<td>'+agStatus+'</td>'
+      +'<td style="font-size:12px;color:'+(atts.length?'var(--acc)':'var(--txt3)')+'">&#128206; '+(atts.length||'-')+'</td></tr>';
+  }).join('')||'<tr><td colspan="11" style="color:var(--txt3);text-align:center;padding:20px">No members found</td></tr>';
 }
 function filterMembers(q){mSearch=q;renderMembers();}
 function setMF(f,btn){mFilter=f;document.querySelectorAll('#mf-active,#mf-pending,#mf-archive,#mf-all').forEach(b=>b.classList.remove('on'));btn.classList.add('on');renderMembers();}
@@ -943,12 +972,22 @@ async function generateOnboardLink(){
 }
 
 // === OCCUPANTS ===
-let occSearch='',occFilter='Active';
+let occSearch='',occFilter='Active',occSort={col:'name',dir:1};
+function sortOccupants(col){
+  if(occSort.col===col)occSort.dir*=-1;else{occSort.col=col;occSort.dir=1;}
+  ['name','company'].forEach(c=>{const el=document.getElementById('os-'+c);if(el)el.textContent=occSort.col===c?(occSort.dir===1?'↑':'↓'):'↕';});
+  renderOccupants();
+}
 function renderOccupants(){
-  const list=DB.occupants.filter(o=>{
+  let list=DB.occupants.filter(o=>{
     if(occFilter!=='all'&&o.status!==occFilter)return false;
     const q=occSearch.toLowerCase();
     return!q||o.name.toLowerCase().includes(q)||o.company.toLowerCase().includes(q)||(o.office||'').toLowerCase().includes(q)||(o.email||'').toLowerCase().includes(q);
+  });
+  list.sort((a,b)=>{
+    const av=(occSort.col==='company'?(a.company||''):(a.name||'')).toLowerCase();
+    const bv=(occSort.col==='company'?(b.company||''):(b.name||'')).toLowerCase();
+    return av.localeCompare(bv)*occSort.dir;
   });
   document.getElementById('occ-count').textContent=list.length+' occupants';
   document.getElementById('occ-tbody').innerHTML=list.map(o=>{
@@ -956,8 +995,20 @@ function renderOccupants(){
     if(o.dlAttachment&&o.dlAttachment.type&&o.dlAttachment.type.startsWith('image/')){dlCell='<img src="'+o.dlAttachment.data+'" style="height:38px;width:60px;object-fit:cover;border-radius:5px;border:1px solid var(--bdr);display:block;cursor:pointer" onclick="event.stopPropagation();openAttachment(getOccById(\''+esc(o.id)+'\').dlAttachment)">';}
     else if(o.dlAttachment){dlCell='<span style="font-size:11px;color:var(--acc);cursor:pointer" onclick="event.stopPropagation();openAttachment(getOccById(\''+esc(o.id)+'\').dlAttachment)">&#128196; PDF</span>';}
     else{dlCell='<span style="color:var(--txt3);font-size:12px">Missing</span>';}
-    return '<tr class="rclick" onclick="openOccMo(\''+esc(o.id)+'\')">'+'<td><strong>'+o.name+'</strong></td><td style="color:var(--txt2)">'+o.company+'</td>'+'<td class="mono">'+(o.office?'Office '+o.office:'-')+'</td>'+'<td class="mono" style="font-size:12px">'+(o.phone||'-')+'</td>'+'<td style="font-size:12px">'+(o.email?'<a href="mailto:'+o.email+'" style="color:var(--blue)">'+o.email+'</a>':'-')+'</td>'+'<td><span class="badge '+(o.status==='Active'?'bg':o.status==='Pending'?'ba':'br')+'">'+o.status+'</span></td>'+'<td class="mono" style="color:'+(o.endDate?'var(--red)':'var(--txt3)')+';font-size:12px">'+(o.endDate||'-')+'</td>'+'<td style="padding:5px 10px">'+dlCell+'</td></tr>';
-  }).join('')||'<tr><td colspan="8" style="color:var(--txt3);text-align:center;padding:20px">No occupants found</td></tr>';
+    const faceCell=o.facePhoto
+      ?'<td style="padding:4px 8px"><img src="'+o.facePhoto.data+'" style="width:36px;height:36px;object-fit:cover;border-radius:50%;border:1px solid var(--bdr)"></td>'
+      :'<td style="padding:4px 8px"><div style="width:36px;height:36px;border-radius:50%;background:var(--sur2);border:1px solid var(--bdr);display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--txt3)">&#128100;</div></td>';
+    return '<tr class="rclick" onclick="openOccMo(\''+esc(o.id)+'\')">'
+      +faceCell
+      +'<td><strong>'+o.name+'</strong></td>'
+      +'<td style="color:var(--txt2)">'+o.company+'</td>'
+      +'<td class="mono">'+(o.office?'Office '+o.office:'-')+'</td>'
+      +'<td class="mono" style="font-size:12px">'+(o.phone||'-')+'</td>'
+      +'<td style="font-size:12px">'+(o.email?'<a href="mailto:'+o.email+'" style="color:var(--blue)">'+o.email+'</a>':'-')+'</td>'
+      +'<td><span class="badge '+(o.status==='Active'?'bg':o.status==='Pending'?'ba':'br')+'">'+o.status+'</span></td>'
+      +'<td class="mono" style="color:'+(o.endDate?'var(--red)':'var(--txt3)')+';font-size:12px">'+(o.endDate||'-')+'</td>'
+      +'<td style="padding:5px 10px">'+dlCell+'</td></tr>';
+  }).join('')||'<tr><td colspan="9" style="color:var(--txt3);text-align:center;padding:20px">No occupants found</td></tr>';
 }
 function filterOccupants(q){occSearch=q;renderOccupants();}
 function setOccF(f,btn){occFilter=f;document.querySelectorAll('#of-active,#of-pending,#of-archive,#of-all').forEach(b=>b.classList.remove('on'));btn.classList.add('on');renderOccupants();}
@@ -966,7 +1017,9 @@ function openOccMo(id){
   const o=getOccById(id);
   document.getElementById('mo-title').textContent=o.name;
   document.getElementById('mo-sub').textContent=o.company+(o.office?' &mdash; Office '+o.office:'');
-  let h='<div class="di"><label>Status</label><value><span class="badge '+(o.status==='Active'?'bg':o.status==='Pending'?'ba':'br')+'">'+o.status+'</span></value></div>';
+  let h='';
+  if(o.facePhoto){h+='<div class="di full" style="text-align:center;margin-bottom:8px"><img src="'+o.facePhoto.data+'" style="width:80px;height:80px;object-fit:cover;border-radius:50%;border:2px solid var(--acc)"></div>';}
+  h+='<div class="di"><label>Status</label><value><span class="badge '+(o.status==='Active'?'bg':o.status==='Pending'?'ba':'br')+'">'+o.status+'</span></value></div>';
   h+='<div class="di"><label>Office</label><value class="mono">'+(o.office?'Office '+o.office:'-')+'</value></div>';
   h+='<div class="di"><label>Phone</label><value class="mono">'+(o.phone||'-')+'</value></div>';
   h+='<div class="di"><label>Email</label><value style="font-size:12px">'+eml(o.email)+'</value></div>';
@@ -1034,7 +1087,7 @@ function saveTemplate(){const name=document.getElementById('tpl-name').value.tri
 let formType=null,formId=null,pendingFiles=[];
 function renderPending(cid){const el=document.getElementById(cid);if(!el)return;el.innerHTML=pendingFiles.map((f,i)=>'<div class="pf-item"><span>'+(f.type&&f.type.startsWith('image/')?'&#128444;':'&#128196;')+'</span><span class="pf-name">'+f.name+'</span><button class="pf-rm" onclick="removePending('+i+',\''+cid+'\')">&#x2715;</button></div>').join('');}
 function removePending(i,cid){pendingFiles.splice(i,1);renderPending(cid);}
-async function handleFiles(files,ctx){for(const file of files){if(file.size>10*1024*1024){toast('File too large (max 10MB)','var(--red)');continue;}try{const b64=await fileToB64(file);if(ctx==='dl')pendingFiles=[b64];else pendingFiles.push(b64);renderPending(ctx==='dl'?'pending-dl':'pending-agreements');}catch(e){toast('Error reading file','var(--red)');}}}
+async function handleFiles(files,ctx){for(const file of files){const maxSize=ctx==='face'?5*1024*1024:10*1024*1024;if(file.size>maxSize){toast('File too large','var(--red)');continue;}try{const b64=await fileToB64(file);if(ctx==='dl')pendingFiles=[b64];else if(ctx==='face'){window._pendingFacePhoto=b64;const fdz=document.getElementById('face-drop-zone');if(fdz)fdz.style.borderColor='var(--grn)';toast('Face photo ready — click Save to confirm');}else pendingFiles.push(b64);if(ctx!=='face')renderPending(ctx==='dl'?'pending-dl':'pending-agreements');}catch(e){toast('Error reading file','var(--red)');}}}
 function handleDrop(e,ctx){e.preventDefault();e.currentTarget.classList.remove('drag');handleFiles(e.dataTransfer.files,ctx);}
 
 function setStatus(val){
@@ -1051,7 +1104,8 @@ function statusButtons(cur,includesPending){
 
 function openOfficeForm(id){
   formType='office';formId=id;const o=id?DB.offices.find(x=>x.id===id):{};
-  const mOpts=['',...DB.members.map(m=>m.name)].map(n=>'<option value="'+n+'" '+((o.member||'')==n?'selected':'')+'>'+(n||'-- Vacant --')+'</option>').join('');
+  const sortedMbrs=[...DB.members].sort((a,b)=>a.name.localeCompare(b.name));
+  const mOpts=['',...sortedMbrs.map(m=>m.name)].map(n=>'<option value="'+n+'" '+((o.member||'')==n?'selected':'')+'>'+(n||'-- Vacant --')+'</option>').join('');
   document.getElementById('form-title').textContent=id?'Edit Office':'Add Office';
   // Build existing photos preview with delete buttons
   const existingPhotosHtml = (o.photos||[]).length
@@ -1069,6 +1123,8 @@ function openOfficeForm(id){
     +'<div class="fl"><label>Square Footage</label><input id="f-sqft" type="number" value="'+(o.sqft||'')+'"></div>'
     +'<div class="fl"><label>Dormer Sq Ft</label><input id="f-dormer" type="number" value="'+(o.dormer||'')+'"></div>'
     +'<div class="fl"><label>Listed Rate (Vacant $/mo)</label><input id="f-ldues" type="number" value="'+(o.listDues||'')+'"></div>'
+    +'<div class="fl"><label>Discount ($)</label><input id="f-odiscount" type="number" value="'+(o.discount||0)+'' oninput="updOfficeNet()"></div>'
+    +'<div class="fl full" style="background:var(--sur2);border:1px solid var(--bdr);border-radius:7px;padding:9px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--txt3);margin-bottom:3px">Net Rate</div><div id="office-net-prev" style="font-family:\'IBM Plex Mono\',monospace;font-size:17px;color:var(--grn)">-</div></div>'
     +'<div class="fl full"><label>Description (shown on website for vacant offices)</label><textarea id="f-desc" style="min-height:70px">'+(o.description||'')+'</textarea></div>'
     +'<div class="sect-title">Office Photos (shown on website for vacant offices)</div>'
     +'<div class="fl full">'+existingPhotosHtml+'<div class="file-drop" id="office-drop-zone" style="margin-top:10px"><input type="file" multiple accept="image/*" id="office-photo-input"><div class="file-drop-txt">&#128247; Add more photos or <span>click to browse</span><br><small>JPG, PNG &mdash; up to 6 photos total, max 5MB each</small></div></div>'
@@ -1093,18 +1149,38 @@ function openMemberForm(id){
   document.getElementById('form-modal').classList.add('open');
 }
 function updNet(){const d=Number(document.getElementById('f-dues')?.value)||0;const disc=Number(document.getElementById('f-discount')?.value)||0;const el=document.getElementById('net-prev');if(el)el.textContent='$'+Math.max(0,d-disc).toLocaleString();}
+function updOfficeNet(){const r=Number(document.getElementById('f-ldues')?.value)||0;const disc=Number(document.getElementById('f-odiscount')?.value)||0;const el=document.getElementById('office-net-prev');if(el)el.textContent='$'+Math.max(0,r-disc).toLocaleString();}
 
 function openOccupantForm(id){
-  formType='occupant';formId=id;pendingFiles=[];const p=id?getOccById(id):{};
-  const cOpts=['',...DB.members.map(m=>m.name)].map(n=>'<option value="'+n+'" '+((p.company||'')==n?'selected':'')+'>'+(n||'&mdash; Select &mdash;')+'</option>').join('');
-  const oOpts=['',...DB.offices.map(o=>o.num)].map(n=>'<option value="'+n+'" '+((p.office||'')==n?'selected':'')+'>'+(n||'&mdash; None &mdash;')+'</option>').join('');
+  formType='occupant';formId=id;pendingFiles=[];window._pendingFacePhoto=null;const p=id?getOccById(id):{};
+  const sortedMembers=[...DB.members].sort((a,b)=>a.name.localeCompare(b.name));
+  const sortedOffices=[...DB.offices].sort((a,b)=>a.num.localeCompare(b.num,undefined,{numeric:true}));
+  const cOpts=['',...sortedMembers.map(m=>m.name)].map(n=>'<option value="'+n+'" '+((p.company||'')==n?'selected':'')+'>'+(n||'&mdash; Select &mdash;')+'</option>').join('');
+  const oOpts=['',...sortedOffices.map(o=>o.num)].map(n=>'<option value="'+n+'" '+((p.office||'')==n?'selected':'')+'>'+(n||'&mdash; None &mdash;')+'</option>').join('');
+  const facePreview=p.facePhoto?'<div style="margin-top:7px;display:flex;align-items:center;gap:10px"><img src="'+p.facePhoto.data+'" style="width:50px;height:50px;object-fit:cover;border-radius:50%;border:2px solid var(--acc)"><span style="font-size:11px;color:var(--txt2)">Current photo &mdash; upload new to replace</span></div>':'';
   document.getElementById('form-title').textContent=id?'Edit Occupant':'Add Occupant';
-  document.getElementById('form-body').innerHTML='<div class="fg"><div class="fl full"><label>Full Name *</label><input id="f-name" value="'+(p.name||'')+'" placeholder="First Last"></div><div class="fl"><label>Member Company *</label><select id="f-company">'+cOpts+'</select></div><div class="fl"><label>Office Number</label><select id="f-office">'+oOpts+'</select></div><div class="fl"><label>Phone</label><input id="f-phone" value="'+(p.phone||'')+'"></div><div class="fl"><label>Email</label><input id="f-email" type="email" value="'+(p.email||'')+'"></div>'+statusButtons(p.status||'Active',false)+'<div class="fl"><label>End Date</label><input id="f-endDate" value="'+(p.endDate||'')+'" placeholder="e.g. 7/31/2026"></div><div class="sect-title">Driver\'s License</div><div class="fl full"><div class="file-drop" id="occ-drop-zone"><input type="file" accept="image/*,.pdf" id="occ-file-input"><div class="file-drop-txt">&#127818; Drop driver\'s license or <span>click to browse</span><br><small>JPG, PNG, PDF &mdash; max 10MB</small></div></div><div class="pending-files" id="pending-dl"></div>'+(p.dlAttachment?'<div style="margin-top:7px;font-size:11px;color:var(--txt3)">Stored: <span style="color:var(--acc)">'+p.dlAttachment.name+'</span></div>':'')+'</div></div>';
+  document.getElementById('form-body').innerHTML='<div class="fg">'
+    +'<div class="fl full"><label>Full Name *</label><input id="f-name" value="'+(p.name||'')+'" placeholder="First Last"></div>'
+    +'<div class="fl"><label>Member Company *</label><select id="f-company">'+cOpts+'</select></div>'
+    +'<div class="fl"><label>Office Number</label><select id="f-office">'+oOpts+'</select></div>'
+    +'<div class="fl"><label>Phone</label><input id="f-phone" value="'+(p.phone||'')+'"></div>'
+    +'<div class="fl"><label>Email</label><input id="f-email" type="email" value="'+(p.email||'')+'"></div>'
+    +statusButtons(p.status||'Active',false)
+    +'<div class="fl"><label>End Date</label><input id="f-endDate" value="'+(p.endDate||'')+'" placeholder="e.g. 7/31/2026"></div>'
+    +'<div class="sect-title">Face Photo</div>'
+    +'<div class="fl full"><div class="file-drop" id="face-drop-zone"><input type="file" accept="image/*" id="face-file-input"><div class="file-drop-txt">&#128247; Upload face photo or <span>click to browse</span><br><small>JPG, PNG &mdash; max 5MB</small></div></div>'+facePreview+'</div>'
+    +'<div class="sect-title">Driver\'s License</div>'
+    +'<div class="fl full"><div class="file-drop" id="occ-drop-zone"><input type="file" accept="image/*,.pdf" id="occ-file-input"><div class="file-drop-txt">&#127818; Drop driver\'s license or <span>click to browse</span><br><small>JPG, PNG, PDF &mdash; max 10MB</small></div></div><div class="pending-files" id="pending-dl"></div>'+(p.dlAttachment?'<div style="margin-top:7px;font-size:11px;color:var(--txt3)">Stored: <span style="color:var(--acc)">'+p.dlAttachment.name+'</span></div>':'')+'</div>'
+    +'</div>';
   document.getElementById('form-modal').classList.add('open');
   const odz=document.getElementById('occ-drop-zone');
   if(odz){odz.addEventListener('dragover',e=>{e.preventDefault();odz.classList.add('drag');});odz.addEventListener('dragleave',()=>odz.classList.remove('drag'));odz.addEventListener('drop',e=>{e.preventDefault();odz.classList.remove('drag');handleFiles(e.dataTransfer.files,'dl');});}
   const ofi=document.getElementById('occ-file-input');
   if(ofi){ofi.addEventListener('change',()=>handleFiles(ofi.files,'dl'));}
+  const fdz=document.getElementById('face-drop-zone');
+  if(fdz){fdz.addEventListener('dragover',e=>{e.preventDefault();fdz.classList.add('drag');});fdz.addEventListener('dragleave',()=>fdz.classList.remove('drag'));fdz.addEventListener('drop',e=>{e.preventDefault();fdz.classList.remove('drag');handleFiles(e.dataTransfer.files,'face');});}
+  const ffi=document.getElementById('face-file-input');
+  if(ffi){ffi.addEventListener('change',()=>handleFiles(ffi.files,'face'));}
 }
 
 function openWaitForm(id){
@@ -1122,7 +1198,7 @@ async function submitForm(){
     // Merge new photos with remaining existing photos (after deletions)
     const remainingExisting = _remainingOfficePhotos || (existing.photos||[]);
     const mergedPhotos = [...remainingExisting, ...newPhotos].slice(0,6);
-    const obj={id:formId||uid(),num,status:document.getElementById('f-status').value,member:document.getElementById('f-member').value,tenantStart:document.getElementById('f-tstart').value,sqft:Number(document.getElementById('f-sqft').value)||null,dormer:Number(document.getElementById('f-dormer').value)||null,listDues:Number(document.getElementById('f-ldues').value)||null,description:document.getElementById('f-desc')?.value||'',photos:mergedPhotos};
+    const obj={id:formId||uid(),num,status:document.getElementById('f-status').value,member:document.getElementById('f-member').value,tenantStart:document.getElementById('f-tstart').value,sqft:Number(document.getElementById('f-sqft').value)||null,dormer:Number(document.getElementById('f-dormer').value)||null,listDues:Number(document.getElementById('f-ldues').value)||null,discount:Number(document.getElementById('f-odiscount')?.value)||0,description:document.getElementById('f-desc')?.value||'',photos:mergedPhotos};
     if(formId){const i=DB.offices.findIndex(x=>x.id===formId);DB.offices[i]=obj;}else DB.offices.push(obj);
   } else if(formType==='member'){
     const name=document.getElementById('f-name').value.trim();if(!name){alert('Member name required.');return;}
@@ -1131,8 +1207,10 @@ async function submitForm(){
     if(formId){const i=DB.members.findIndex(x=>x.id===formId);DB.members[i]=obj;}else DB.members.push(obj);
   } else if(formType==='occupant'){
     const name=document.getElementById('f-name').value.trim();const company=document.getElementById('f-company').value;if(!name||!company){alert('Name and company required.');return;}
-    const existing=formId?getOccById(formId):{dlAttachment:null};
-    const obj={id:formId||uid(),name,company,office:document.getElementById('f-office').value,phone:document.getElementById('f-phone').value.trim(),email:document.getElementById('f-email').value.trim(),status:document.getElementById('f-status').value,endDate:document.getElementById('f-endDate').value.trim(),dlAttachment:pendingFiles.length?pendingFiles[0]:(existing.dlAttachment||null)};
+    const existing=formId?getOccById(formId):{dlAttachment:null,facePhoto:null};
+    const facePhoto=window._pendingFacePhoto||existing.facePhoto||null;
+    window._pendingFacePhoto=null;
+    const obj={id:formId||uid(),name,company,office:document.getElementById('f-office').value,phone:document.getElementById('f-phone').value.trim(),email:document.getElementById('f-email').value.trim(),status:document.getElementById('f-status').value,endDate:document.getElementById('f-endDate').value.trim(),dlAttachment:pendingFiles.length?pendingFiles[0]:(existing.dlAttachment||null),facePhoto};
     if(formId){const i=DB.occupants.findIndex(x=>x.id===formId);DB.occupants[i]=obj;}else DB.occupants.push(obj);
   } else if(formType==='waitlist'){
     const name=document.getElementById('f-name').value.trim();if(!name){alert('Name required.');return;}
