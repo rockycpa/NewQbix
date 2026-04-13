@@ -1123,7 +1123,7 @@ function openAgreementReview(id) {
       </div>
       <div style="display:flex;gap:10px">
         <button class="btn-edit" style="flex:1" onclick="document.getElementById('review-modal').classList.remove('open')">Go Back</button>
-        <button class="btn-blue" style="flex:2" onclick="commitAgreement('${m.id}')">&#128196; Looks Good — Generate &amp; Email</button>
+        <button class="btn-blue" style="flex:2" id="commit-btn-${m.id}" onclick="commitAgreement('${m.id}')">&#128196; Looks Good — Generate &amp; Email</button>
       </div>
     </div>`;
   document.getElementById('review-modal').classList.add('open');
@@ -1135,13 +1135,9 @@ function commitAgreement(id) {
   const params   = new URLSearchParams();
   if (waiveFee) params.set('waive_setup_fee','true');
 
-  // Use anchor click — avoids popup blocker that breaks window.open downloads
-  const dlLink = document.createElement('a');
-  dlLink.href = '/admin/api/generate-agreement/'+id+'?'+params.toString();
-  dlLink.download = '';
-  document.body.appendChild(dlLink);
-  dlLink.click();
-  document.body.removeChild(dlLink);
+  // Opens as styled HTML page in new tab — use Print → Save as PDF to save
+  const url = '/admin/api/generate-agreement/'+id+(params.toString()? '?'+params.toString() : '');
+  window.open(url, '_blank');
 
   document.getElementById('review-modal').classList.remove('open');
   if (m && !m.agreementSent){ m.agreementSent=new Date().toISOString().slice(0,10); saveData(); renderMembers(); }

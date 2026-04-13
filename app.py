@@ -1020,34 +1020,29 @@ def update_agreement_status(member_id):
 @app.route('/admin/api/generate-agreement/<member_id>')
 @login_required
 def generate_agreement(member_id):
-    """Generate a complete, professional filled-in membership agreement as .docx"""
+    """Render membership agreement as styled HTML in a new browser tab."""
     waive_setup_fee = request.args.get('waive_setup_fee', 'false').lower() == 'true'
     data   = get_db()
     member = next((m for m in data['members'] if m['id'] == member_id), None)
     if not member:
         abort(404)
 
-    # Offices (full objects for net dues calc)
     member_offices = [o for o in data['offices'] if o.get('member') == member['name']]
     offices        = [o['num'] for o in member_offices]
     office_str     = ', '.join(f'Office {n}' for n in offices) if offices else 'TBD'
 
-    # Net dues only — no discount language shown to member
-    gross_amt   = sum(float(o.get('listDues') or 0) for o in member_offices)
-    disc_amt    = sum(float(o.get('discount') or 0) for o in member_offices)
-    net_amt     = max(0, gross_amt - disc_amt)
-    deposit_amt = member.get('deposit', 0) or 0
-    dues_str    = f'${net_amt:,.0f}/month'
-    deposit_str = f'${deposit_amt:,}'
-
-    # Proration
+    gross_amt     = sum(float(o.get('listDues') or 0) for o in member_offices)
+    disc_amt      = sum(float(o.get('discount') or 0) for o in member_offices)
+    net_amt       = max(0, gross_amt - disc_amt)
+    deposit_amt   = member.get('deposit', 0) or 0
+    dues_str      = f'${net_amt:,.0f}/month'
+    deposit_str   = f'${deposit_amt:,}'
     proration_amt = float(member.get('proration') or 0)
 
-    # Term date calculation
     from calendar import monthrange
-    raw_start  = member.get('start', '')
-    today_str  = datetime.now().strftime('%B %d, %Y')
-    pro_str    = ''
+    raw_start = member.get('start', '')
+    today_str = datetime.now().strftime('%B %d, %Y')
+    pro_str   = ''
     if raw_start:
         try:
             sd = datetime.strptime(raw_start, '%Y-%m-%d')
@@ -1056,16 +1051,13 @@ def generate_agreement(member_id):
             else:
                 last_day_of_start = monthrange(sd.year, sd.month)[1]
                 pro_end  = sd.replace(day=last_day_of_start)
-                pro_str  = f'{sd.strftime("%B %d")} – {pro_end.strftime("%B %d, %Y")}'
-                if sd.month == 12:
-                    term_start = sd.replace(year=sd.year+1, month=1, day=1)
-                else:
-                    term_start = sd.replace(month=sd.month+1, day=1)
-            end_month  = term_start.month + 5
-            end_year   = term_start.year + (end_month - 1) // 12
-            end_month  = ((end_month - 1) % 12) + 1
-            last_day   = monthrange(end_year, end_month)[1]
-            term_end   = datetime(end_year, end_month, last_day)
+                pro_str  = sd.strftime('%B %d') + ' \u2013 ' + pro_end.strftime('%B %d, %Y')
+                term_start = sd.replace(month=sd.month+1, day=1) if sd.month < 12 else sd.replace(year=sd.year+1, month=1, day=1)
+            end_month = term_start.month + 5
+            end_year  = term_start.year + (end_month - 1) // 12
+            end_month = ((end_month - 1) % 12) + 1
+            last_day  = monthrange(end_year, end_month)[1]
+            term_end  = datetime(end_year, end_month, last_day)
             term_start_str = term_start.strftime('%B %d, %Y')
             term_end_str   = term_end.strftime('%B %d, %Y')
             start_str      = sd.strftime('%B %d, %Y')
@@ -1080,364 +1072,213 @@ def generate_agreement(member_id):
 
     conf_hours = len(offices) * 6
 
-    try:
-        from docx import Document as DocxDocument
-        from docx.shared import Pt, Inches, RGBColor
-        from docx.enum.text import WD_ALIGN_PARAGRAPH
-        from docx.oxml.ns import qn
-        from docx.oxml import OxmlElement
-        import io
+    def fld(label, value):
+        return f'<tr><td class="fl">{label}</td><td class="fv">{value}</td></tr>'
 
-        doc = DocxDocument()
+    def blt(text):
+        return f'<li>{text}</li>'
 
-        # Page margins
-        for section in doc.sections:
-            section.top_margin    = Inches(1)
-            section.bottom_margin = Inches(1)
-            section.left_margin   = Inches(1.25)
-            section.right_margin  = Inches(1.25)
+    def sec(num, title):
+        return f'<h2 class="sec-head"><span class="sec-num">{num}.</span> {title.upper()}</h2>'
 
-        def add_heading(text, level=1):
-            p = doc.add_paragraph()
-            p.paragraph_format.space_before = Pt(14)
-            p.paragraph_format.space_after  = Pt(4)
-            run = p.add_run(text.upper())
-            run.bold = True
-            run.font.size = Pt(11) if level == 1 else Pt(10)
-            run.font.color.rgb = RGBColor(0x1a, 0x27, 0x44)
-            # Bottom border
-            pPr = p._p.get_or_add_pPr()
-            pBdr = OxmlElement('w:pBdr')
-            bottom = OxmlElement('w:bottom')
-            bottom.set(qn('w:val'), 'single')
-            bottom.set(qn('w:sz'), '6')
-            bottom.set(qn('w:space'), '1')
-            bottom.set(qn('w:color'), '1a2744')
-            pBdr.append(bottom)
-            pPr.append(pBdr)
-            return p
+    pro_field  = fld(f'Prorated First Payment ({pro_str})' if pro_str else 'Prorated First Payment', f'${proration_amt:,.0f}') if proration_amt > 0 else ''
+    pro_bullet = blt(f'Prorated first payment ({pro_str}): <strong>${proration_amt:,.0f}</strong>, due at signing.') if proration_amt > 0 else ''
+    setup_blt  = '' if waive_setup_fee else blt('A one-time setup fee of <strong>$100</strong> is due at signing.')
+    pro_sig    = fld('Prorated First Payment', f'${proration_amt:,.0f}') if proration_amt > 0 else ''
+    pro_ach    = fld('Prorated First Draft', f'<strong>${proration_amt:,.0f}</strong>') if proration_amt > 0 else ''
+    mname      = member.get('name', '')
+    memail     = member.get('email', '')
+    mphone     = member.get('phone', '')
 
-        def add_body(text):
-            p = doc.add_paragraph(text)
-            p.paragraph_format.space_after = Pt(6)
-            for run in p.runs:
-                run.font.size = Pt(10)
-            return p
+    html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Qbix Centre Membership Agreement</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600;700&display=swap');
+*{{box-sizing:border-box;margin:0;padding:0}}
+body{{font-family:'Inter',Arial,sans-serif;font-size:10.5pt;color:#222;background:#e8e8e8;padding:30px 20px}}
+.page{{background:#fff;max-width:800px;margin:0 auto;padding:60px 70px;box-shadow:0 2px 20px rgba(0,0,0,.15)}}
+.hdr{{text-align:center;border-bottom:3px solid #1a2744;padding-bottom:20px;margin-bottom:24px}}
+.hdr-title{{font-family:'Playfair Display',serif;font-size:26pt;color:#1a2744}}
+.hdr-sub{{font-size:11pt;color:#555;margin-top:4px}}
+.hdr-addr{{font-size:9pt;color:#888;margin-top:6px}}
+.hdr-date{{font-size:9pt;color:#888;margin-top:4px;font-style:italic}}
+.summary{{background:#f7f9fc;border:1px solid #d0d8e8;border-radius:6px;padding:18px 22px;margin-bottom:28px}}
+.summary-title{{font-size:8pt;text-transform:uppercase;letter-spacing:.1em;color:#1a2744;font-weight:700;margin-bottom:12px}}
+table.fields{{width:100%;border-collapse:collapse}}
+.fl{{padding:5px 0;color:#555;font-size:9.5pt;width:55%}}
+.fv{{padding:5px 0;color:#222;font-size:9.5pt;text-align:right;font-weight:500}}
+.sec-head{{font-size:9pt;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#1a2744;border-bottom:1.5px solid #1a2744;padding-bottom:4px;margin:24px 0 10px}}
+.sec-num{{color:#d4a843}}
+ul.clauses{{padding-left:18px;margin:0}}
+ul.clauses li{{margin-bottom:7px;line-height:1.55;font-size:9.5pt}}
+.page-break{{border-top:2px solid #1a2744;margin-top:48px;padding-top:32px}}
+.sec-title{{text-align:center;font-size:14pt;font-weight:700;color:#1a2744;margin-bottom:6px}}
+.sec-sub{{text-align:center;font-size:9pt;color:#888;margin-bottom:24px;font-style:italic}}
+.sig-row{{display:flex;gap:40px;margin-top:20px}}
+.sig-field{{flex:1;border-bottom:1px solid #aaa;min-height:26px;padding-bottom:2px}}
+.sig-label{{font-size:8pt;color:#888;margin-top:4px}}
+.prefilled{{color:#333;font-size:10pt}}
+@media print{{
+  body{{background:#fff;padding:0}}
+  .page{{box-shadow:none;padding:40px 50px;max-width:100%}}
+  .no-print{{display:none}}
+}}
+</style>
+</head>
+<body>
+<div class="no-print" style="max-width:800px;margin:0 auto 16px;display:flex;gap:12px;align-items:center">
+  <button onclick="window.print()" style="background:#1a2744;color:#fff;border:none;border-radius:6px;padding:10px 24px;font-size:13px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif">&#128438;&nbsp; Print / Save as PDF</button>
+  <span style="color:#555;font-size:12px">Print dialog &rarr; select &ldquo;Save as PDF&rdquo; as the printer</span>
+</div>
+<div class="page">
+  <div class="hdr">
+    <div class="hdr-title">QBIX CENTRE</div>
+    <div class="hdr-sub">Membership Agreement</div>
+    <div class="hdr-addr">500A Northside Crossing, Macon, GA 31210 &bull; (478) 787-0532 &bull; qbixcentre.com</div>
+    <div class="hdr-date">Agreement Date: {today_str}</div>
+  </div>
+  <div class="summary">
+    <div class="summary-title">Member Summary</div>
+    <table class="fields">
+      {fld('Member / Company', f'<strong>{mname}</strong>')}
+      {fld('Office(s) Assigned', f'<strong>{office_str}</strong>')}
+      {fld('Monthly Membership Fee', f'<strong>{dues_str}</strong>')}
+      {pro_field}
+      {fld('Refundable Deposit', deposit_str)}
+      {fld('Term Start Date', term_start_str)}
+      {fld('Term End Date', term_end_str)}
+      {fld('Conference Room Hours Included', f'{conf_hours} hours/month')}
+      {fld('Contact Email', memail)}
+      {fld('Contact Phone', mphone)}
+    </table>
+  </div>
+  {sec(1,'Membership & Fees')}
+  <ul class="clauses">
+    {blt(f'Monthly membership fee of <strong>{dues_str}</strong> is due on the 1st of each month via auto-draft through Bill.com. Payments received after the 5th are considered late.')}
+    {pro_bullet}
+    {blt(f'A refundable deposit of <strong>{deposit_str}</strong> is required prior to move-in and will be returned, less normal wear and tear and cost of unreturned keys, upon conclusion of the membership.')}
+    {setup_blt}
+    {blt(f'The initial term of this Agreement is six (6) full calendar months, from <strong>{term_start_str}</strong> through <strong>{term_end_str}</strong>. This Agreement automatically renews for successive six (6) month periods at the then-current rate unless the Member provides written notice of non-renewal at least thirty (30) days prior to the end of the then-current term. Failure to provide timely notice results in automatic renewal and the Member\'s obligation for the full succeeding term.')}
+    {blt('A non-refundable background check fee of $35 per cardholder is required prior to access being granted.')}
+    {blt('Additional key/fob holders: $150/month plus $35 background check fee. Both keyholders must be from the same company.')}
+  </ul>
+  {sec(2,'Access & Use')}
+  <ul class="clauses">
+    {blt('Members receive 24/7 access via card key/fob and a personal access code. Access codes are strictly confidential and must not be shared. Card replacement fee: $35.')}
+    {blt(f'The conference room may be reserved online at qbixcentre.com at least 24 hours in advance. Each membership includes <strong>{conf_hours} hours/month</strong> at no charge; additional time is billed at $25/hour.')}
+    {blt('The workspace is for lawful, professional business purposes only. Sleeping, cooking meals, or personal activities on the premises are not permitted.')}
+    {blt('Members are responsible for safeguarding their own confidential information and must respect the privacy and confidentiality of fellow members.')}
+  </ul>
+  {sec(3,'Amenities & Overage Charges')}
+  <ul class="clauses">
+    {blt('Included: High-speed Wi-Fi/Ethernet (AT&T Gigabit Fiber), furnished workstations, kitchenette with Starbucks coffee and beverages, full-color laser printer/scanner, conference room, free parking, and janitorial service.')}
+    {blt('Monthly printing allowances: 200 black &amp; white pages; 100 color pages. Overages: $0.10/page B&amp;W; $0.20/page color.')}
+    {blt('Conference room overages: $25/hour, billed monthly.')}
+    {blt('Mail handling is included with all private office memberships.')}
+  </ul>
+  {sec(4,'Conduct & Responsibilities')}
+  <ul class="clauses">
+    {blt('Members shall conduct themselves in a professional, courteous, and cooperative manner at all times. Disruptive behavior or harassment may result in immediate termination.')}
+    {blt('Noise: Use headphones for audio; avoid speakerphone calls or amplified sound in common areas.')}
+    {blt('Cleanliness: Wash dishes immediately after use. Label food and beverages; unlabeled items discarded weekly. Clear personal items from common areas daily.')}
+    {blt('Safety: No hazardous materials, open flames, smoking, or pets anywhere on the premises.')}
+    {blt('Members are fully responsible for their own conduct and that of any guests. Damages must be reported immediately and paid in full.')}
+    {blt('Prohibited: pyramid schemes, harassment, unauthorized use of others\' information, theft, or display of inappropriate content.')}
+  </ul>
+  {sec(5,'Insurance & Liability')}
+  <ul class="clauses">
+    {blt('Qbix Centre does not provide insurance for members\' personal property or business assets. Members are strongly encouraged to obtain appropriate coverage.')}
+    {blt('RoseAn Properties, LLC and affiliates shall not be liable for theft, loss, damage, or injury to persons or property on the premises, to the maximum extent permitted by law.')}
+    {blt('Member agrees to indemnify and hold harmless RoseAn Properties, LLC and Qbix Centre from all claims, damages, or expenses (including attorneys\' fees) arising from Member\'s use of the premises.')}
+  </ul>
+  {sec(6,'Termination')}
+  <ul class="clauses">
+    {blt('By Member: Written notice of non-renewal must be provided at least thirty (30) days prior to the end of the then-current six (6) month term. Notice after this deadline will not prevent automatic renewal; Member remains responsible for dues for the full succeeding term.')}
+    {blt('By Management: Qbix Centre may terminate any membership immediately and without refund for violation of this Agreement or the House Guidelines.')}
+    {blt('Upon termination, Member must return all keys, remove all personal property within 48 hours, and leave their office in clean condition.')}
+  </ul>
+  {sec(7,'General Provisions')}
+  <ul class="clauses">
+    {blt('Not a Lease: This Agreement grants a revocable license to use shared workspace and does not create a tenancy, leasehold interest, or any real property right.')}
+    {blt('Force Majeure: Services may be suspended without liability for events beyond management\'s reasonable control.')}
+    {blt('Modifications: House Guidelines and policies may be updated at any time. Members will be notified of material changes by email.')}
+    {blt('Authority: The person signing represents that they have full authority to bind themselves and/or their company.')}
+    {blt('Promotional Use: Member consents to Qbix Centre publishing their business name in directories. Written consent required for photos identifying individual members.')}
+    {blt('Governing Law: This Agreement is governed by the laws of the State of Georgia.')}
+    {blt('Entire Agreement: This Agreement, together with the House Guidelines, constitutes the entire agreement between the parties.')}
+  </ul>
+  {sec(8,'House Guidelines')}
+  <p style="font-size:9.5pt;line-height:1.6;margin-top:8px">Qbix Centre maintains a separate House Guidelines document governing day-to-day conduct, use of common areas, equipment, noise, and cleanliness. By signing this Agreement, Member acknowledges that they have received, read, and agree to abide by the House Guidelines in their current form. Member acknowledges that the House Guidelines are subject to change at the sole discretion of the Manager, and that continued use of the premises constitutes acceptance of any updated guidelines.</p>
 
-        def add_bullet(text):
-            p = doc.add_paragraph(style='List Bullet')
-            p.paragraph_format.space_after = Pt(3)
-            run = p.add_run(text)
-            run.font.size = Pt(10)
-            return p
+  <!-- Signature Page -->
+  <div class="page-break">
+    <div class="sec-title">SIGNATURE PAGE</div>
+    <div class="sec-sub">Qbix Centre Membership Agreement</div>
+    <p style="font-size:9.5pt;line-height:1.6;margin-bottom:20px">By signing below, Member acknowledges that they have read, understand, and agree to all terms and conditions of this Membership Agreement, and acknowledges receipt of and agreement to abide by the Qbix Centre House Guidelines (as may be updated from time to time). Member represents that they have authority to enter into this Agreement on behalf of themselves and/or their company.</p>
+    <table class="fields" style="margin-bottom:24px">
+      {fld('Office(s) Assigned', office_str)}
+      {fld('Monthly Membership Fee', dues_str)}
+      {pro_sig}
+      {fld('Deposit Collected', deposit_str)}
+      {fld('Term', f'{term_start_str} &ndash; {term_end_str}')}
+    </table>
+    <h2 class="sec-head">Member</h2>
+    <div class="sig-row"><div style="flex:2"><div class="sig-field"></div><div class="sig-label">Member Signature</div></div><div style="flex:1"><div class="sig-field"></div><div class="sig-label">Date</div></div></div>
+    <div class="sig-row"><div style="flex:2"><div class="sig-field prefilled">{mname}</div><div class="sig-label">Print Name</div></div><div style="flex:1"><div class="sig-field"></div><div class="sig-label">Title / Position</div></div></div>
+    <h2 class="sec-head" style="margin-top:36px">Qbix Centre Acceptance</h2>
+    <div class="sig-row"><div style="flex:2"><div class="sig-field"></div><div class="sig-label">Authorized Signature</div></div><div style="flex:1"><div class="sig-field"></div><div class="sig-label">Date</div></div></div>
+    <div class="sig-row"><div style="flex:2"><div class="sig-field"></div><div class="sig-label">Print Name</div></div><div style="flex:1"><div class="sig-field prefilled">Manager, RoseAn Properties, LLC</div><div class="sig-label">Title</div></div></div>
+  </div>
 
-        def add_field_row(label, value, bold_value=False):
-            p = doc.add_paragraph()
-            p.paragraph_format.space_after = Pt(3)
-            r1 = p.add_run(f'{label}:  ')
-            r1.bold = True
-            r1.font.size = Pt(10)
-            r2 = p.add_run(value or '___________________________')
-            r2.bold = bold_value
-            r2.font.size = Pt(10)
-            if bold_value:
-                r2.font.color.rgb = RGBColor(0x1a, 0x27, 0x44)
-            return p
+  <!-- Background Check -->
+  <div class="page-break">
+    <div class="sec-title">CONFIDENTIAL BACKGROUND CHECK AUTHORIZATION</div>
+    <div class="sec-sub">Non-refundable fee: $35 per cardholder &bull; Required prior to access</div>
+    <h2 class="sec-head">Applicant Information</h2>
+    <div class="sig-row"><div style="flex:1"><div class="sig-field prefilled">{mname}</div><div class="sig-label">Print Full Legal Name</div></div></div>
+    <div class="sig-row"><div style="flex:1"><div class="sig-field"></div><div class="sig-label">Former Name(s) &amp; Dates Used</div></div><div style="flex:1"><div class="sig-field"></div><div class="sig-label">Social Security Number</div></div><div style="flex:1"><div class="sig-field"></div><div class="sig-label">Date of Birth</div></div></div>
+    <div class="sig-row"><div style="flex:1"><div class="sig-field"></div><div class="sig-label">Current Address (include move-in month/year)</div></div></div>
+    <div class="sig-row"><div style="flex:1"><div class="sig-field"></div><div class="sig-label">Previous Address #1</div></div></div>
+    <div class="sig-row"><div style="flex:1"><div class="sig-field"></div><div class="sig-label">Previous Address #2</div></div></div>
+    <h2 class="sec-head" style="margin-top:20px">Identification Required</h2>
+    <p style="font-size:9.5pt;line-height:1.6;margin-top:6px">A legible copy of your current driver\'s license or government-issued photo ID must be attached.</p>
+    <h2 class="sec-head" style="margin-top:20px">Authorization Statement</h2>
+    <p style="font-size:9.5pt;line-height:1.6;margin-top:6px">I hereby authorize RoseAn Properties, LLC and its designated agents to conduct a comprehensive background investigation including verification of credit history, residential history, employment history, educational background, criminal and civil court records, driving records, and any other public records deemed relevant. A photocopy of this authorization shall be as valid as the original.</p>
+    <div class="sig-row"><div style="flex:2"><div class="sig-field"></div><div class="sig-label">Applicant Signature</div></div><div style="flex:1"><div class="sig-field"></div><div class="sig-label">Date</div></div></div>
+  </div>
 
-        def add_sig_line(label, prefill=''):
-            p = doc.add_paragraph()
-            p.paragraph_format.space_after = Pt(10)
-            r1 = p.add_run(f'{label}:  ')
-            r1.bold = True
-            r1.font.size = Pt(10)
-            r2 = p.add_run(prefill if prefill else '_' * 45)
-            r2.font.size = Pt(10)
-            return p
+  <!-- Auto-Draft -->
+  <div class="page-break">
+    <div class="sec-title">AUTO-DRAFT AUTHORIZATION</div>
+    <div class="sec-sub">Bill.com, Inc. on behalf of RoseAn Properties, LLC &bull; Required for all memberships</div>
+    <h2 class="sec-head">Banking Information</h2>
+    <div class="sig-row"><div style="flex:2"><div class="sig-field prefilled">{mname}</div><div class="sig-label">Account Holder Name</div></div><div style="flex:2"><div class="sig-field"></div><div class="sig-label">Bank Name</div></div></div>
+    <div class="sig-row"><div style="flex:1"><div class="sig-field"></div><div class="sig-label">Account Number</div></div><div style="flex:1"><div class="sig-field"></div><div class="sig-label">Routing Number</div></div></div>
+    <p style="font-size:9pt;color:#666;margin-top:10px;font-style:italic">(Attach a voided check if preferred.)</p>
+    <h2 class="sec-head" style="margin-top:20px">Monthly Draft Amount</h2>
+    <table class="fields" style="margin-top:8px">
+      {fld('Authorized Monthly Amount', f'<strong>{dues_str}</strong>')}
+      {pro_ach}
+    </table>
+    <p style="font-size:9pt;color:#555;margin-top:8px">Draft date: 1st of each month. If the 1st falls on a weekend or holiday, draft processes the next business day.</p>
+    <h2 class="sec-head" style="margin-top:20px">Authorization</h2>
+    <p style="font-size:9.5pt;line-height:1.6;margin-top:6px">I/We authorize Bill.com, Inc., on behalf of RoseAn Properties, LLC (Qbix Centre), to initiate recurring ACH debit entries to the bank account above in the amount of <strong>{dues_str}</strong>, beginning <strong>{term_start_str}</strong>. This authorization remains in effect until canceled in writing at least ten (10) business days prior to the desired cancellation date.</p>
+    <div class="sig-row"><div style="flex:2"><div class="sig-field"></div><div class="sig-label">Account Holder Signature</div></div><div style="flex:1"><div class="sig-field"></div><div class="sig-label">Date</div></div></div>
+    <div class="sig-row"><div style="flex:2"><div class="sig-field prefilled">{mname}</div><div class="sig-label">Print Name</div></div></div>
+  </div>
 
-        # ── TITLE ──────────────────────────────────────────────────────────
-        title = doc.add_paragraph()
-        title.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        title.paragraph_format.space_after = Pt(2)
-        tr = title.add_run('QBIX CENTRE')
-        tr.bold = True
-        tr.font.size = Pt(20)
-        tr.font.color.rgb = RGBColor(0x1a, 0x27, 0x44)
+</div>
+</body>
+</html>"""
 
-        sub = doc.add_paragraph()
-        sub.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        sub.paragraph_format.space_after = Pt(2)
-        sr = sub.add_run('Membership Agreement')
-        sr.font.size = Pt(12)
-        sr.font.color.rgb = RGBColor(0x66, 0x66, 0x66)
+    member['agreementSent'] = datetime.now().strftime('%Y-%m-%d')
+    save_data(data)
+    return html, 200, {'Content-Type': 'text/html; charset=utf-8'}
 
-        addr = doc.add_paragraph()
-        addr.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        addr.paragraph_format.space_after = Pt(2)
-        ar = addr.add_run('500A Northside Crossing, Macon, GA 31210  |  (478) 787-0532  |  qbixcentre.com')
-        ar.font.size = Pt(9)
-        ar.font.color.rgb = RGBColor(0x99, 0x99, 0x99)
 
-        ver = doc.add_paragraph()
-        ver.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        ver.paragraph_format.space_after = Pt(16)
-        vr = ver.add_run(f'Agreement Date: {today_str}')
-        vr.font.size = Pt(9)
-        vr.italic = True
-
-        # ── MEMBER SUMMARY BOX ─────────────────────────────────────────────
-        add_heading('Member Summary')
-        add_field_row('Member / Company', member.get('name', ''), bold_value=True)
-        add_field_row('Office(s) Assigned', office_str, bold_value=True)
-        add_field_row('Monthly Membership Fee', dues_str, bold_value=True)
-        if proration_amt > 0:
-            pro_label = f'Prorated First Payment ({pro_str})' if pro_str else 'Prorated First Payment'
-            add_field_row(pro_label, f'${proration_amt:,.0f}')
-        add_field_row('Refundable Deposit', deposit_str)
-        add_field_row('Term Start Date', term_start_str)
-        add_field_row('Term End Date', term_end_str)
-        add_field_row('Conference Room Hours Included', f'{conf_hours} hours/month')
-        add_field_row('Contact Email', member.get('email', ''))
-        add_field_row('Contact Phone', member.get('phone', ''))
-        doc.add_paragraph()
-
-        # ── SECTION 1 ──────────────────────────────────────────────────────
-        add_heading('1. Membership & Fees')
-        add_bullet(f'Monthly membership fee of {dues_str} is due on the 1st of each month via auto-draft through Bill.com. Payments received after the 5th are considered late.')
-        if proration_amt > 0:
-            pro_label = f'Prorated first payment ({pro_str})' if pro_str else 'Prorated first payment'
-            add_bullet(f'{pro_label}: ${proration_amt:,.0f}, due at signing.')
-        add_bullet(f'A refundable deposit of {deposit_str} is required prior to move-in and will be returned, less normal wear and tear and cost of unreturned keys, upon conclusion of the membership.')
-        if not waive_setup_fee:
-            add_bullet('A one-time setup fee of $100 is due at signing.')
-        add_bullet(f'The initial term of this Agreement is six (6) full calendar months, from {term_start_str} through {term_end_str}. This Agreement automatically renews for successive six (6) month periods at the then-current rate unless the Member provides written notice of non-renewal at least thirty (30) days prior to the end of the then-current term. Failure to provide timely notice results in automatic renewal and the Member\'s obligation for the full succeeding term.')
-        add_bullet('A non-refundable background check fee of $35 per cardholder is required prior to access being granted.')
-        add_bullet('Additional key/fob holders: $150/month plus $35 background check fee. Both keyholders must be from the same company.')
-
-        # ── SECTION 2 ──────────────────────────────────────────────────────
-        add_heading('2. Access & Use')
-        add_bullet('Members receive 24/7 access via card key/fob and a personal access code. Access codes are strictly confidential and must not be shared.')
-        add_bullet(f'The conference room may be reserved online at qbixcentre.com at least 24 hours in advance. Each membership includes {conf_hours} hours per month at no charge; additional time is billed at $25/hour.')
-        add_bullet('The workspace is for lawful, professional business purposes only. Sleeping, cooking meals, or conducting personal activities on the premises is not permitted.')
-        add_bullet('Members are responsible for safeguarding their own confidential information and must respect the privacy and confidentiality of fellow members.')
-
-        # ── SECTION 3 ──────────────────────────────────────────────────────
-        add_heading('3. Amenities & Overage Charges')
-        add_bullet('Included with all memberships: High-speed Wi-Fi/Ethernet (AT&T Gigabit Fiber), furnished workstations with sit/stand desks, kitchenette with Starbucks coffee and beverages, full-color laser printer/scanner, conference room, free parking, and janitorial service.')
-        add_bullet('Monthly printing allowances: 200 black & white pages; 100 color pages. Overages: $0.10/page B&W; $0.20/page color.')
-        add_bullet('Conference room overages beyond included hours: $25/hour, billed monthly.')
-        add_bullet('Mail handling is included with all private office memberships.')
-
-        # ── SECTION 4 ──────────────────────────────────────────────────────
-        add_heading('4. Conduct & Responsibilities')
-        add_bullet('Members shall conduct themselves in a professional, courteous, and cooperative manner at all times. Disruptive behavior, harassment, or conduct detrimental to the community may result in immediate termination of membership.')
-        add_bullet('Noise: Use headphones for audio; avoid speakerphone calls or amplified sound in common areas. Keep voices at a conversational level.')
-        add_bullet('Cleanliness: Wash all dishes immediately after use. Label personal food and beverages; unlabeled items will be discarded weekly. Clear personal items from common areas daily.')
-        add_bullet('Safety: No hazardous materials, open flames, smoking, or pets anywhere on the premises. Report any safety hazards to management promptly.')
-        add_bullet('Members are fully responsible for their own conduct and the conduct of any guests they bring onto the premises. Any damage caused by a member or their guest must be reported immediately and paid for in full.')
-        add_bullet('Prohibited activities include, without limitation: pyramid or multi-level marketing schemes, harassment of any kind, unauthorized use of others\' personal or business information, theft, or display of inappropriate content.')
-
-        # ── SECTION 5 ──────────────────────────────────────────────────────
-        add_heading('5. Insurance & Liability')
-        add_bullet('Qbix Centre does not provide insurance coverage for members\' personal property, equipment, or business assets. Members are strongly encouraged to obtain appropriate business and property insurance.')
-        add_bullet('RoseAn Properties, LLC, its managers, officers, and affiliates shall not be liable for any theft, loss, damage, or injury to persons or property occurring on the premises, to the maximum extent permitted by law.')
-        add_bullet('Member agrees to indemnify, defend, and hold harmless RoseAn Properties, LLC and Qbix Centre from and against any and all claims, damages, losses, or expenses (including reasonable attorneys\' fees) arising out of or related to Member\'s use of the premises or breach of this Agreement.')
-
-        # ── SECTION 6 ──────────────────────────────────────────────────────
-        add_heading('6. Termination')
-        add_bullet('By Member: The Member may elect not to renew this Agreement by providing written notice of non-renewal to Qbix Centre at least thirty (30) days prior to the end of the then-current six (6) month term. Notice provided after this deadline will not prevent automatic renewal, and the Member will be responsible for dues for the full succeeding term. Membership fees remain due and payable through the end of any active term with no pro-ration for partial months.')
-        add_bullet('By Management: Qbix Centre reserves the right to terminate any membership immediately and without refund for violation of this Agreement, the House Guidelines, or any conduct deemed detrimental to the community or the facility.')
-        add_bullet('Upon termination, Member must return all keys and access devices, remove all personal property within 48 hours, and leave their office and any common areas in clean condition. Management may dispose of any property left after 48 hours.')
-
-        # ── SECTION 7 ──────────────────────────────────────────────────────
-        add_heading('7. General Provisions')
-        add_bullet('Not a Lease: This Agreement grants a revocable license to use shared workspace and does not create a landlord-tenant relationship, leasehold interest, or any real property right of any kind.')
-        add_bullet('Force Majeure: Services may be suspended without liability for events beyond management\'s reasonable control, including acts of God, utility failures, governmental orders, or civil unrest.')
-        add_bullet('Modifications: Qbix Centre reserves the right to update the House Guidelines and membership policies at any time. Members will be notified of material changes by email.')
-        add_bullet('Authority: The person signing this Agreement represents and warrants that they have full authority to bind themselves and/or their company to the terms herein.')
-        add_bullet('Promotional Use: Member consents to Qbix Centre publishing their business name and general description in member directories and using non-identifiable photos of common areas for promotional purposes. Written consent is required for photos that identify individual members.')
-        add_bullet('Dispute Resolution: The parties agree to attempt to resolve any dispute informally before pursuing legal remedies. This Agreement shall be governed by the laws of the State of Georgia.')
-        add_bullet('Entire Agreement: This Agreement, together with the House Guidelines, constitutes the entire agreement between the parties and supersedes all prior negotiations, representations, or agreements.')
-
-        # ── SECTION 8: HOUSE GUIDELINES ACKNOWLEDGMENT ─────────────────────
-        add_heading('8. House Guidelines')
-        add_body(
-            'Qbix Centre maintains a separate House Guidelines document governing day-to-day conduct, '
-            'use of common areas, equipment, noise, cleanliness, and related operational matters. '
-            'By signing this Agreement, Member acknowledges that they have received, read, and agree to '
-            'abide by the Qbix Centre House Guidelines in their current form. Member further acknowledges '
-            'that the House Guidelines are subject to change at any time at the sole discretion of the '
-            'Manager, and that continued use of the premises constitutes acceptance of any updated '
-            'guidelines. The Manager will make reasonable efforts to notify Members of material changes '
-            'by email prior to their effective date.'
-        )
-        doc.add_paragraph()
-
-        # ── SIGNATURE PAGE ────────────────────────────────────────────────
-        doc.add_page_break()
-
-        sig_title = doc.add_paragraph()
-        sig_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        sig_title.paragraph_format.space_after = Pt(4)
-        str_ = sig_title.add_run('SIGNATURE PAGE')
-        str_.bold = True
-        str_.font.size = Pt(13)
-        str_.font.color.rgb = RGBColor(0x1a, 0x27, 0x44)
-
-        sig_sub = doc.add_paragraph()
-        sig_sub.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        sig_sub.paragraph_format.space_after = Pt(16)
-        ssr = sig_sub.add_run('Qbix Centre Membership Agreement')
-        ssr.font.size = Pt(10)
-        ssr.italic = True
-
-        add_heading('Member Acknowledgment')
-        add_body(
-            'By signing below, Member acknowledges that they have read, understand, and agree to all '
-            'terms and conditions of this Membership Agreement, and acknowledges receipt of and agreement '
-            'to abide by the Qbix Centre House Guidelines (as may be updated from time to time). '
-            'Member represents that they have the authority to enter into this Agreement on behalf of '
-            'themselves and/or their company.'
-        )
-        doc.add_paragraph()
-
-        add_field_row('Member / Company', member.get('name', ''))
-        doc.add_paragraph()
-        add_sig_line('Member Signature')
-        add_sig_line('Print Name', member.get('name', ''))
-        add_sig_line('Title / Position')
-        add_sig_line('Date')
-        doc.add_paragraph()
-
-        add_heading('Qbix Centre Acceptance')
-        doc.add_paragraph()
-        add_sig_line('Authorized Signature')
-        add_sig_line('Print Name')
-        add_sig_line('Title', 'Manager, RoseAn Properties, LLC')
-        add_sig_line('Date')
-        doc.add_paragraph()
-
-        add_field_row('Office(s) Assigned', office_str)
-        add_field_row('Monthly Membership Fee', dues_str)
-        if proration_amt > 0:
-            add_field_row('Prorated First Payment', f'${proration_amt:,.0f}')
-        add_field_row('Deposit Collected', deposit_str)
-        add_field_row('Term', f'{term_start_str} – {term_end_str}')
-
-        # ── BACKGROUND CHECK AUTHORIZATION ────────────────────────────────
-        doc.add_page_break()
-
-        bc_title = doc.add_paragraph()
-        bc_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        bc_title.paragraph_format.space_after = Pt(4)
-        bcr = bc_title.add_run('CONFIDENTIAL BACKGROUND CHECK AUTHORIZATION')
-        bcr.bold = True
-        bcr.font.size = Pt(13)
-        bcr.font.color.rgb = RGBColor(0x1a, 0x27, 0x44)
-
-        bc_fee = doc.add_paragraph()
-        bc_fee.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        bc_fee.paragraph_format.space_after = Pt(16)
-        bfr = bc_fee.add_run('Non-refundable fee: $35 per cardholder  |  Required prior to access')
-        bfr.font.size = Pt(10)
-        bfr.italic = True
-
-        add_heading('Applicant Information')
-        add_sig_line('Print Full Legal Name', member.get('name', ''))
-        add_sig_line('Former Name(s) & Dates Used')
-        add_sig_line('Social Security Number')
-        add_sig_line('Date of Birth')
-        add_sig_line('Current Address (include move-in month/year)')
-        add_sig_line('Previous Address #1')
-        add_sig_line('Previous Address #2')
-        doc.add_paragraph()
-
-        add_heading('Identification Required')
-        add_body('A legible copy of your current driver\'s license or government-issued photo ID must be attached to this authorization. Please attach a copy below or submit separately.')
-        doc.add_paragraph()
-
-        add_heading('Authorization Statement')
-        add_body(
-            'I hereby authorize RoseAn Properties, LLC and its designated agents and representatives '
-            'to conduct a comprehensive background investigation, including but not limited to: '
-            'verification of credit history, residential history, employment history, educational '
-            'background, professional references, criminal and civil court records, driving records, '
-            'and any other public records deemed relevant. I understand that this authorization '
-            'remains in effect until revoked in writing, and that a photocopy of this authorization '
-            'shall be as valid as the original.'
-        )
-        doc.add_paragraph()
-        add_sig_line('Applicant Signature')
-        add_sig_line('Date')
-
-        # ── AUTO-DRAFT AUTHORIZATION ───────────────────────────────────────
-        doc.add_page_break()
-
-        ad_title = doc.add_paragraph()
-        ad_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        ad_title.paragraph_format.space_after = Pt(4)
-        adr = ad_title.add_run('AUTO-DRAFT AUTHORIZATION')
-        adr.bold = True
-        adr.font.size = Pt(13)
-        adr.font.color.rgb = RGBColor(0x1a, 0x27, 0x44)
-
-        ad_sub = doc.add_paragraph()
-        ad_sub.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        ad_sub.paragraph_format.space_after = Pt(16)
-        adsr = ad_sub.add_run('Bill.com, Inc. on behalf of RoseAn Properties, LLC  |  Required for all memberships')
-        adsr.font.size = Pt(10)
-        adsr.italic = True
-
-        add_heading('Banking Information')
-        add_sig_line('Account Holder Name', member.get('name', ''))
-        add_sig_line('Bank Name')
-        add_sig_line('Account Number')
-        add_sig_line('Routing Number')
-        add_body('(Attach a voided check if preferred in lieu of completing account information above.)')
-        doc.add_paragraph()
-
-        add_heading('Monthly Draft Amount')
-        add_field_row('Authorized Monthly Amount', dues_str, bold_value=True)
-        if proration_amt > 0:
-            add_field_row('Prorated First Draft', f'${proration_amt:,.0f}')
-        add_body('Draft date: 1st of each month. If the 1st falls on a weekend or holiday, the draft will process on the next business day.')
-        doc.add_paragraph()
-
-        add_heading('Authorization')
-        add_body(
-            f'I/We authorize Bill.com, Inc., on behalf of RoseAn Properties, LLC (Qbix Centre), '
-            f'to initiate recurring ACH debit entries to the bank account identified above in the '
-            f'amount of {dues_str}, beginning {start_str}. This authorization will remain in full '
-            f'force and effect until I/we notify Qbix Centre in writing at least ten (10) business '
-            f'days prior to the desired cancellation date. I/We have the right to stop payment of '
-            f'any debit entry by notifying my/our bank at least three (3) business days prior to '
-            f'the scheduled debit date.'
-        )
-        doc.add_paragraph()
-        add_sig_line('Account Holder Signature')
-        add_sig_line('Print Name', member.get('name', ''))
-        add_sig_line('Date')
-
-        # Save
-        buf = io.BytesIO()
-        doc.save(buf)
-        buf.seek(0)
-
-        safe_name = ''.join(c if c.isalnum() or c in ' _-' else '_' for c in member['name'])
-        filename  = f"Qbix_Agreement_{safe_name}_{datetime.now().strftime('%Y%m%d')}.docx"
-
-        # Mark agreement as generated
-        member['agreementSent'] = datetime.now().strftime('%Y-%m-%d')
-        save_data(data)
-
-        return send_file(buf, as_attachment=True,
-                         download_name=filename,
-                         mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
-    except ImportError:
-        return jsonify({'ok': False, 'error': 'python-docx not installed on server'}), 500
-    except Exception as e:
-        return jsonify({'ok': False, 'error': str(e)}), 500
-
-# ── Newsletter generator (AI-assisted) ───────────────────────────────────────
 
 @app.route('/admin/api/generate-newsletter', methods=['POST'])
 @login_required
