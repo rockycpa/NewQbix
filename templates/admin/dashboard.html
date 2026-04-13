@@ -1131,11 +1131,18 @@ function openAgreementReview(id) {
 
 function commitAgreement(id) {
   const waiveFee = document.getElementById('rv-waive-setup')?.checked;
-  const waiveBg  = document.getElementById('rv-waive-bg')?.checked;
   const m        = getMemberById(id);
   const params   = new URLSearchParams();
   if (waiveFee) params.set('waive_setup_fee','true');
-  window.open('/admin/api/generate-agreement/'+id+'?'+params.toString(),'_blank');
+
+  // Use anchor click — avoids popup blocker that breaks window.open downloads
+  const dlLink = document.createElement('a');
+  dlLink.href = '/admin/api/generate-agreement/'+id+'?'+params.toString();
+  dlLink.download = '';
+  document.body.appendChild(dlLink);
+  dlLink.click();
+  document.body.removeChild(dlLink);
+
   document.getElementById('review-modal').classList.remove('open');
   if (m && !m.agreementSent){ m.agreementSent=new Date().toISOString().slice(0,10); saveData(); renderMembers(); }
   toast('&#128196; Agreement downloading — attach it to your email before sending');
