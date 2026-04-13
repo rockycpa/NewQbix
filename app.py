@@ -1483,22 +1483,32 @@ def send_monthly_usage():
 @app.route('/admin/api/analytics')
 @login_required
 def get_analytics():
-    """Return GA4 website visit stats for the admin dashboard."""
+    """Return GA4 website visit stats. Accepts ?days=7|30|90 and ?channel=X for drill-down."""
     ga_json = os.environ.get('GA_SERVICE_ACCOUNT_JSON', '')
     ga_property = os.environ.get('GA_PROPERTY_ID', '')
 
     if not ga_json or not ga_property:
-        # Fall back to built-in tracking if GA not configured
         return get_analytics_builtin()
 
     try:
         from google.analytics.data_v1beta import BetaAnalyticsDataClient
         from google.analytics.data_v1beta.types import (
-            RunReportRequest, DateRange, Metric, Dimension, OrderBy
+            RunReportRequest, DateRange, Metric, Dimension, OrderBy,
+            FilterExpression, Filter
         )
         from google.oauth2 import service_account
 
-        # Write credentials to temp file
+        days    = request.args.get('days', '30')
+        channel = request.args.get('channel', '')  # drill-down channel name
+        try:
+            days_int = int(days)
+            if days_int not in (7, 30, 90):
+                days_int = 30
+        except ValueError:
+            days_int = 30
+
+        date_start = f'{days_int}daysAgo'
+
         creds_dict = json.loads(ga_json)
         creds = service_account.Credentials.from_service_account_info(
             creds_dict,
@@ -1507,78 +1517,103 @@ def get_analytics():
         client = BetaAnalyticsDataClient(credentials=creds)
         property_id = f"properties/{ga_property}"
 
-        # Today's sessions
-        today_req = RunReportRequest(
+        # Today's sessions (always fixed)
+        today_resp = client.run_report(RunReportRequest(
             property=property_id,
             date_ranges=[DateRange(start_date='today', end_date='today')],
             metrics=[Metric(name='sessions')],
-        )
-        today_resp = client.run_report(today_req)
+        ))
         today = int(today_resp.rows[0].metric_values[0].value) if today_resp.rows else 0
 
         # Last 7 days
-        week_req = RunReportRequest(
+        week_resp = client.run_report(RunReportRequest(
             property=property_id,
             date_ranges=[DateRange(start_date='7daysAgo', end_date='today')],
             metrics=[Metric(name='sessions')],
-        )
-        week_resp = client.run_report(week_req)
+        ))
         week = int(week_resp.rows[0].metric_values[0].value) if week_resp.rows else 0
 
-        # Last 30 days
-        month_req = RunReportRequest(
+        # Selected range total
+        range_resp = client.run_report(RunReportRequest(
             property=property_id,
-            date_ranges=[DateRange(start_date='30daysAgo', end_date='today')],
+            date_ranges=[DateRange(start_date=date_start, end_date='today')],
             metrics=[Metric(name='sessions')],
-        )
-        month_resp = client.run_report(month_req)
-        month = int(month_resp.rows[0].metric_values[0].value) if month_resp.rows else 0
+        ))
+        range_total = int(range_resp.rows[0].metric_values[0].value) if range_resp.rows else 0
 
-        # Daily for sparkline (last 30 days)
-        daily_req = RunReportRequest(
+        # Daily sparkline for selected range
+        daily_resp = client.run_report(RunReportRequest(
             property=property_id,
-            date_ranges=[DateRange(start_date='30daysAgo', end_date='today')],
+            date_ranges=[DateRange(start_date=date_start, end_date='today')],
             dimensions=[Dimension(name='date')],
             metrics=[Metric(name='sessions')],
             order_bys=[OrderBy(dimension=OrderBy.DimensionOrderBy(dimension_name='date'))],
-        )
-        daily_resp = client.run_report(daily_req)
+        ))
         daily = []
         for row in daily_resp.rows:
-            raw = row.dimension_values[0].value  # YYYYMMDD
+            raw = row.dimension_values[0].value
             day = f"{raw[:4]}-{raw[4:6]}-{raw[6:]}"
-            views = int(row.metric_values[0].value)
-            daily.append({'day': day, 'views': views})
+            daily.append({'day': day, 'views': int(row.metric_values[0].value)})
 
-        # Top pages this month
-        pages_req = RunReportRequest(
-            property=property_id,
-            date_ranges=[DateRange(start_date='30daysAgo', end_date='today')],
-            dimensions=[Dimension(name='pagePath')],
-            metrics=[Metric(name='sessions')],
-            order_bys=[OrderBy(metric=OrderBy.MetricOrderBy(metric_name='sessions'), desc=True)],
-            limit=5,
-        )
-        pages_resp = client.run_report(pages_req)
-        top_pages = [
-            {'path': row.dimension_values[0].value, 'views': int(row.metric_values[0].value)}
-            for row in pages_resp.rows
-        ]
+        # Channel groups OR drill-down sources
+        if not channel:
+            # Top-level: sessions by channel group
+            ch_resp = client.run_report(RunReportRequest(
+                property=property_id,
+                date_ranges=[DateRange(start_date=date_start, end_date='today')],
+                dimensions=[Dimension(name='sessionDefaultChannelGroup')],
+                metrics=[Metric(name='sessions')],
+                order_bys=[OrderBy(metric=OrderBy.MetricOrderBy(metric_name='sessions'), desc=True)],
+            ))
+            channels = [
+                {'label': row.dimension_values[0].value,
+                 'sessions': int(row.metric_values[0].value)}
+                for row in ch_resp.rows
+            ]
+            sources = []
+        else:
+            # Drill-down: sessions by source within the selected channel
+            channels = []
+            # Direct has no meaningful source breakdown
+            if channel.lower() == 'direct':
+                sources = []
+            else:
+                dim = 'sessionSource'
+                src_resp = client.run_report(RunReportRequest(
+                    property=property_id,
+                    date_ranges=[DateRange(start_date=date_start, end_date='today')],
+                    dimensions=[Dimension(name=dim)],
+                    metrics=[Metric(name='sessions')],
+                    dimension_filter=FilterExpression(
+                        filter=Filter(
+                            field_name='sessionDefaultChannelGroup',
+                            string_filter=Filter.StringFilter(value=channel)
+                        )
+                    ),
+                    order_bys=[OrderBy(metric=OrderBy.MetricOrderBy(metric_name='sessions'), desc=True)],
+                    limit=10,
+                ))
+                sources = [
+                    {'label': row.dimension_values[0].value or '(direct)',
+                     'sessions': int(row.metric_values[0].value)}
+                    for row in src_resp.rows
+                ]
 
         return jsonify({
             'ok': True,
             'source': 'ga4',
             'today': today,
             'week': week,
-            'month': month,
-            'total': month,
+            'range_total': range_total,
+            'days': days_int,
             'daily': daily,
-            'top_pages': top_pages,
+            'channels': channels,
+            'sources': sources,
+            'channel': channel,
         })
 
     except Exception as e:
         print(f"[GA4 ERROR] {e}")
-        # Fall back to built-in on error
         return get_analytics_builtin()
 
 

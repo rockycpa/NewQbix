@@ -346,17 +346,29 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
         </div>
         <div style="text-align:center;background:var(--sur2);border-radius:8px;padding:10px 6px">
           <div id="an-month" style="font-family:'IBM Plex Mono',monospace;font-size:22px;color:var(--grn)">-</div>
-          <div style="font-size:12px;color:var(--txt2);text-transform:uppercase;letter-spacing:.07em;margin-top:3px">30 Days</div>
+          <div style="font-size:12px;color:var(--txt2);text-transform:uppercase;letter-spacing:.07em;margin-top:3px"><span id="an-range-label">30 Days</span></div>
         </div>
       </div>
-      <div style="margin-bottom:12px">
-        <div style="font-size:12px;color:var(--txt2);margin-bottom:5px;text-transform:uppercase;letter-spacing:.07em">Daily Views — Last 30 Days</div>
+      <div style="margin-bottom:14px">
+        <div style="font-size:12px;color:var(--txt2);margin-bottom:5px;text-transform:uppercase;letter-spacing:.07em">Daily Views — <span id="an-spark-label">Last 30 Days</span></div>
         <div id="an-sparkline" style="display:flex;align-items:flex-end;gap:2px;height:40px"></div>
       </div>
-      <div>
-        <div style="font-size:12px;color:var(--txt2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.07em">Top Pages This Month</div>
-        <div id="an-pages" style="font-size:13px;color:var(--txt)">Loading...</div>
+      <!-- Date range toggle -->
+      <div style="display:flex;gap:6px;margin-bottom:14px">
+        <span style="font-size:12px;color:var(--txt3);line-height:28px;margin-right:4px">Range:</span>
+        <button class="fb on" id="an-d7"  onclick="setAnalyticsDays(7,this)">7 days</button>
+        <button class="fb"    id="an-d30" onclick="setAnalyticsDays(30,this)">30 days</button>
+        <button class="fb"    id="an-d90" onclick="setAnalyticsDays(90,this)">90 days</button>
       </div>
+      <!-- Traffic source pie + breadcrumb -->
+      <div style="font-size:12px;color:var(--txt2);margin-bottom:8px;text-transform:uppercase;letter-spacing:.07em">Traffic Sources</div>
+      <div id="an-breadcrumb" style="font-size:12px;color:var(--txt3);margin-bottom:10px;min-height:16px"></div>
+      <div id="an-pie-area" style="display:flex;gap:16px;align-items:flex-start">
+        <canvas id="an-pie" width="150" height="150" style="flex-shrink:0;cursor:pointer"></canvas>
+        <div id="an-pie-legend" style="flex:1;font-size:13px"></div>
+      </div>
+      <div id="an-direct-msg" style="display:none;font-size:13px;color:var(--txt3);padding:10px 0">Direct traffic has no further source detail — these visitors typed your URL directly, used a bookmark, or came from a link that didn't pass referrer info.</div>
+      <div id="an-pie-loading" style="display:none;font-size:13px;color:var(--txt3);padding:10px 0">Loading...</div>
     </div>
 
     <!-- LEAD SOURCE PIE CHART -->
@@ -842,36 +854,151 @@ async function publishNewsletter(send){
   } else toast('Error: '+result.error,'var(--red)');
 }
 
-async function loadAnalytics(){
-  try {
-    const r = await fetch('/admin/api/analytics');
-    const d = await r.json();
-    if(!d.ok) return;
-    document.getElementById('an-today').textContent = d.today;
-    document.getElementById('an-week').textContent = d.week;
-    document.getElementById('an-month').textContent = d.month;
+// === ANALYTICS ===
+const AN_COLORS = ['#d4a843','#5b9bd5','#4db887','#9b7ed4','#d96060','#e8994a','#4dc8c8','#c45bb8'];
+let anDays = 30;
+let anChannel = '';  // '' = top level, 'Referral' etc = drilled in
 
-    // Sparkline bars
+function setAnalyticsDays(d, btn){
+  anDays = d;
+  anChannel = '';
+  document.querySelectorAll('#an-d7,#an-d30,#an-d90').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  loadAnalytics();
+}
+
+async function loadAnalytics(){
+  const pieLoading = document.getElementById('an-pie-loading');
+  const pieArea    = document.getElementById('an-pie-area');
+  const directMsg  = document.getElementById('an-direct-msg');
+  if(pieLoading){ pieLoading.style.display='block'; pieArea.style.display='none'; directMsg.style.display='none'; }
+
+  try {
+    const url = `/admin/api/analytics?days=${anDays}${anChannel?'&channel='+encodeURIComponent(anChannel):''}`;
+    const r = await fetch(url);
+    const d = await r.json();
+    if(!d.ok){ if(pieLoading) pieLoading.style.display='none'; return; }
+
+    // Session count cards
+    document.getElementById('an-today').textContent = d.today;
+    document.getElementById('an-week').textContent  = d.week;
+    document.getElementById('an-month').textContent = d.range_total ?? d.month ?? '-';
+    const rangeLabel = document.getElementById('an-range-label');
+    if(rangeLabel) rangeLabel.textContent = `${anDays} Days`;
+
+    // Sparkline
     const spark = document.getElementById('an-sparkline');
+    const sparkLabel = document.getElementById('an-spark-label');
+    if(sparkLabel) sparkLabel.textContent = `Last ${anDays} Days`;
     if(d.daily && d.daily.length){
       const max = Math.max(...d.daily.map(x=>x.views), 1);
       spark.innerHTML = d.daily.map(x => {
         const pct = Math.max(4, Math.round((x.views/max)*100));
         const isToday = x.day === new Date().toISOString().slice(0,10);
-        return `<div title="${x.day}: ${x.views} views" style="flex:1;height:${pct}%;background:${isToday?'var(--acc)':'var(--blue)'};border-radius:2px 2px 0 0;opacity:${isToday?1:0.6};min-height:3px"></div>`;
+        return `<div title="${x.day}: ${x.views} sessions" style="flex:1;height:${pct}%;background:${isToday?'var(--acc)':'var(--blue)'};border-radius:2px 2px 0 0;opacity:${isToday?1:0.6};min-height:3px"></div>`;
       }).join('');
     } else {
-      spark.innerHTML = '<div style="color:var(--txt3);font-size:11px">No data yet — visit the public site to start tracking</div>';
+      spark.innerHTML = '<div style="color:var(--txt3);font-size:11px">No data yet</div>';
     }
 
-    // Top pages
-    const pageNames = {'/':"Home",'/offices':"Offices",'/amenities':"Amenities",'/contact':"Contact",'/news':"News",'/book':"Book",'/onboard':"Onboard"};
-    document.getElementById('an-pages').innerHTML = d.top_pages && d.top_pages.length
-      ? d.top_pages.map(p=>`<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--bdr)"><span style="color:var(--txt);font-size:13px">${pageNames[p.path]||p.path}</span><span class="mono" style="color:var(--acc);font-size:13px">${p.views}</span></div>`).join('')
-      : '<div style="color:var(--txt3)">No page views yet</div>';
+    // Breadcrumb
+    const bc = document.getElementById('an-breadcrumb');
+    if(bc){
+      if(anChannel){
+        bc.innerHTML = `<span style="color:var(--blue);cursor:pointer;text-decoration:underline" onclick="drillBack()">Traffic Sources</span> <span style="color:var(--txt3)">›</span> <span style="color:var(--txt)">${anChannel}</span>`;
+      } else {
+        bc.innerHTML = '<span style="color:var(--txt3)">Click a slice to drill in</span>';
+      }
+    }
+
+    // Pie chart
+    if(pieLoading) pieLoading.style.display='none';
+
+    const isDirect = anChannel && anChannel.toLowerCase() === 'direct';
+    if(isDirect){
+      pieArea.style.display = 'none';
+      directMsg.style.display = 'block';
+      return;
+    }
+
+    pieArea.style.display = 'flex';
+    directMsg.style.display = 'none';
+
+    const slices = anChannel ? (d.sources||[]) : (d.channels||[]);
+    if(!slices.length){
+      document.getElementById('an-pie-legend').innerHTML = '<div style="color:var(--txt3)">No data for this period.</div>';
+      const canvas = document.getElementById('an-pie');
+      canvas.getContext('2d').clearRect(0,0,150,150);
+      return;
+    }
+
+    const total = slices.reduce((s,x)=>s+x.sessions, 0);
+    const canvas = document.getElementById('an-pie');
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0,0,150,150);
+    let angle = -Math.PI/2;
+    slices.forEach((sl,i)=>{
+      const sweep = (sl.sessions/total)*2*Math.PI;
+      ctx.beginPath(); ctx.moveTo(75,75);
+      ctx.arc(75,75,68,angle,angle+sweep);
+      ctx.closePath();
+      ctx.fillStyle = AN_COLORS[i % AN_COLORS.length];
+      ctx.fill();
+      ctx.strokeStyle='#0b0d11'; ctx.lineWidth=2; ctx.stroke();
+      angle += sweep;
+    });
+
+    // Legend + click handlers
+    const legend = document.getElementById('an-pie-legend');
+    legend.innerHTML = slices.map((sl,i)=>{
+      const pct = Math.round(sl.sessions/total*100);
+      const canDrill = !anChannel && sl.label.toLowerCase() !== 'direct';
+      return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;${canDrill?'cursor:pointer':''}" ${canDrill?`onclick="drillInto('${sl.label.replace(/'/g,"\\'")}')"`:''}  title="${canDrill?'Click to drill in':''}">
+        <div style="width:11px;height:11px;border-radius:3px;background:${AN_COLORS[i%AN_COLORS.length]};flex-shrink:0"></div>
+        <div style="flex:1;color:${canDrill?'var(--blue)':'var(--txt)'};font-size:13px;${canDrill?'text-decoration:underline dotted':''}">${sl.label}</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--acc);font-weight:700">${sl.sessions} <span style="color:var(--txt3);font-weight:400">(${pct}%)</span></div>
+      </div>`;
+    }).join('') + `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--bdr);font-size:12px;color:var(--txt3)">Total: ${total} sessions</div>`;
+
+    // Canvas click to drill
+    canvas.onclick = function(e){
+      if(anChannel) return;
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left - 75;
+      const y = e.clientY - rect.top  - 75;
+      const clickAngle = Math.atan2(y, x);
+      const dist = Math.sqrt(x*x+y*y);
+      if(dist > 68) return;
+      let a = -Math.PI/2;
+      for(let i=0;i<slices.length;i++){
+        const sweep = (slices[i].sessions/total)*2*Math.PI;
+        let end = a + sweep;
+        let ca = clickAngle;
+        // normalise angles to same range
+        while(ca < a) ca += 2*Math.PI;
+        if(ca >= a && ca < end){
+          if(slices[i].label.toLowerCase() !== 'direct') drillInto(slices[i].label);
+          else drillInto('Direct');
+          return;
+        }
+        a = end;
+      }
+    };
+
   } catch(e){
-    document.getElementById('an-pages').textContent = 'Could not load analytics';
+    console.error('Analytics error',e);
+    if(pieLoading) pieLoading.style.display='none';
   }
+}
+
+function drillInto(channel){
+  anChannel = channel;
+  loadAnalytics();
+}
+
+function drillBack(){
+  anChannel = '';
+  loadAnalytics();
 }
 
 function refreshAll(){ buildDash(); buildMarketing(); renderOffices(); renderMembers(); renderOccupants(); renderWaitlist(); buildNotify(); buildBookingsTab(); buildNewsletterHistory(); }
