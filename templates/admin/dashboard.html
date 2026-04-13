@@ -720,13 +720,27 @@ async function generateNewsletter(){
     const result=await r.json();
     if(result.ok){
       const now=new Date();
-      document.getElementById('nl-subject').value=`Qbix Centre &mdash; ${now.toLocaleDateString('en-US',{month:'long',year:'numeric'})} Newsletter`;
+      document.getElementById('nl-subject').value=`Qbix Centre — ${now.toLocaleDateString('en-US',{month:'long',year:'numeric'})} Newsletter`;
       document.getElementById('nl-body').value=result.draft;
       document.getElementById('nl-draft-area').style.display='block';
+      // Init Quill then set content
+      initQuill();
+      initNlPhotoUploads();
+      resetNlPhotos();
+      // Set Quill content — try immediately then retry after short delay as fallback
+      const setQuillContent = () => {
+        if(nlQuill && result.draft){
+          nlQuill.root.innerHTML = result.draft;
+          document.getElementById('nl-body').value = nlQuill.root.innerHTML;
+        }
+      };
+      setQuillContent();
+      setTimeout(setQuillContent, 300);
+      setTimeout(setQuillContent, 800);
       toast('Draft generated! Review and edit before sending.');
     } else { toast('Error: '+result.error,'var(--red)'); }
   } catch(e){ toast('Generation failed: '+e.message,'var(--red)'); }
-  btn.disabled=false; btn.textContent=' Generate Draft with AI';
+  btn.disabled=false; btn.textContent='✨ Generate Draft with AI';
 }
 
 async function publishNewsletter(send){
@@ -1412,28 +1426,7 @@ function initQuill(){
   });
 }
 
-// Override generateNewsletter to set Quill content
-const _origGenerate = generateNewsletter;
-generateNewsletter = async function(){
-  initQuill();
-  initNlPhotoUploads();
-  resetNlPhotos();
-  await _origGenerate();
-  // After generation, set Quill content — use longer delay to ensure Quill is ready
-  setTimeout(()=>{
-    const body = document.getElementById('nl-body').value;
-    if(body && nlQuill){
-      nlQuill.root.innerHTML = body;
-      // Force sync back to hidden field
-      document.getElementById('nl-body').value = nlQuill.root.innerHTML;
-    }
-    // Fix subject HTML entities display
-    const subj = document.getElementById('nl-subject');
-    if(subj) subj.value = subj.value.replace(/&mdash;/g,'—').replace(/&amp;/g,'&');
-  }, 400);
-};
-
-// Save as draft — stores in DB with sent:false, does NOT publish to public news
+// Override editNewsletterPost to set Quill content and photos
 async function saveDraft(){
   if(nlQuill) document.getElementById('nl-body').value = nlQuill.root.innerHTML;
   const subject = document.getElementById('nl-subject').value.trim();
