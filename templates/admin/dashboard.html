@@ -262,7 +262,7 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
 
   <div class="stats">
     <div class="sc g"><div class="sc-v">{{ occ }}</div><div class="sc-l">Occupied Offices</div><div class="sc-s">{{ "%.0f"|format(occ/(occ+vac)*100) if (occ+vac) else 0 }}% occupancy</div></div>
-    <div class="sc b"><div class="sc-v">{{ vac }}</div><div class="sc-l">Vacant Offices</div><div class="sc-s">{{ vacant|sum(attribute='sqft') }} sq ft available</div></div>
+    <div class="sc b"><div class="sc-v">{{ vac }}</div><div class="sc-l">Vacant Offices</div><div class="sc-s">&nbsp;</div></div>
     <div class="sc a"><div class="sc-v">${{ "{:,}".format(gross) }}</div><div class="sc-l">Gross Monthly</div><div class="sc-s">before discounts</div></div>
     <div class="sc p"><div class="sc-v">${{ "{:,}".format(net_rev) }}</div><div class="sc-l">Net Monthly</div><div class="sc-s">${{ "{:,}".format(net_rev*12) }} annually</div></div>
     <div class="sc r"><div class="sc-v" id="s4">${{ "{:,}".format(dep) }}</div><div class="sc-l">Deposits Held</div><div class="sc-s">{{ active|length }} active members</div></div>
