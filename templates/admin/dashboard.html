@@ -307,7 +307,25 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
 
 <!-- MARKETING -->
 <div class="page" id="page-marketing">
-  <div class="pg-title">&#128200; Marketing</div><div class="pg-sub">Lead sources, website traffic &amp; growth tracking</div>
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+    <div class="pg-title" style="margin-bottom:0">&#128200; Marketing</div>
+    <button onclick="toggleLeadSourceEditor()" id="ls-gear-btn" title="Manage lead source options" style="background:var(--sur2);border:1px solid var(--bdr);border-radius:8px;padding:7px 14px;font-size:13px;color:var(--txt2);cursor:pointer;display:flex;align-items:center;gap:6px;font-family:'IBM Plex Sans',sans-serif">&#9881;&#65039; Lead Sources</button>
+  </div>
+  <div class="pg-sub">Lead sources, website traffic &amp; growth tracking</div>
+
+  <!-- LEAD SOURCE EDITOR (hidden by default) -->
+  <div id="ls-editor" style="display:none;background:var(--sur);border:1px solid var(--bdr);border-radius:10px;padding:16px;margin-bottom:16px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div style="font-size:14px;font-weight:600;color:var(--txt)">Lead Source Options</div>
+      <button onclick="toggleLeadSourceEditor()" style="background:none;border:none;color:var(--txt3);font-size:18px;cursor:pointer;line-height:1">&times;</button>
+    </div>
+    <div style="font-size:12px;color:var(--txt3);margin-bottom:12px">These options appear in the Member and Waiting List forms. Changes save instantly.</div>
+    <div id="ls-list" style="margin-bottom:12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:6px"></div>
+    <div style="display:flex;gap:8px;max-width:420px">
+      <input id="ls-new-input" type="text" placeholder="New source name..." style="flex:1;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;padding:8px 10px;color:var(--txt);font-size:14px;font-family:'IBM Plex Sans',sans-serif" onkeydown="if(event.key==='Enter')addLeadSource()">
+      <button onclick="addLeadSource()" style="background:var(--acc);color:#000;border:none;border-radius:6px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer">+ Add</button>
+    </div>
+  </div>
 
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
 
@@ -353,27 +371,13 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
     </div>
   </div>
 
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-
-    <!-- LEAD SOURCE LIST MANAGER -->
-    <div class="card">
-      <div class="ct">Lead Source Options</div>
-      <div style="font-size:12px;color:var(--txt3);margin-bottom:14px">These are the options shown in the Member and Waiting List forms. Add, rename, or remove as needed.</div>
-      <div id="ls-list" style="margin-bottom:12px"></div>
-      <div style="display:flex;gap:8px">
-        <input id="ls-new-input" type="text" placeholder="New source name..." style="flex:1;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;padding:8px 10px;color:var(--txt);font-size:14px;font-family:'IBM Plex Sans',sans-serif" onkeydown="if(event.key==='Enter')addLeadSource()">
-        <button onclick="addLeadSource()" style="background:var(--acc);color:#000;border:none;border-radius:6px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer">+ Add</button>
-      </div>
-    </div>
-
-    <!-- MEMBER LEAD SOURCE BREAKDOWN TABLE -->
-    <div class="card">
-      <div class="ct">Member Lead Source Detail</div>
-      <div style="font-size:12px;color:var(--txt3);margin-bottom:14px">All members and waiting list entries with a source recorded</div>
-      <div id="mkt-detail" style="font-size:13px"></div>
-    </div>
-
+  <!-- DETAIL TABLE — full width -->
+  <div class="card">
+    <div class="ct">Member Lead Source Detail</div>
+    <div style="font-size:12px;color:var(--txt3);margin-bottom:14px">All members and waiting list entries with a source recorded</div>
+    <div id="mkt-detail" style="font-size:13px"></div>
   </div>
+
 </div>
 
 <!-- OFFICES -->
@@ -1498,6 +1502,15 @@ function confirmAction(){if(confirmCallback){confirmCallback();confirmCallback=n
 function closeConf(){document.getElementById('conf-modal').classList.remove('open');}
 
 
+function toggleLeadSourceEditor(){
+  const ed = document.getElementById('ls-editor');
+  const btn = document.getElementById('ls-gear-btn');
+  const open = ed.style.display === 'none';
+  ed.style.display = open ? 'block' : 'none';
+  btn.style.borderColor = open ? 'var(--acc)' : 'var(--bdr)';
+  btn.style.color = open ? 'var(--acc)' : 'var(--txt2)';
+}
+
 // === MARKETING ===
 function buildMarketing(){
   if(!document.getElementById('page-marketing')) return;
@@ -1506,11 +1519,11 @@ function buildMarketing(){
   const sources = DB.leadSources || [];
   document.getElementById('ls-list').innerHTML = sources.length
     ? sources.map((s,i) =>
-        `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--bdr)">
-          <div style="flex:1;font-size:14px;color:var(--txt)">${s}</div>
-          <button onclick="removeLeadSource(${i})" style="background:none;border:1px solid var(--red);border-radius:5px;color:var(--red);padding:3px 9px;font-size:12px;cursor:pointer">Remove</button>
+        `<div style="display:flex;align-items:center;justify-content:space-between;background:var(--sur2);border:1px solid var(--bdr);border-radius:7px;padding:7px 10px;gap:8px">
+          <div style="font-size:13px;color:var(--txt);flex:1">${s}</div>
+          <button onclick="removeLeadSource(${i})" style="background:none;border:1px solid var(--red);border-radius:5px;color:var(--red);padding:2px 8px;font-size:11px;cursor:pointer;white-space:nowrap">Remove</button>
         </div>`).join('')
-    : '<div style="color:var(--txt3);font-size:13px;padding:8px 0">No sources yet — add one below.</div>';
+    : '<div style="color:var(--txt3);font-size:13px;padding:4px 0">No sources yet.</div>';
 
   // ── Collect lead source data from members + waitlist ──────────────────────
   const counts = {};
