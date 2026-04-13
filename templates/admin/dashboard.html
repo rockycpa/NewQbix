@@ -883,6 +883,10 @@ function openOfficeMo(id){
     h+='<div class="di"><label>Deposit</label><value class="mono">'+f$(m.deposit)+'</value></div>';
     h+='<div class="di"><label>Tenant Start</label><value>'+(o.tenantStart||'-')+'</value></div>';
     h+='<div class="di"><label>All Offices</label><value class="mono">'+(allOff.join(', ')||'-')+'</value></div>';
+    // Roll up total conf hours for this member
+    const memberTotalHours=DB.offices.filter(x=>x.member===o.member).reduce((s,x)=>s+(Number(x.confHours)??6),0);
+    h+='<div class="di"><label>Conf Room Hours/mo <span style="font-weight:400;color:var(--txt3);font-size:11px">(this office)</span></label><value class="mono">'+(Number(o.confHours)??6)+' hrs</value></div>';
+    if(memberTotalHours>0)h+='<div class="di"><label>Total Hours (all offices)</label><value class="mono" style="color:var(--grn)">'+memberTotalHours+' hrs/mo</value></div>';
     if(m.end)h+='<div class="di full"><label>End Date</label><value style="color:var(--red)">'+fD(m.end)+'</value></div>';
     if(m.notes)h+='<div class="di full"><label>Notes</label><div class="notebox">'+m.notes+'</div></div>';
   } else {
@@ -1314,6 +1318,7 @@ function openOfficeForm(id){
     +'<div class="fl"><label>Dormer Sq Ft</label><input id="f-dormer" type="number" value="'+(o.dormer||'')+'"></div>'
     +'<div class="fl"><label>Listed Rate (Vacant $/mo)</label><input id="f-ldues" type="number" value="'+(o.listDues||'')+'"></div>'
     +'<div class="fl"><label>Discount ($)</label><input id="f-odiscount" type="number" value="'+(o.discount||0)+'" oninput="updOfficeNet()"></div>'
+    +'<div class="fl"><label>Conf Room Hours/mo <span style="font-weight:400;color:var(--txt3);font-size:11px">— default 6</span></label><input id="f-confhours" type="number" min="0" value="'+(o.confHours!=null?o.confHours:6)+'" placeholder="6"></div>'
     +'<div class="fl full" style="background:var(--sur2);border:1px solid var(--bdr);border-radius:7px;padding:9px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--txt3);margin-bottom:3px">Net Rate</div><div id="office-net-prev" style="font-family:\'IBM Plex Mono\',monospace;font-size:17px;color:var(--grn)">-</div></div>'
     +'<div class="fl full"><label>Description (shown on website for vacant offices)</label><textarea id="f-desc" style="min-height:70px">'+(o.description||'')+'</textarea></div>'
     +'<div class="sect-title">Office Photos (shown on website for vacant offices)</div>'
@@ -1386,7 +1391,7 @@ async function submitForm(){
     // Merge new photos with remaining existing photos (after deletions)
     const remainingExisting = _remainingOfficePhotos || (existing.photos||[]);
     const mergedPhotos = [...remainingExisting, ...newPhotos].slice(0,6);
-    const obj={id:formId||uid(),num,status:document.getElementById('f-status').value,member:document.getElementById('f-member').value,tenantStart:document.getElementById('f-tstart').value,sqft:Number(document.getElementById('f-sqft').value)||null,dormer:Number(document.getElementById('f-dormer').value)||null,listDues:Number(document.getElementById('f-ldues').value)||null,discount:Number(document.getElementById('f-odiscount')?.value)||0,description:document.getElementById('f-desc')?.value||'',photos:mergedPhotos};
+    const obj={id:formId||uid(),num,status:document.getElementById('f-status').value,member:document.getElementById('f-member').value,tenantStart:document.getElementById('f-tstart').value,sqft:Number(document.getElementById('f-sqft').value)||null,dormer:Number(document.getElementById('f-dormer').value)||null,listDues:Number(document.getElementById('f-ldues').value)||null,discount:Number(document.getElementById('f-odiscount')?.value)||0,confHours:Number(document.getElementById('f-confhours')?.value)??6,description:document.getElementById('f-desc')?.value||'',photos:mergedPhotos};
     if(formId){const i=DB.offices.findIndex(x=>x.id===formId);DB.offices[i]=obj;}else DB.offices.push(obj);
   } else if(formType==='member'){
     const name=document.getElementById('f-name').value.trim();if(!name){alert('Member name required.');return;}

@@ -180,6 +180,8 @@ def load_data():
                     m['agreementStatus'] = 'Sent'
                 else:
                     m['agreementStatus'] = 'Pending'
+        for o in d.get('offices', []):
+            o.setdefault('confHours', 6)
         for p in d.get('occupants', []):
             p.setdefault('dlAttachment', None)
         return d
@@ -244,8 +246,8 @@ def offices_for(data, name):
     return [o['num'] for o in data['offices'] if o.get('member') == name]
 
 def hours_included(data, member_name):
-    """Members get 6 hours per office they hold."""
-    return len(offices_for(data, member_name)) * 6
+    """Sum confHours across all offices held by this member (default 6 per office)."""
+    return sum(int(o.get('confHours') or 6) for o in data['offices'] if o.get('member') == member_name)
 
 
 # ── SMS helper (Twilio) ───────────────────────────────────────────────────────
