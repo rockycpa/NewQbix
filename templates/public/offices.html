@@ -13,7 +13,7 @@
   <div style="text-align:center;margin-bottom:48px">
     <div class="section-label">Membership Options</div>
     <h2 class="section-title">Find Your Perfect Space</h2>
-    <p class="section-sub" style="margin:0 auto">All memberships include 24/7 access, AT&T Fiber internet, Starbucks coffee, 6 conference room hours monthly, free parking, and a professional community.</p>
+    <p class="section-sub" style="margin:0 auto">All memberships include 24/7 access, AT&T Fiber internet, Starbucks coffee, conference room access, free parking, and a professional community.</p>
   </div>
 
   {% if vacant %}
@@ -23,12 +23,13 @@
     </h3>
     <div class="grid-4">
       {% for o in vacant %}
-      <div class="card" style="border-top:4px solid var(--gold)">
+      <div class="card" style="border-top:4px solid var(--gold);cursor:pointer;transition:all .2s"
+           onclick="openOfficeDetail({{ loop.index0 }})"
+           onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='0 8px 24px rgba(0,0,0,.12)'"
+           onmouseout="this.style.transform='none';this.style.boxShadow='none'">
         {% if o.photos %}
-          <div style="display:flex;gap:6px;margin-bottom:14px;border-radius:8px;overflow:hidden">
-            {% for photo in o.photos[:2] %}
-              <img src="{{ photo.data }}" style="flex:1;height:140px;object-fit:cover;border-radius:6px">
-            {% endfor %}
+          <div style="margin:-16px -16px 14px;border-radius:10px 10px 0 0;overflow:hidden;height:160px">
+            <img src="{{ o.photos[0].data }}" style="width:100%;height:100%;object-fit:cover">
           </div>
         {% endif %}
         <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
@@ -37,12 +38,15 @@
         </div>
         <div style="font-size:13px;color:var(--txt2);margin-bottom:6px">{{ o.sqft }}{% if o.dormer %} + {{ o.dormer }} dormer{% endif %} sq ft</div>
         {% if o.description %}
-          <p style="font-size:13px;color:var(--txt2);margin-bottom:10px;line-height:1.6">{{ o.description }}</p>
+          <p style="font-size:13px;color:var(--txt2);margin-bottom:10px;line-height:1.6">{{ o.description[:100] }}{% if o.description|length > 100 %}...{% endif %}</p>
         {% endif %}
-        <div style="font-size:22px;font-weight:600;color:var(--gold);margin-bottom:14px">
-          {% if o.listDues %}${{ "{:,}".format(o.listDues) }}/month{% else %}Contact for pricing{% endif %}
+        <div style="font-size:22px;font-weight:600;color:var(--gold);margin-bottom:10px">
+          {% set net_rate = (o.listDues or 0) - (o.discount or 0) %}
+          {% if o.listDues %}${{ "{:,}".format([net_rate, 0]|max) }}/month{% else %}Contact for pricing{% endif %}
         </div>
-        <a href="/contact" class="btn btn-navy btn-sm" style="width:100%;text-align:center;display:block">Inquire About This Office</a>
+        <div style="font-size:12px;color:var(--txt2);margin-bottom:14px">Click to view photos &amp; details</div>
+        <a href="/contact" class="btn btn-navy btn-sm" style="width:100%;text-align:center;display:block"
+           onclick="event.stopPropagation()">Inquire About This Office</a>
       </div>
       {% endfor %}
     </div>
@@ -54,8 +58,17 @@
   </div>
   {% endif %}
 
-
 </section>
+
+<!-- Office Detail Modal -->
+<div id="office-modal" onclick="if(event.target===this)closeOfficeDetail()"
+     style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:500;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)">
+  <div style="background:#fff;border-radius:16px;width:100%;max-width:720px;max-height:90vh;overflow-y:auto;position:relative;animation:slideIn .2s ease">
+    <button onclick="closeOfficeDetail()"
+            style="position:absolute;top:16px;right:16px;background:rgba(0,0,0,.1);border:none;border-radius:50%;width:32px;height:32px;font-size:16px;cursor:pointer;z-index:10;display:flex;align-items:center;justify-content:center">&#x2715;</button>
+    <div id="office-detail-content"></div>
+  </div>
+</div>
 
 <section class="section-navy" style="text-align:center">
   <h2 class="section-title">Ready to See It in Person?</h2>
@@ -63,4 +76,119 @@
   <a href="/contact" class="btn btn-gold">Schedule a Tour</a>
 </section>
 
+{% block extra_css %}
+<style>
+@keyframes slideIn{from{opacity:0;transform:scale(.96) translateY(8px)}to{opacity:1;transform:none}}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const offices = [
+  {% for o in vacant %}
+  {
+    num: "{{ o.num }}",
+    sqft: {{ o.sqft or 0 }},
+    dormer: {{ o.dormer or 0 }},
+    listDues: {{ o.listDues or 0 }},
+    discount: {{ o.discount or 0 }},
+    description: {{ o.description | tojson if o.description else '""' }},
+    photos: [{% if o.photos %}{% for p in o.photos %}"{{ p.data }}"{% if not loop.last %},{% endif %}{% endfor %}{% endif %}],
+    amenities: [{% if o.amenities %}{% for a in o.amenities %}"{{ a }}"{% if not loop.last %},{% endif %}{% endfor %}{% endif %}]
+  }{% if not loop.last %},{% endif %}
+  {% endfor %}
+];
+
+let currentOfficePhotos = [];
+let currentPhotoIdx = 0;
+
+function openOfficeDetail(idx){
+  const o = offices[idx];
+  const netRate = Math.max(0, (o.listDues||0) - (o.discount||0));
+  currentOfficePhotos = o.photos || [];
+  currentPhotoIdx = 0;
+
+  let photosHtml = '';
+  if(currentOfficePhotos.length > 0){
+    photosHtml = `
+      <div style="position:relative;background:#000;border-radius:16px 16px 0 0;overflow:hidden;height:320px">
+        <img id="modal-main-photo" src="${currentOfficePhotos[0]}" style="width:100%;height:100%;object-fit:cover">
+        ${currentOfficePhotos.length > 1 ? `
+          <button onclick="prevOfficePhoto()" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,.5);border:none;color:#fff;font-size:24px;width:40px;height:40px;border-radius:50%;cursor:pointer">&#8249;</button>
+          <button onclick="nextOfficePhoto()" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,.5);border:none;color:#fff;font-size:24px;width:40px;height:40px;border-radius:50%;cursor:pointer">&#8250;</button>
+          <div style="position:absolute;bottom:12px;left:50%;transform:translateX(-50%);display:flex;gap:6px">
+            ${currentOfficePhotos.map((_,i)=>`<div id="dot-${i}" style="width:8px;height:8px;border-radius:50%;background:${i===0?'#fff':'rgba(255,255,255,.5)'}"></div>`).join('')}
+          </div>` : ''}
+      </div>`;
+  }
+
+  let amenitiesHtml = '';
+  if(o.amenities && o.amenities.length){
+    amenitiesHtml = `
+      <div style="margin-top:20px">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:#999;font-weight:600;margin-bottom:10px">Amenities</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px">
+          ${o.amenities.map(a=>`<span style="background:#f0f7ff;border:1px solid #c3deff;border-radius:20px;padding:4px 12px;font-size:13px;color:#1a5276">&#10003; ${a}</span>`).join('')}
+        </div>
+      </div>`;
+  }
+
+  document.getElementById('office-detail-content').innerHTML = `
+    ${photosHtml}
+    <div style="padding:28px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+        <div>
+          <h2 style="font-family:'Playfair Display',serif;font-size:32px;color:#1a2744;margin-bottom:4px">Office ${o.num}</h2>
+          <div style="color:#666;font-size:15px">${o.sqft}${o.dormer?' + '+o.dormer+' dormer':''} sq ft</div>
+        </div>
+        <div style="text-align:right">
+          ${netRate>0?`<div style="font-size:28px;font-weight:700;color:#c9a84c">$${netRate.toLocaleString()}<span style="font-size:16px">/month</span></div>`:'<div style="font-size:16px;color:#666">Contact for pricing</div>'}
+          ${o.discount>0?`<div style="font-size:13px;color:#666">Listed: $${o.listDues.toLocaleString()} — Discount: $${o.discount.toLocaleString()}</div>`:''}
+        </div>
+      </div>
+      ${o.description?`<p style="color:#444;font-size:15px;line-height:1.7;margin-bottom:16px">${o.description}</p>`:''}
+      ${amenitiesHtml}
+      <div style="margin-top:24px;display:flex;gap:12px;flex-wrap:wrap">
+        <a href="/contact" class="btn btn-navy" style="flex:1;text-align:center">Inquire About This Office</a>
+        <button onclick="closeOfficeDetail()" style="flex:1;padding:13px;border:2px solid #1a2744;border-radius:8px;background:#fff;color:#1a2744;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;font-size:15px">Close</button>
+      </div>
+    </div>`;
+
+  document.getElementById('office-modal').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+
+function closeOfficeDetail(){
+  document.getElementById('office-modal').style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+function prevOfficePhoto(){
+  currentPhotoIdx = (currentPhotoIdx - 1 + currentOfficePhotos.length) % currentOfficePhotos.length;
+  updateOfficePhoto();
+}
+
+function nextOfficePhoto(){
+  currentPhotoIdx = (currentPhotoIdx + 1) % currentOfficePhotos.length;
+  updateOfficePhoto();
+}
+
+function updateOfficePhoto(){
+  const img = document.getElementById('modal-main-photo');
+  if(img) img.src = currentOfficePhotos[currentPhotoIdx];
+  currentOfficePhotos.forEach((_,i)=>{
+    const dot = document.getElementById('dot-'+i);
+    if(dot) dot.style.background = i===currentPhotoIdx ? '#fff' : 'rgba(255,255,255,.5)';
+  });
+}
+
+document.addEventListener('keydown', e=>{
+  if(document.getElementById('office-modal').style.display==='flex'){
+    if(e.key==='Escape') closeOfficeDetail();
+    if(e.key==='ArrowLeft') prevOfficePhoto();
+    if(e.key==='ArrowRight') nextOfficePhoto();
+  }
+});
+</script>
+{% endblock %}
 {% endblock %}

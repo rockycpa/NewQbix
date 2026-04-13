@@ -11,18 +11,28 @@
   {% if posts %}
     <div style="max-width:800px;margin:0 auto;display:flex;flex-direction:column;gap:28px">
       {% for post in posts %}
-      <div class="card" style="cursor:pointer" onclick="window.location='/news/{{ post.id }}'">
-        <div style="font-size:13px;color:var(--txt2);margin-bottom:10px">
-          {{ post.date[:10] if post.date else '' }}
+      <div class="card" style="cursor:pointer;padding:0;overflow:hidden" onclick="window.location='/news/{{ post.id }}'">
+        {% if post.heroPhoto %}
+        <div style="width:100%;height:220px;overflow:hidden">
+          <img src="{{ post.heroPhoto.data }}" alt="{{ post.subject }}"
+               style="width:100%;height:100%;object-fit:cover;display:block;transition:transform .3s"
+               onmouseover="this.style.transform='scale(1.03)'"
+               onmouseout="this.style.transform='scale(1)'">
         </div>
-        <h3 style="font-family:'Playfair Display',serif;font-size:22px;color:var(--navy);margin-bottom:10px">
-          {{ post.subject }}
-        </h3>
-        <div style="color:var(--txt2);font-size:14px;line-height:1.7;max-height:80px;overflow:hidden">
-          {{ post.body | striptags | truncate(200) }}
-        </div>
-        <div style="margin-top:14px">
-          <a href="/news/{{ post.id }}" style="color:var(--gold);font-weight:600;font-size:14px">Read more &rarr;</a>
+        {% endif %}
+        <div style="padding:22px">
+          <div style="font-size:13px;color:var(--txt2);margin-bottom:8px">
+            {{ post.date[:10] if post.date else '' }}
+          </div>
+          <h3 style="font-family:'Playfair Display',serif;font-size:22px;color:var(--navy);margin-bottom:10px">
+            {{ post.subject }}
+          </h3>
+          <div style="color:var(--txt2);font-size:14px;line-height:1.7;max-height:80px;overflow:hidden">
+            {{ post.body | striptags | truncate(200) }}
+          </div>
+          <div style="margin-top:14px">
+            <a href="/news/{{ post.id }}" style="color:var(--gold);font-weight:600;font-size:14px">Read more &rarr;</a>
+          </div>
         </div>
       </div>
       {% endfor %}

@@ -58,20 +58,35 @@
   <script>
   const photos = [{% for photo in post.galleryPhotos %}'{{ photo.data }}'{% if not loop.last %},{% endif %}{% endfor %}];
   let currentPhoto = 0;
-  function openLightbox(idx){
-    currentPhoto = parseInt(idx);
-    document.getElementById('lightbox-img').src = photos[currentPhoto];
-    document.getElementById('lightbox').style.display = 'flex';
-  }
-  function closeLightbox(){ document.getElementById('lightbox').style.display = 'none'; }
+  function openLightbox(idx){ currentPhoto=parseInt(idx); document.getElementById('lightbox-img').src=photos[currentPhoto]; document.getElementById('lightbox').style.display='flex'; }
+  function closeLightbox(){ document.getElementById('lightbox').style.display='none'; }
   function prevPhoto(e){ e.stopPropagation(); currentPhoto=(currentPhoto-1+photos.length)%photos.length; document.getElementById('lightbox-img').src=photos[currentPhoto]; }
   function nextPhoto(e){ e.stopPropagation(); currentPhoto=(currentPhoto+1)%photos.length; document.getElementById('lightbox-img').src=photos[currentPhoto]; }
   document.addEventListener('keydown',e=>{ if(e.key==='Escape')closeLightbox(); if(e.key==='ArrowLeft')prevPhoto(e); if(e.key==='ArrowRight')nextPhoto(e); });
   </script>
   {% endif %}
 
-  <!-- Back link -->
-  <div style="margin-top:48px;padding-top:24px;border-top:1px solid var(--border)">
+  <!-- Prev / Next Navigation -->
+  <div style="margin-top:48px;padding-top:24px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start;gap:20px;flex-wrap:wrap">
+    <div style="flex:1">
+      {% if prev_post %}
+      <a href="/news/{{ prev_post.id }}" style="display:block;text-decoration:none">
+        <div style="font-size:11px;color:var(--txt2);margin-bottom:5px;text-transform:uppercase;letter-spacing:.08em">&larr; Previous Article</div>
+        <div style="font-weight:600;color:var(--navy);font-size:15px">{{ prev_post.subject }}</div>
+      </a>
+      {% endif %}
+    </div>
+    <div style="flex:1;text-align:right">
+      {% if next_post %}
+      <a href="/news/{{ next_post.id }}" style="display:block;text-decoration:none">
+        <div style="font-size:11px;color:var(--txt2);margin-bottom:5px;text-transform:uppercase;letter-spacing:.08em">Next Article &rarr;</div>
+        <div style="font-weight:600;color:var(--navy);font-size:15px">{{ next_post.subject }}</div>
+      </a>
+      {% endif %}
+    </div>
+  </div>
+
+  <div style="margin-top:24px">
     <a href="/news" style="color:var(--gold);font-weight:600;font-size:14px">&larr; Back to News</a>
   </div>
 
