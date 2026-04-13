@@ -1,79 +1,94 @@
 {% extends "base.html" %}
-{% block title %}Amenities & Features{% endblock %}
+{% block title %}{{ post.subject }}{% endblock %}
 
 {% block content %}
-<div class="hero" style="padding:60px 5%">
-  <h1>Everything You Need,<br><span>Already Included</span></h1>
-  <p>No surprise fees. No add-ons. Just a complete professional workspace ready for you on day one.</p>
-</div>
+<article style="max-width:800px;margin:0 auto;padding:0 20px">
 
-<section>
-  <div class="grid-2" style="gap:60px">
-    <div>
-      <div class="section-label">Internet & Tech</div>
-      <h2 class="section-title">Enterprise-Grade Connectivity</h2>
-      <p class="section-sub">AT&T Gigabit fiber internet &mdash; both Wi-Fi and Ethernet available in every office. Fast, reliable, and secure.</p>
-      <ul style="margin-top:24px;list-style:none;display:flex;flex-direction:column;gap:12px">
-        <li style="display:flex;gap:12px;align-items:flex-start"><span style="color:var(--gold);font-size:18px">✓</span><span>AT&T Gigabit Fiber &mdash; 1,000 Mbps</span></li>
-        <li style="display:flex;gap:12px;align-items:flex-start"><span style="color:var(--gold);font-size:18px">✓</span><span>Wi-Fi throughout building</span></li>
-        <li style="display:flex;gap:12px;align-items:flex-start"><span style="color:var(--gold);font-size:18px">✓</span><span>Ethernet in every office</span></li>
-        <li style="display:flex;gap:12px;align-items:flex-start"><span style="color:var(--gold);font-size:18px">✓</span><span>Full-color laser printer &amp; scanner</span></li>
-        <li style="display:flex;gap:12px;align-items:flex-start"><span style="color:var(--gold);font-size:18px">✓</span><span>200 B&amp;W / 100 color pages monthly</span></li>
-      </ul>
-    </div>
-    <div>
-      <div class="section-label">Office Features</div>
-      <h2 class="section-title">Move-In Ready</h2>
-      <p class="section-sub">Every office comes fully furnished with professional-grade furniture. Just bring your laptop.</p>
-      <ul style="margin-top:24px;list-style:none;display:flex;flex-direction:column;gap:12px">
-        <li style="display:flex;gap:12px;align-items:flex-start"><span style="color:var(--gold);font-size:18px">✓</span><span>Height-adjustable sit/stand desks</span></li>
-        <li style="display:flex;gap:12px;align-items:flex-start"><span style="color:var(--gold);font-size:18px">✓</span><span>Ergonomic chairs</span></li>
-        <li style="display:flex;gap:12px;align-items:flex-start"><span style="color:var(--gold);font-size:18px">✓</span><span>Lockable private offices</span></li>
-        <li style="display:flex;gap:12px;align-items:flex-start"><span style="color:var(--gold);font-size:18px">✓</span><span>24/7 card key &amp; code access</span></li>
-        <li style="display:flex;gap:12px;align-items:flex-start"><span style="color:var(--gold);font-size:18px">✓</span><span>Secure shredding bin</span></li>
-      </ul>
+  <div style="margin-top:32px;margin-bottom:24px">
+    <a href="/news" style="color:var(--txt2);font-size:14px">&larr; Back to News</a>
+  </div>
+
+  <!-- Date & Title -->
+  <div style="font-size:13px;color:var(--txt2);margin-bottom:10px">
+    {{ post.date[:10] if post.date else '' }}
+  </div>
+  <h1 style="font-family:'Playfair Display',serif;font-size:clamp(26px,4vw,40px);color:var(--navy);margin-bottom:28px;line-height:1.2">
+    {{ post.subject }}
+  </h1>
+
+  <!-- Hero Photo -->
+  {% if post.heroPhoto %}
+  <div style="margin-bottom:32px;border-radius:12px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.1)">
+    <img src="{{ post.heroPhoto.data }}" alt="{{ post.subject }}"
+         style="width:100%;max-height:480px;object-fit:cover;display:block">
+  </div>
+  {% endif %}
+
+  <!-- Body Content -->
+  <div style="line-height:1.85;font-size:16px;color:var(--txt)">
+    {{ post.body | safe }}
+  </div>
+
+  <!-- Gallery Photos -->
+  {% if post.galleryPhotos and post.galleryPhotos|length > 0 %}
+  <div style="margin-top:40px;padding-top:32px;border-top:1px solid var(--border)">
+    <div style="font-size:12px;text-transform:uppercase;letter-spacing:.12em;color:var(--gold);font-weight:600;margin-bottom:16px">Photos</div>
+    <div style="display:grid;grid-template-columns:repeat({% if post.galleryPhotos|length == 1 %}1{% elif post.galleryPhotos|length == 2 %}2{% else %}3{% endif %},1fr);gap:10px">
+      {% for photo in post.galleryPhotos %}
+      <div style="border-radius:8px;overflow:hidden;aspect-ratio:4/3;cursor:pointer"
+           onclick="openLightbox('{{ loop.index0 }}')">
+        <img src="{{ photo.data }}" alt="Photo {{ loop.index }}"
+             style="width:100%;height:100%;object-fit:cover;transition:transform .3s"
+             onmouseover="this.style.transform='scale(1.03)'"
+             onmouseout="this.style.transform='scale(1)'">
+      </div>
+      {% endfor %}
     </div>
   </div>
-</section>
 
-<section class="section-light">
-  <div class="grid-3">
-    <div class="card">
-      <div class="card-icon">📅</div>
-      <h3>Conference Room</h3>
-      <p>240 sq ft professional conference room with an 8×4 glass whiteboard and full TV projection system. 6 hours included per office per month. Book online 24/7.</p>
+  <!-- Lightbox -->
+  <div id="lightbox" onclick="closeLightbox()"
+       style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:999;align-items:center;justify-content:center;padding:20px">
+    <button onclick="closeLightbox()" style="position:absolute;top:16px;right:20px;background:none;border:none;color:#fff;font-size:28px;cursor:pointer">&#x2715;</button>
+    <button onclick="prevPhoto(event)" style="position:absolute;left:16px;background:none;border:none;color:#fff;font-size:36px;cursor:pointer">&#8249;</button>
+    <img id="lightbox-img" style="max-width:90%;max-height:88vh;object-fit:contain;border-radius:8px">
+    <button onclick="nextPhoto(event)" style="position:absolute;right:16px;background:none;border:none;color:#fff;font-size:36px;cursor:pointer">&#8250;</button>
+  </div>
+
+  <script>
+  const photos = [{% for photo in post.galleryPhotos %}'{{ photo.data }}'{% if not loop.last %},{% endif %}{% endfor %}];
+  let currentPhoto = 0;
+  function openLightbox(idx){ currentPhoto=parseInt(idx); document.getElementById('lightbox-img').src=photos[currentPhoto]; document.getElementById('lightbox').style.display='flex'; }
+  function closeLightbox(){ document.getElementById('lightbox').style.display='none'; }
+  function prevPhoto(e){ e.stopPropagation(); currentPhoto=(currentPhoto-1+photos.length)%photos.length; document.getElementById('lightbox-img').src=photos[currentPhoto]; }
+  function nextPhoto(e){ e.stopPropagation(); currentPhoto=(currentPhoto+1)%photos.length; document.getElementById('lightbox-img').src=photos[currentPhoto]; }
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape')closeLightbox(); if(e.key==='ArrowLeft')prevPhoto(e); if(e.key==='ArrowRight')nextPhoto(e); });
+  </script>
+  {% endif %}
+
+  <!-- Prev / Next Navigation -->
+  <div style="margin-top:48px;padding-top:24px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start;gap:20px;flex-wrap:wrap">
+    <div style="flex:1">
+      {% if prev_post %}
+      <a href="/news/{{ prev_post.id }}" style="display:block;text-decoration:none">
+        <div style="font-size:11px;color:var(--txt2);margin-bottom:5px;text-transform:uppercase;letter-spacing:.08em">&larr; Previous Article</div>
+        <div style="font-weight:600;color:var(--navy);font-size:15px">{{ prev_post.subject }}</div>
+      </a>
+      {% endif %}
     </div>
-    <div class="card">
-      <div class="card-icon">☕</div>
-      <h3>Kitchenette</h3>
-      <p>Fully stocked with Starbucks coffee, soft drinks, and water &mdash; all complimentary. Refrigerator, microwave, and everything you need for a comfortable workday.</p>
-    </div>
-    <div class="card">
-      <div class="card-icon">📬</div>
-      <h3>Mail Handling</h3>
-      <p>Professional business address at 500A Northside Crossing. Mail collected and held for you, or forwarded on request. Available as a standalone membership too.</p>
-    </div>
-    <div class="card">
-      <div class="card-icon">🚗</div>
-      <h3>Free Parking</h3>
-      <p>Ample free parking right outside the building for you and your clients. Easy in, easy out &mdash; no parking stress.</p>
-    </div>
-    <div class="card">
-      <div class="card-icon">🧹</div>
-      <h3>Janitorial Service</h3>
-      <p>Regular professional cleaning keeps the building spotless. Common areas, restrooms, and kitchenette maintained to a high standard.</p>
-    </div>
-    <div class="card">
-      <div class="card-icon">👥</div>
-      <h3>Professional Community</h3>
-      <p>Share the building with other established businesses and professionals. Networking, referrals, and a collegial atmosphere come naturally.</p>
+    <div style="flex:1;text-align:right">
+      {% if next_post %}
+      <a href="/news/{{ next_post.id }}" style="display:block;text-decoration:none">
+        <div style="font-size:11px;color:var(--txt2);margin-bottom:5px;text-transform:uppercase;letter-spacing:.08em">Next Article &rarr;</div>
+        <div style="font-weight:600;color:var(--navy);font-size:15px">{{ next_post.subject }}</div>
+      </a>
+      {% endif %}
     </div>
   </div>
-</section>
 
-<section style="text-align:center">
-  <h2 class="section-title">Come See It for Yourself</h2>
-  <p class="section-sub" style="margin:0 auto 28px">A tour takes about 20 minutes and answers every question. We'd love to show you around.</p>
-  <a href="/contact" class="btn btn-gold">Schedule a Tour</a>
-</section>
+  <div style="margin-top:24px">
+    <a href="/news" style="color:var(--gold);font-weight:600;font-size:14px">&larr; Back to News</a>
+  </div>
+
+</article>
 {% endblock %}

@@ -226,6 +226,7 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
     <button class="nb" onclick="showPage('occupants',this)">Occupants</button>
     <button class="nb" onclick="showPage('waitlist',this)">Waiting List</button>
     <button class="nb notify-btn" onclick="showPage('notify',this)">&#128226; Notify</button>
+    <button class="nb" id="msgs-btn" onclick="showPage('messages',this)">&#128140; Messages <span id="msg-badge" style="display:none;background:var(--red);color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;margin-left:3px">0</span></button>
     <button class="nb" onclick="showPage('newsletter',this)" style="background:rgba(155,126,212,.15);color:var(--purple);border:1px solid rgba(155,126,212,.3)">&#128240; Newsletter</button>
     <button class="nb" onclick="showPage('bookings',this)">&#128197; Bookings</button>
   </nav>
@@ -485,6 +486,15 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
       <div class="ct">Past Newsletters</div>
       <div id="nl-history" style="color:var(--txt3);font-size:13px">Loading...</div>
     </div>
+  </div>
+</div>
+
+<!-- MESSAGES -->
+<div class="page" id="page-messages">
+  <div class="pg-title">&#128140; Messages</div>
+  <div class="pg-sub">Contact form submissions from the website</div>
+  <div id="messages-container">
+    <div style="color:var(--txt3);font-size:13px">Loading...</div>
   </div>
 </div>
 
@@ -795,7 +805,51 @@ async function loadAnalytics(){
   }
 }
 
-function refreshAll(){ buildDash(); renderOffices(); renderMembers(); renderOccupants(); renderWaitlist(); buildNotify(); buildBookingsTab(); buildNewsletterHistory(); }
+async function loadMessages(){
+  try {
+    const r = await fetch('/admin/api/contact-messages');
+    const d = await r.json();
+    const msgs = d.messages || [];
+    const unread = msgs.filter(m=>!m.read).length;
+    const badge = document.getElementById('msg-badge');
+    if(badge){ badge.style.display=unread>0?'inline':'none'; badge.textContent=unread; }
+    const container = document.getElementById('messages-container');
+    if(!container) return;
+    if(!msgs.length){ container.innerHTML='<div style="color:var(--txt3);font-size:13px;padding:20px 0">No messages yet.</div>'; return; }
+    container.innerHTML = msgs.map(m=>`
+      <div style="background:var(--sur);border:1px solid ${m.read?'var(--bdr)':'var(--acc)'};border-radius:var(--r);padding:16px;margin-bottom:12px${m.read?'':';border-left:3px solid var(--acc)'}">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+          <div>
+            <strong style="font-size:14px">${m.name}</strong>
+            ${m.email?`<a href="mailto:${m.email}" style="color:var(--blue);font-size:12px;margin-left:8px">${m.email}</a>`:''}
+            ${m.phone?`<span style="color:var(--txt2);font-size:12px;margin-left:8px">${m.phone}</span>`:''}
+          </div>
+          <div style="display:flex;gap:6px;align-items:center">
+            <span style="font-size:11px;color:var(--txt3)">${m.date?m.date.slice(0,10):''}</span>
+            ${!m.read?`<button class="btn-sm" onclick="markMsgRead('${m.id}')">Mark Read</button>`:'<span style="font-size:11px;color:var(--txt3)">Read</span>'}
+            <button class="btn-sm del" onclick="deleteMsg('${m.id}')">Delete</button>
+          </div>
+        </div>
+        ${m.subject?`<div style="font-size:12px;color:var(--txt3);margin-bottom:6px">Re: ${m.subject}</div>`:''}
+        <div style="font-size:13px;color:var(--txt);line-height:1.6;white-space:pre-wrap">${m.message}</div>
+      </div>`).join('');
+  } catch(e){ console.error('Messages error:', e); }
+}
+
+async function markMsgRead(id){
+  await fetch('/admin/api/contact-messages/'+id+'/read', {method:'POST'});
+  loadMessages();
+  toast('Marked as read');
+}
+
+async function deleteMsg(id){
+  if(!confirm('Delete this message?')) return;
+  await fetch('/admin/api/contact-messages/'+id+'/delete', {method:'POST'});
+  loadMessages();
+  toast('Message deleted', 'var(--red)');
+}
+
+function refreshAll(){ buildDash(); renderOffices(); renderMembers(); renderOccupants(); renderWaitlist(); buildNotify(); buildBookingsTab(); buildNewsletterHistory(); loadMessages(); }
 
 // === OFFICES ===
 let ofFilter='all',ofSearch='';
@@ -825,31 +879,33 @@ function openOfficeMo(id){
   const o=DB.offices.find(x=>x.id===id);
   const m=o.member?getMember(o.member):null;
   const occs=occsForOffice(o.num);
-  const allOff=o.member?officesFor(o.member):[];
   document.getElementById('mo-title').textContent='Office '+o.num;
   document.getElementById('mo-sub').textContent=o.status+(o.member?' &mdash; '+o.member:' &mdash; Available');
   let h='<div class="di"><label>Status</label><value><span class="badge '+(o.status==='Occupied'?'bg':'bb')+'">'+o.status+'</span></value></div>'+'<div class="di"><label>Square Footage</label><value>'+(o.sqft?o.sqft+(o.dormer?' + '+o.dormer+' dormer':'')+' sq ft':'-')+'</value></div>';
+  const gross=Number(o.listDues)||0;
+  const disc=Number(o.discount)||0;
+  const offNet=Math.max(0,gross-disc);
   if(o.member&&m){
-    const d=Number(m.discount)||0;
-    const memberOffCount=DB.offices.filter(x=>x.member===o.member).length||1;
-    const offGross=Math.round((Number(m.dues)||0)/memberOffCount);
-    const offDisc=Math.round(d/memberOffCount);
-    const offNet=Math.round(net(m)/memberOffCount);
     h+='<div class="di full"><label>Dues for this Office</label><div style="margin-top:5px">';
-    h+='<div class="dues-row"><span style="color:var(--txt2)">Gross</span><span class="mono">'+f$(offGross)+'</span></div>';
-    if(d>0)h+='<div class="dues-row"><span style="color:var(--purple)">Discount</span><span class="mono" style="color:var(--purple)">- '+f$(offDisc)+'</span></div>';
-    h+='<div class="dues-row total"><span>Net</span><span class="dues-net">'+f$(offNet)+'</span></div>';
-    if(memberOffCount>1)h+='<div style="font-size:11px;color:var(--txt3);margin-top:4px">Member total: '+f$(net(m))+'/mo across '+memberOffCount+' offices</div>';
+    if(gross>0){h+='<div class="dues-row"><span style="color:var(--txt2)">Listed Rate</span><span class="mono">'+f$(gross)+'</span></div>';}
+    if(disc>0){h+='<div class="dues-row"><span style="color:var(--purple)">Discount</span><span class="mono" style="color:var(--purple)">- '+f$(disc)+'</span></div>';}
+    if(gross>0){h+='<div class="dues-row total"><span>Net</span><span class="dues-net">'+f$(offNet)+'</span></div>';}
+    else{h+='<div style="font-size:12px;color:var(--txt3);margin-top:4px">Set a Listed Rate on this office to show dues</div>';}
     h+='</div></div>';
-    h+='<div class="di"><label>Deposit</label><value class="mono">'+f$(m.deposit)+'</value></div>';
     h+='<div class="di"><label>Tenant Start</label><value>'+(o.tenantStart||'-')+'</value></div>';
-    h+='<div class="di"><label>All Offices</label><value class="mono">'+(allOff.join(', ')||'-')+'</value></div>';
     if(m.end)h+='<div class="di full"><label>End Date</label><value style="color:var(--red)">'+fD(m.end)+'</value></div>';
     if(m.notes)h+='<div class="di full"><label>Notes</label><div class="notebox">'+m.notes+'</div></div>';
   } else {
-    h+='<div class="di"><label>Listed Rate</label><value style="color:var(--acc);font-family:\'IBM Plex Mono\',monospace">'+(o.listDues?f$(o.listDues)+'/mo':'TBD')+'</value></div>';
+    h+='<div class="di"><label>Listed Rate</label><value style="color:var(--acc);font-family:\'IBM Plex Mono\',monospace">'+(gross?f$(gross)+'/mo':'TBD')+'</value></div>';
+    if(disc>0)h+='<div class="di"><label>Discount</label><value style="color:var(--purple);font-family:\'IBM Plex Mono\',monospace">- '+f$(disc)+'</value></div>';
+    if(gross>0&&disc>0)h+='<div class="di"><label>Net Rate</label><value style="color:var(--grn);font-family:\'IBM Plex Mono\',monospace">'+f$(offNet)+'/mo</value></div>';
   }
   if(occs.length){h+='<div class="divr"></div><div class="di full"><label>Occupants ('+occs.length+')</label><div style="margin-top:5px">'+occs.map(p=>'<div class="occ-tag" onclick="closeMo(null,\'view-modal\');setTimeout(()=>openOccMo(\''+esc(p.id)+'\'),60)"><span class="occ-dot '+(p.status==='Active'?'active':'archive')+'"></span>'+p.name+'</div>').join('')+'</div></div>';}
+  if((o.amenities||[]).length){
+    h+='<div class="divr"></div><div class="di full"><label>Amenities</label><div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:6px">';
+    h+=(o.amenities||[]).map(a=>'<span style="background:rgba(212,168,67,.12);border:1px solid rgba(212,168,67,.25);border-radius:20px;padding:2px 9px;font-size:11px;color:var(--acc)">'+a+'</span>').join('');
+    h+='</div></div>';
+  }
   if((o.photos||[]).length){
     h+='<div class="divr"></div><div class="di full"><label>Photos ('+o.photos.length+')</label><div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">';
     h+=o.photos.map((p,i)=>'<div style="position:relative"><img src="'+p.data+'" style="height:80px;width:110px;object-fit:cover;border-radius:6px;border:1px solid var(--bdr)"><button onclick="deleteOfficePhoto(\''+esc(o.id)+'\','+i+')" style="position:absolute;top:3px;right:3px;background:var(--red);border:none;border-radius:50%;width:20px;height:20px;color:#fff;cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center;line-height:1">&#x2715;</button></div>').join('');
@@ -1126,6 +1182,21 @@ function openOfficeForm(id){
     +'<div class="fl"><label>Discount ($)</label><input id="f-odiscount" type="number" value="'+(o.discount||0)+'" oninput="updOfficeNet()"></div>'
     +'<div class="fl full" style="background:var(--sur2);border:1px solid var(--bdr);border-radius:7px;padding:9px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--txt3);margin-bottom:3px">Net Rate</div><div id="office-net-prev" style="font-family:\'IBM Plex Mono\',monospace;font-size:17px;color:var(--grn)">-</div></div>'
     +'<div class="fl full"><label>Description (shown on website for vacant offices)</label><textarea id="f-desc" style="min-height:70px">'+(o.description||'')+'</textarea></div>'
+    +'<div class="sect-title">Amenities</div>'
+    +'<div class="fl full"><div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">'
+    +(()=>{const chk=(o.amenities||[]).includes('Ground Floor');return '<label style="display:flex;align-items:center;gap:7px;font-size:13px;color:var(--txt);cursor:pointer;padding:4px 0"><input type="checkbox" id="am-Ground-Floor" '+(chk?'checked':'')+' style="width:16px;height:16px;accent-color:var(--acc)"><span>Ground Floor</span></label>';})() 
+    +(()=>{const chk=(o.amenities||[]).includes('2nd Floor');return '<label style="display:flex;align-items:center;gap:7px;font-size:13px;color:var(--txt);cursor:pointer;padding:4px 0"><input type="checkbox" id="am-2nd-Floor" '+(chk?'checked':'')+' style="width:16px;height:16px;accent-color:var(--acc)"><span>2nd Floor</span></label>';})() 
+    +(()=>{const chk=(o.amenities||[]).includes('Coat Closet Storage');return '<label style="display:flex;align-items:center;gap:7px;font-size:13px;color:var(--txt);cursor:pointer;padding:4px 0"><input type="checkbox" id="am-Coat-Closet-Storage" '+(chk?'checked':'')+' style="width:16px;height:16px;accent-color:var(--acc)"><span>Coat Closet Storage</span></label>';})() 
+    +(()=>{const chk=(o.amenities||[]).includes('Sit/Stand Desk');return '<label style="display:flex;align-items:center;gap:7px;font-size:13px;color:var(--txt);cursor:pointer;padding:4px 0"><input type="checkbox" id="am-Sit/Stand-Desk" '+(chk?'checked':'')+' style="width:16px;height:16px;accent-color:var(--acc)"><span>Sit/Stand Desk</span></label>';})() 
+    +(()=>{const chk=(o.amenities||[]).includes('Deluxe Glass Whiteboard');return '<label style="display:flex;align-items:center;gap:7px;font-size:13px;color:var(--txt);cursor:pointer;padding:4px 0"><input type="checkbox" id="am-Deluxe-Glass-Whiteboard" '+(chk?'checked':'')+' style="width:16px;height:16px;accent-color:var(--acc)"><span>Deluxe Glass Whiteboard</span></label>';})() 
+    +(()=>{const chk=(o.amenities||[]).includes('Janitorial Services');return '<label style="display:flex;align-items:center;gap:7px;font-size:13px;color:var(--txt);cursor:pointer;padding:4px 0"><input type="checkbox" id="am-Janitorial-Services" '+(chk?'checked':'')+' style="width:16px;height:16px;accent-color:var(--acc)"><span>Janitorial Services</span></label>';})() 
+    +(()=>{const chk=(o.amenities||[]).includes('Whiteboard');return '<label style="display:flex;align-items:center;gap:7px;font-size:13px;color:var(--txt);cursor:pointer;padding:4px 0"><input type="checkbox" id="am-Whiteboard" '+(chk?'checked':'')+' style="width:16px;height:16px;accent-color:var(--acc)"><span>Whiteboard</span></label>';})() 
+    +(()=>{const chk=(o.amenities||[]).includes('File Cabinet');return '<label style="display:flex;align-items:center;gap:7px;font-size:13px;color:var(--txt);cursor:pointer;padding:4px 0"><input type="checkbox" id="am-File-Cabinet" '+(chk?'checked':'')+' style="width:16px;height:16px;accent-color:var(--acc)"><span>File Cabinet</span></label>';})() 
+    +(()=>{const chk=(o.amenities||[]).includes('Exterior Windows');return '<label style="display:flex;align-items:center;gap:7px;font-size:13px;color:var(--txt);cursor:pointer;padding:4px 0"><input type="checkbox" id="am-Exterior-Windows" '+(chk?'checked':'')+' style="width:16px;height:16px;accent-color:var(--acc)"><span>Exterior Windows</span></label>';})() 
+    +(()=>{const chk=(o.amenities||[]).includes('Wall Sound Insulation');return '<label style="display:flex;align-items:center;gap:7px;font-size:13px;color:var(--txt);cursor:pointer;padding:4px 0"><input type="checkbox" id="am-Wall-Sound-Insulation" '+(chk?'checked':'')+' style="width:16px;height:16px;accent-color:var(--acc)"><span>Wall Sound Insulation</span></label>';})() 
+    +(()=>{const chk=(o.amenities||[]).includes('Private Entry');return '<label style="display:flex;align-items:center;gap:7px;font-size:13px;color:var(--txt);cursor:pointer;padding:4px 0"><input type="checkbox" id="am-Private-Entry" '+(chk?'checked':'')+' style="width:16px;height:16px;accent-color:var(--acc)"><span>Private Entry</span></label>';})() 
+    +(()=>{const chk=(o.amenities||[]).includes('Conference Room Access');return '<label style="display:flex;align-items:center;gap:7px;font-size:13px;color:var(--txt);cursor:pointer;padding:4px 0"><input type="checkbox" id="am-Conference-Room-Access" '+(chk?'checked':'')+' style="width:16px;height:16px;accent-color:var(--acc)"><span>Conference Room Access</span></label>';})() 
+    +'</div></div>'
     +'<div class="sect-title">Office Photos (shown on website for vacant offices)</div>'
     +'<div class="fl full">'+existingPhotosHtml+'<div class="file-drop" id="office-drop-zone" style="margin-top:10px"><input type="file" multiple accept="image/*" id="office-photo-input"><div class="file-drop-txt">&#128247; Add more photos or <span>click to browse</span><br><small>JPG, PNG &mdash; up to 6 photos total, max 5MB each</small></div></div>'
     +'<div class="pending-files" id="pending-office-photos"></div>'
@@ -1198,7 +1269,8 @@ async function submitForm(){
     // Merge new photos with remaining existing photos (after deletions)
     const remainingExisting = _remainingOfficePhotos || (existing.photos||[]);
     const mergedPhotos = [...remainingExisting, ...newPhotos].slice(0,6);
-    const obj={id:formId||uid(),num,status:document.getElementById('f-status').value,member:document.getElementById('f-member').value,tenantStart:document.getElementById('f-tstart').value,sqft:Number(document.getElementById('f-sqft').value)||null,dormer:Number(document.getElementById('f-dormer').value)||null,listDues:Number(document.getElementById('f-ldues').value)||null,discount:Number(document.getElementById('f-odiscount')?.value)||0,description:document.getElementById('f-desc')?.value||'',photos:mergedPhotos};
+    const _amList=['Ground Floor','2nd Floor','Coat Closet Storage','Sit/Stand Desk','Deluxe Glass Whiteboard','Janitorial Services','Whiteboard','File Cabinet','Exterior Windows','Wall Sound Insulation','Private Entry','Conference Room Access'];const amenities=_amList.filter(a=>document.getElementById('am-'+a.replace(/ /g,'-'))?.checked);
+    const obj={id:formId||uid(),num,status:document.getElementById('f-status').value,member:document.getElementById('f-member').value,tenantStart:document.getElementById('f-tstart').value,sqft:Number(document.getElementById('f-sqft').value)||null,dormer:Number(document.getElementById('f-dormer').value)||null,listDues:Number(document.getElementById('f-ldues').value)||null,discount:Number(document.getElementById('f-odiscount')?.value)||0,description:document.getElementById('f-desc')?.value||'',amenities,photos:mergedPhotos};
     if(formId){const i=DB.offices.findIndex(x=>x.id===formId);DB.offices[i]=obj;}else DB.offices.push(obj);
   } else if(formType==='member'){
     const name=document.getElementById('f-name').value.trim();if(!name){alert('Member name required.');return;}

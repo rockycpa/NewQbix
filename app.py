@@ -340,16 +340,56 @@ def contact_submit():
     name    = request.form.get('name', '')
     email   = request.form.get('email', '')
     phone   = request.form.get('phone', '')
+    subject = request.form.get('subject', '')
     message = request.form.get('message', '')
-    # Email to admin
-    send_email(
-        ADMIN_EMAIL, 'Qbix Centre Admin',
-        f'Website enquiry from {name}',
-        f'<p><b>Name:</b> {name}<br><b>Email:</b> {email}<br><b>Phone:</b> {phone}</p><p>{message}</p>',
-        f'Name: {name}\nEmail: {email}\nPhone: {phone}\n\n{message}'
-    )
+
+    # Store message in database
+    data = get_db()
+    data.setdefault('contact_messages', [])
+    import secrets as _sec
+    msg_entry = {
+        'id': '_' + _sec.token_hex(4),
+        'name': name,
+        'email': email,
+        'phone': phone,
+        'subject': subject,
+        'message': message,
+        'date': datetime.now().isoformat(),
+        'read': False,
+    }
+    data['contact_messages'].insert(0, msg_entry)
+    save_data(data)
+
+    # SMS notification to admin
+    sms_text = f'New Qbix website message from {name}: {message[:100]}'
+    send_sms(ADMIN_PHONE, sms_text)
+
     flash('Thank you! We will be in touch shortly.', 'success')
     return redirect(url_for('contact'))
+
+@app.route('/admin/api/contact-messages')
+@login_required
+def get_contact_messages():
+    data = get_db()
+    return jsonify({'ok': True, 'messages': data.get('contact_messages', [])})
+
+@app.route('/admin/api/contact-messages/<msg_id>/read', methods=['POST'])
+@login_required
+def mark_message_read(msg_id):
+    data = get_db()
+    msg = next((m for m in data.get('contact_messages', []) if m['id'] == msg_id), None)
+    if msg:
+        msg['read'] = True
+        save_data(data)
+    return jsonify({'ok': True})
+
+@app.route('/admin/api/contact-messages/<msg_id>/delete', methods=['POST'])
+@login_required
+def delete_contact_message(msg_id):
+    data = get_db()
+    data['contact_messages'] = [m for m in data.get('contact_messages', []) if m['id'] != msg_id]
+    save_data(data)
+    return jsonify({'ok': True})
 
 @app.route('/news')
 def news():
@@ -361,10 +401,16 @@ def news():
 @app.route('/news/<post_id>')
 def news_post(post_id):
     data = get_db()
-    post = next((p for p in data.get('newsletter', []) if p['id'] == post_id), None)
+    posts = sorted(data.get('newsletter', []), key=lambda x: x.get('date',''), reverse=True)
+    post = next((p for p in posts if p['id'] == post_id), None)
     if not post:
         abort(404)
-    return render_template('public/news_post.html', post=post, ga_id=GA_MEASUREMENT_ID)
+    idx = posts.index(post)
+    prev_post = posts[idx + 1] if idx + 1 < len(posts) else None
+    next_post = posts[idx - 1] if idx > 0 else None
+    return render_template('public/news_post.html', post=post,
+                           prev_post=prev_post, next_post=next_post,
+                           ga_id=GA_MEASUREMENT_ID)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
