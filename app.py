@@ -1413,7 +1413,7 @@ def generate_newsletter():
         import json as json_mod
 
         payload = {
-            'model': 'claude-sonnet-4-20250514',
+            'model': 'claude-sonnet-4-5',
             'max_tokens': 1000,
             'messages': [{
                 'role': 'user',
