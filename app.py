@@ -1035,7 +1035,7 @@ def generate_agreement(member_id):
     # Net dues only — no discount language shown to member
     gross_amt   = sum(float(o.get('listDues') or 0) for o in member_offices)
     disc_amt    = sum(float(o.get('discount') or 0) for o in member_offices)
-    net_amt     = max(0, gross_amt - disc_amt) or float(member.get('dues') or 0)
+    net_amt     = max(0, gross_amt - disc_amt)
     deposit_amt = member.get('deposit', 0) or 0
     dues_str    = f'${net_amt:,.0f}/month'
     deposit_str = f'${deposit_amt:,}'
@@ -1293,8 +1293,10 @@ def generate_agreement(member_id):
         add_heading('Member Acknowledgment')
         add_body(
             'By signing below, Member acknowledges that they have read, understand, and agree to all '
-            'terms and conditions of this Membership Agreement and House Guidelines, and that they '
-            'have the authority to enter into this Agreement on behalf of themselves and/or their company.'
+            'terms and conditions of this Membership Agreement, and acknowledges receipt of and agreement '
+            'to abide by the Qbix Centre House Guidelines (as may be updated from time to time). '
+            'Member represents that they have the authority to enter into this Agreement on behalf of '
+            'themselves and/or their company.'
         )
         doc.add_paragraph()
 
