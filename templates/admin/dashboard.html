@@ -384,10 +384,44 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
   </div>
 
   <!-- DETAIL TABLE — full width -->
-  <div class="card">
+  <div class="card" style="margin-bottom:16px">
     <div class="ct">Member Lead Source Detail</div>
     <div style="font-size:12px;color:var(--txt3);margin-bottom:14px">All members and waiting list entries with a source recorded</div>
     <div id="mkt-detail" style="font-size:13px"></div>
+  </div>
+
+  <!-- SEARCH CONSOLE CARD — full width -->
+  <div class="card" id="sc-card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div class="ct" style="margin-bottom:0">&#128269; Google Search Queries</div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:12px;color:var(--txt3)">Range:</span>
+        <button class="fb on" id="sc-d28" onclick="setSCDays(28,this)">28 days</button>
+        <button class="fb"    id="sc-d7"  onclick="setSCDays(7,this)">7 days</button>
+        <button class="fb"    id="sc-d90" onclick="setSCDays(90,this)">90 days</button>
+        <a href="https://search.google.com/search-console" target="_blank" style="font-size:12px;color:var(--txt2);text-decoration:none;margin-left:4px">Search Console &#8599;</a>
+      </div>
+    </div>
+    <div style="font-size:12px;color:var(--txt3);margin-bottom:14px">What people searched on Google to find your site — sorted by impressions</div>
+
+    <!-- Summary KPIs -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px">
+      <div style="text-align:center;background:var(--sur2);border-radius:8px;padding:10px 6px">
+        <div id="sc-clicks" style="font-family:'IBM Plex Mono',monospace;font-size:22px;color:var(--acc)">-</div>
+        <div style="font-size:12px;color:var(--txt2);text-transform:uppercase;letter-spacing:.07em;margin-top:3px">Total Clicks</div>
+      </div>
+      <div style="text-align:center;background:var(--sur2);border-radius:8px;padding:10px 6px">
+        <div id="sc-impressions" style="font-family:'IBM Plex Mono',monospace;font-size:22px;color:var(--blue)">-</div>
+        <div style="font-size:12px;color:var(--txt2);text-transform:uppercase;letter-spacing:.07em;margin-top:3px">Impressions</div>
+      </div>
+      <div style="text-align:center;background:var(--sur2);border-radius:8px;padding:10px 6px">
+        <div id="sc-position" style="font-family:'IBM Plex Mono',monospace;font-size:22px;color:var(--grn)">-</div>
+        <div style="font-size:12px;color:var(--txt2);text-transform:uppercase;letter-spacing:.07em;margin-top:3px">Avg Position</div>
+      </div>
+    </div>
+
+    <!-- Query table -->
+    <div id="sc-table"></div>
   </div>
 
 </div>
@@ -1629,7 +1663,93 @@ function confirmAction(){if(confirmCallback){confirmCallback();confirmCallback=n
 function closeConf(){document.getElementById('conf-modal').classList.remove('open');}
 
 
-function toggleLeadSourceEditor(){
+// === SEARCH CONSOLE ===
+let scDays = 28;
+
+function setSCDays(d, btn){
+  scDays = d;
+  document.querySelectorAll('#sc-d7,#sc-d28,#sc-d90').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  loadSearchConsole();
+}
+
+async function loadSearchConsole(){
+  const tableEl = document.getElementById('sc-table');
+  if(!tableEl) return;
+  tableEl.innerHTML = '<div style="color:var(--txt3);font-size:13px;padding:10px 0">Loading...</div>';
+  document.getElementById('sc-clicks').textContent      = '-';
+  document.getElementById('sc-impressions').textContent = '-';
+  document.getElementById('sc-position').textContent    = '-';
+
+  try {
+    const r = await fetch(`/admin/api/searchconsole?days=${scDays}`);
+    const d = await r.json();
+
+    if(!d.ok){
+      if(d.setup){
+        tableEl.innerHTML = `<div style="background:var(--sur2);border:1px solid var(--bdr);border-radius:8px;padding:16px;font-size:13px;color:var(--txt2)">
+          <div style="font-weight:600;color:var(--txt);margin-bottom:6px">&#9881; Setup Required</div>
+          <div style="margin-bottom:8px">To enable Search Console data, add this environment variable to Railway:</div>
+          <div style="font-family:'IBM Plex Mono',monospace;background:var(--bg);border-radius:5px;padding:8px 12px;font-size:12px;color:var(--acc);margin-bottom:8px">SC_SITE_URL = https://your-site-url/</div>
+          <div style="font-size:12px;color:var(--txt3)">This should exactly match the property URL shown in Google Search Console. Also ensure the Search Console API is enabled in Google Cloud and your service account has been added as a Search Console user.</div>
+        </div>`;
+      } else {
+        tableEl.innerHTML = `<div style="color:var(--red);font-size:13px;padding:10px 0">Error: ${d.error}</div>`;
+      }
+      return;
+    }
+
+    // KPI cards
+    document.getElementById('sc-clicks').textContent      = d.total_clicks.toLocaleString();
+    document.getElementById('sc-impressions').textContent = d.total_impressions.toLocaleString();
+    document.getElementById('sc-position').textContent    = d.avg_position;
+
+    if(!d.queries || d.queries.length === 0){
+      tableEl.innerHTML = '<div style="color:var(--txt3);font-size:13px;padding:10px 0">No query data yet — check back in a day or two as Google Search Console processes your data.</div>';
+      return;
+    }
+
+    // Position colour helper
+    const posColor = p => p <= 3 ? 'var(--grn)' : p <= 10 ? 'var(--acc)' : 'var(--txt3)';
+
+    // Max impressions for bar scaling
+    const maxImp = Math.max(...d.queries.map(q=>q.impressions), 1);
+
+    tableEl.innerHTML = `
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr>
+          <th style="text-align:left;font-size:11px;color:var(--txt3);padding:6px 8px;border-bottom:1px solid var(--bdr);font-weight:600;text-transform:uppercase;letter-spacing:.06em">Search Query</th>
+          <th style="text-align:right;font-size:11px;color:var(--txt3);padding:6px 8px;border-bottom:1px solid var(--bdr);font-weight:600;text-transform:uppercase;letter-spacing:.06em">Impressions</th>
+          <th style="text-align:right;font-size:11px;color:var(--txt3);padding:6px 8px;border-bottom:1px solid var(--bdr);font-weight:600;text-transform:uppercase;letter-spacing:.06em">Clicks</th>
+          <th style="text-align:right;font-size:11px;color:var(--txt3);padding:6px 8px;border-bottom:1px solid var(--bdr);font-weight:600;text-transform:uppercase;letter-spacing:.06em">CTR</th>
+          <th style="text-align:right;font-size:11px;color:var(--txt3);padding:6px 8px;border-bottom:1px solid var(--bdr);font-weight:600;text-transform:uppercase;letter-spacing:.06em">Position</th>
+        </tr></thead>
+        <tbody>` +
+      d.queries.map(q => {
+        const barW = Math.max(4, Math.round(q.impressions / maxImp * 100));
+        return `<tr style="border-bottom:1px solid var(--bdr)" title="${q.impressions} impressions, ${q.clicks} clicks, position ${q.position}">
+          <td style="padding:8px 8px">
+            <div style="font-size:13px;color:var(--txt);margin-bottom:3px">${q.query}</div>
+            <div style="height:4px;background:var(--bdr);border-radius:2px;width:100%">
+              <div style="height:4px;background:var(--blue);border-radius:2px;width:${barW}%;opacity:0.7"></div>
+            </div>
+          </td>
+          <td style="padding:8px 8px;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--blue)">${q.impressions.toLocaleString()}</td>
+          <td style="padding:8px 8px;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--acc)">${q.clicks}</td>
+          <td style="padding:8px 8px;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--txt2)">${q.ctr}%</td>
+          <td style="padding:8px 8px;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:700;color:${posColor(q.position)}">${q.position}</td>
+        </tr>`;
+      }).join('') +
+      `</tbody></table>
+      <div style="margin-top:10px;font-size:11px;color:var(--txt3)">Showing top 20 queries by impressions &mdash; ${d.start_date} to ${d.end_date}</div>`;
+
+  } catch(e){
+    console.error('Search Console error', e);
+    tableEl.innerHTML = '<div style="color:var(--red);font-size:13px">Could not load Search Console data.</div>';
+  }
+}
+
+
   const ed = document.getElementById('ls-editor');
   const btn = document.getElementById('ls-gear-btn');
   const open = ed.style.display === 'none';
@@ -1656,7 +1776,7 @@ function buildMarketing(){
   const counts = {};
   const detail = []; // {name, type, source}
   const tracked = [
-    ...DB.members.filter(m => m.status !== 'Archive' && m.leadSource),
+    ...DB.members.filter(m => m.leadSource),
     ...DB.waitlist.filter(w => w.leadSource)
   ];
   tracked.forEach(entry => {
@@ -1733,7 +1853,7 @@ function buildMarketing(){
       <tbody>` +
       detail.map(d => `<tr style="border-bottom:1px solid var(--bdr)">
         <td style="padding:7px 8px;font-size:13px;color:var(--txt)">${d.name}</td>
-        <td style="padding:7px 8px;font-size:12px;color:var(--txt2)">${d.type}${d.status?' · '+d.status:''}</td>
+        <td style="padding:7px 8px;font-size:12px;color:${d.status==='Archive'?'var(--txt3)':'var(--txt2)'}">${d.type}${d.status?' · '+d.status:''}</td>
         <td style="padding:7px 8px;font-size:13px;color:var(--blue)">${d.source}</td>
       </tr>`).join('') +
       `</tbody></table>`;
@@ -1769,7 +1889,7 @@ function showPage(id,btn){
   document.querySelectorAll('.nb').forEach(b=>b.classList.remove('on'));
   document.getElementById('page-'+id).classList.add('on');
   btn.classList.add('on');
-  if(id==='marketing'){buildMarketing();loadAnalytics();}
+  if(id==='marketing'){buildMarketing();loadAnalytics();loadSearchConsole();}
 }
 function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.getElementById(id).classList.remove('open');}
 document.addEventListener('keydown',e=>{if(e.key==='Escape')['form-modal','view-modal','conf-modal','onboard-modal','review-modal'].forEach(id=>document.getElementById(id).classList.remove('open'));});
