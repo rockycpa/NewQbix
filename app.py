@@ -1412,20 +1412,21 @@ def generate_newsletter():
         import urllib.request
         import json as json_mod
 
+        if custom_notes.strip():
+            intro = 'Write a warm, friendly, professional monthly newsletter for Qbix Centre. '
+            focus = 'The manager has provided specific content to cover — this is the main focus of the newsletter. Cover it fully: ' + custom_notes + ' '
+            outro = 'Add a brief welcoming opener and a friendly closing. Background context (weave in naturally): ' + context + '. Format as clean HTML for email using <p>, <strong>, <ul>/<li> tags. Do not invent details not mentioned. Warm, community-focused tone.'
+            prompt = intro + focus + outro
+        else:
+            prompt = ('Write a warm, friendly, professional monthly newsletter for Qbix Centre. '
+                      '3-4 short paragraphs: welcoming opener, community snapshot, friendly closing. '
+                      'Context: ' + context + '. '
+                      'Format as clean HTML for email. Warm, community-focused tone.')
+
         payload = {
             'model': 'claude-haiku-4-5-20251001',
             'max_tokens': 1000,
-            'messages': [{
-                'role': 'user',
-                'content': (
-                    f'Write a warm, friendly, professional monthly newsletter for Qbix Centre. '
-                    f'Keep it concise — 3-4 short paragraphs. Include a welcoming opener, '
-                    f'a community update, any relevant seasonal note, and a friendly closing. '
-                    f'Context: {context}. '
-                    f'Additional notes from manager: {custom_notes}. '
-                    f'Format as HTML suitable for email. Use a warm, community-focused tone.'
-                )
-            }]
+            'messages': [{'role': 'user', 'content': prompt}]
         }
 
         req = urllib.request.Request(
