@@ -359,7 +359,7 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
     <button class="btn-add" onclick="openMemberForm(null)" style="background:var(--grn)">+ Add Member</button>
   </div>
   <div class="card"><div class="tw"><table>
-    <thead><tr><th style="width:36px"></th><th style="cursor:pointer" onclick="sortMembers('name')">Member <span id="ms-name">↕</span></th><th>Status</th><th style="cursor:pointer" onclick="sortMembers('start')">Start <span id="ms-start">↕</span></th><th>End</th><th style="text-align:right">Gross</th><th style="text-align:right">Discount</th><th style="text-align:right">Net Dues</th><th style="text-align:right">Deposit</th><th>Agreement</th><th>Docs</th></tr></thead>
+    <thead><tr><th style="width:36px"></th><th style="cursor:pointer" onclick="sortMembers('name')">Member <span id="ms-name">↕</span></th><th>Status</th><th style="cursor:pointer" onclick="sortMembers('start')">Start <span id="ms-start">↕</span></th><th>End</th><th style="text-align:right">Gross</th><th style="text-align:right">Discount</th><th style="text-align:right">Net Dues</th><th style="text-align:right">Deposit</th><th style="text-align:right">Conf Hrs</th><th>Agreement</th><th>Docs</th></tr></thead>
     <tbody id="m-tbody"></tbody>
   </table></div></div>
 </div>
@@ -938,13 +938,14 @@ function renderMembers(){
     return av.localeCompare(bv)*mSort.dir;
   });
   document.getElementById('m-count').textContent=list.length+' members';
-  let totGross=0,totDisc=0,totNet=0,totDep=0;
+  let totGross=0,totDisc=0,totNet=0,totDep=0,totHrs=0;
   const rows=list.map(m=>{
     const gross=memberGrossFromOffices(m);
     const disc=memberDiscFromOffices(m);
     const netDues=memberNetFromOffices(m);
     const dep=Number(m.deposit)||0;
-    totGross+=gross; totDisc+=disc; totNet+=netDues; totDep+=dep;
+    const hrs=DB.offices.filter(o=>o.member===m.name).reduce((s,o)=>s+(Number(o.confHours)??6),0);
+    totGross+=gross; totDisc+=disc; totNet+=netDues; totDep+=dep; totHrs+=hrs;
     const atts=m.attachments||[];
     const agStatus=m.agreementStatus||(m.agreementSigned?'Received':m.agreementSent?'Sent':'Pending');
     const agColors={'Received':'background:#14532d;color:#86efac','Sent':'background:#1e3a5f;color:#93c5fd','Pending':'background:#4a1515;color:#fca5a5','N/A':'background:#1f2535;color:#94a3b8'};
@@ -964,6 +965,7 @@ function renderMembers(){
       +'<td class="mono" style="color:'+(disc>0?'var(--purple)':'var(--txt3)')+';font-size:14px;text-align:right">'+(disc>0?'('+fmt(disc)+')':'-')+'</td>'
       +'<td class="mono" style="color:var(--grn);font-size:14px;font-weight:600;text-align:right">'+fmt(netDues)+'</td>'
       +'<td class="mono" style="font-size:14px;text-align:right">'+fmt(dep)+'</td>'
+      +'<td class="mono" style="font-size:14px;text-align:right;color:var(--blue)">'+(hrs>0?hrs+' hr':'-')+'</td>'
       +agCell
       +'<td style="font-size:13px;color:'+(atts.length?'var(--acc)':'var(--txt3)')+'">&#128206; '+(atts.length||'-')+'</td></tr>';
   }).join('');
@@ -974,6 +976,7 @@ function renderMembers(){
     +'<td class="mono" style="font-size:15px;color:var(--purple);font-weight:700;text-align:right">'+(totDisc>0?'('+fmt(totDisc)+')':'-')+'</td>'
     +'<td class="mono" style="font-size:16px;color:var(--grn);font-weight:700;text-align:right">'+fmt(totNet)+'</td>'
     +'<td class="mono" style="font-size:15px;color:var(--txt);font-weight:700;text-align:right">'+fmt(totDep)+'</td>'
+    +'<td class="mono" style="font-size:15px;color:var(--blue);font-weight:700;text-align:right">'+(totHrs>0?totHrs+' hr':'-')+'</td>'
     +'<td></td><td></td></tr>';
   document.getElementById('m-tbody').innerHTML=(rows||'<tr><td colspan="11" style="color:var(--txt3);text-align:center;padding:20px">No members found</td></tr>')+totalsRow;
 }
