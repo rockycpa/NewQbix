@@ -365,6 +365,11 @@ def contact():
     track_pageview('/contact')
     return render_template('public/contact.html', ga_id=GA_MEASUREMENT_ID)
 
+@app.route('/privacy')
+def privacy():
+    track_pageview('/privacy')
+    return render_template('public/privacy.html', ga_id=GA_MEASUREMENT_ID)
+
 @app.route('/contact', methods=['POST'])
 def contact_submit():
     name    = request.form.get('name', '')
