@@ -1209,7 +1209,7 @@ def generate_agreement(member_id):
         add_bullet(f'A refundable deposit of {deposit_str} is required prior to move-in and will be returned, less normal wear and tear and cost of unreturned keys, upon conclusion of the membership.')
         if not waive_setup_fee:
             add_bullet('A one-time setup fee of $100 is due at signing.')
-        add_bullet(f'The initial term of this Agreement is six (6) full calendar months, from {term_start_str} through {term_end_str}. This Agreement automatically renews for successive six (6) month periods at the then-current rate unless the Member provides written notice of non-renewal at least thirty (30) days prior to the end of the then-current term. Failure to provide timely notice results in automatic renewal and the Member's obligation for the full succeeding term.')
+        add_bullet(f'The initial term of this Agreement is six (6) full calendar months, from {term_start_str} through {term_end_str}. This Agreement automatically renews for successive six (6) month periods at the then-current rate unless the Member provides written notice of non-renewal at least thirty (30) days prior to the end of the then-current term. Failure to provide timely notice results in automatic renewal and the Member\'s obligation for the full succeeding term.')
         add_bullet('A non-refundable background check fee of $35 per cardholder is required prior to access being granted.')
         add_bullet('Additional key/fob holders: $150/month plus $35 background check fee. Both keyholders must be from the same company.')
 
