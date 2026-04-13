@@ -104,6 +104,15 @@ DEFAULT_DATA = {
     ],
     "lastBackup": "",
     "newsletter": [],
+    "leadSources": [
+        "Drive-by / Signage",
+        "Facebook",
+        "Nextdoor",
+        "Referral from Member",
+        "Google Search",
+        "Website",
+        "Other"
+    ],
 }
 
 
@@ -165,6 +174,10 @@ def load_data():
         # Migrate: ensure new fields exist
         d.setdefault('bookings', [])
         d.setdefault('newsletter', [])
+        d.setdefault('leadSources', [
+            'Drive-by / Signage', 'Facebook', 'Nextdoor',
+            'Referral from Member', 'Google Search', 'Website', 'Other'
+        ])
         for m in d.get('members', []):
             m.setdefault('attachments', [])
             m.setdefault('discount', 0)

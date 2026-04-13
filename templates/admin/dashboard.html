@@ -226,6 +226,7 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
   <div class="logo">Qbix Centre <em>Management Portal</em></div>
   <nav>
     <button class="nb on" onclick="showPage('dashboard',this)">Dashboard</button>
+    <button class="nb" onclick="showPage('marketing',this)">&#128200; Marketing</button>
     <button class="nb" onclick="showPage('offices',this)">Offices</button>
     <button class="nb" onclick="showPage('members',this)">Members</button>
     <button class="nb" onclick="showPage('occupants',this)">Occupants</button>
@@ -276,35 +277,6 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
   <div class="dg2">
     <div class="card"><div class="ct">Net Dues by Member</div><div id="rev-bars"></div></div>
     <div>
-      <!-- ANALYTICS WIDGET -->
-      <div class="card" style="margin-bottom:12px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-          <div class="ct" style="margin-bottom:0">Website Traffic</div>
-          <a href="https://analytics.google.com" target="_blank" style="font-size:12px;color:var(--txt2);text-decoration:none">Google Analytics &#8599;</a>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
-          <div style="text-align:center;background:var(--sur2);border-radius:8px;padding:10px 6px">
-            <div id="an-today" style="font-family:'IBM Plex Mono',monospace;font-size:22px;color:var(--acc)">-</div>
-            <div style="font-size:12px;color:var(--txt2);text-transform:uppercase;letter-spacing:.07em;margin-top:3px">Today</div>
-          </div>
-          <div style="text-align:center;background:var(--sur2);border-radius:8px;padding:10px 6px">
-            <div id="an-week" style="font-family:'IBM Plex Mono',monospace;font-size:22px;color:var(--blue)">-</div>
-            <div style="font-size:12px;color:var(--txt2);text-transform:uppercase;letter-spacing:.07em;margin-top:3px">7 Days</div>
-          </div>
-          <div style="text-align:center;background:var(--sur2);border-radius:8px;padding:10px 6px">
-            <div id="an-month" style="font-family:'IBM Plex Mono',monospace;font-size:22px;color:var(--grn)">-</div>
-            <div style="font-size:12px;color:var(--txt2);text-transform:uppercase;letter-spacing:.07em;margin-top:3px">30 Days</div>
-          </div>
-        </div>
-        <div style="margin-bottom:12px">
-          <div style="font-size:12px;color:var(--txt2);margin-bottom:5px;text-transform:uppercase;letter-spacing:.07em">Daily Views — Last 30 Days</div>
-          <div id="an-sparkline" style="display:flex;align-items:flex-end;gap:2px;height:40px"></div>
-        </div>
-        <div>
-          <div style="font-size:12px;color:var(--txt2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.07em">Top Pages This Month</div>
-          <div id="an-pages" style="font-size:13px;color:var(--txt)">Loading...</div>
-        </div>
-      </div>
       <div class="card" style="margin-bottom:12px">
         <div class="ct">Upcoming End Dates</div>
         {% if endings %}
@@ -328,6 +300,79 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
         {% else %}<div style="color:var(--txt3);font-size:12px">No upcoming bookings</div>{% endif %}
       </div>
     </div>
+  </div>
+</div>
+
+</div>
+
+<!-- MARKETING -->
+<div class="page" id="page-marketing">
+  <div class="pg-title">&#128200; Marketing</div><div class="pg-sub">Lead sources, website traffic &amp; growth tracking</div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+
+    <!-- WEBSITE TRAFFIC -->
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div class="ct" style="margin-bottom:0">Website Traffic</div>
+        <a href="https://analytics.google.com" target="_blank" style="font-size:12px;color:var(--txt2);text-decoration:none">Google Analytics &#8599;</a>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
+        <div style="text-align:center;background:var(--sur2);border-radius:8px;padding:10px 6px">
+          <div id="an-today" style="font-family:'IBM Plex Mono',monospace;font-size:22px;color:var(--acc)">-</div>
+          <div style="font-size:12px;color:var(--txt2);text-transform:uppercase;letter-spacing:.07em;margin-top:3px">Today</div>
+        </div>
+        <div style="text-align:center;background:var(--sur2);border-radius:8px;padding:10px 6px">
+          <div id="an-week" style="font-family:'IBM Plex Mono',monospace;font-size:22px;color:var(--blue)">-</div>
+          <div style="font-size:12px;color:var(--txt2);text-transform:uppercase;letter-spacing:.07em;margin-top:3px">7 Days</div>
+        </div>
+        <div style="text-align:center;background:var(--sur2);border-radius:8px;padding:10px 6px">
+          <div id="an-month" style="font-family:'IBM Plex Mono',monospace;font-size:22px;color:var(--grn)">-</div>
+          <div style="font-size:12px;color:var(--txt2);text-transform:uppercase;letter-spacing:.07em;margin-top:3px">30 Days</div>
+        </div>
+      </div>
+      <div style="margin-bottom:12px">
+        <div style="font-size:12px;color:var(--txt2);margin-bottom:5px;text-transform:uppercase;letter-spacing:.07em">Daily Views — Last 30 Days</div>
+        <div id="an-sparkline" style="display:flex;align-items:flex-end;gap:2px;height:40px"></div>
+      </div>
+      <div>
+        <div style="font-size:12px;color:var(--txt2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.07em">Top Pages This Month</div>
+        <div id="an-pages" style="font-size:13px;color:var(--txt)">Loading...</div>
+      </div>
+    </div>
+
+    <!-- LEAD SOURCE PIE CHART -->
+    <div class="card">
+      <div class="ct">Where Members Are Finding Us</div>
+      <div style="font-size:12px;color:var(--txt3);margin-bottom:14px">Based on active &amp; pending members with a source recorded</div>
+      <div id="mkt-pie-wrap" style="display:flex;gap:20px;align-items:flex-start">
+        <canvas id="mkt-pie" width="180" height="180" style="flex-shrink:0"></canvas>
+        <div id="mkt-legend" style="flex:1;font-size:13px"></div>
+      </div>
+      <div id="mkt-no-data" style="display:none;color:var(--txt3);font-size:13px;padding:20px 0">No lead source data yet — add sources to members to see the chart.</div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+
+    <!-- LEAD SOURCE LIST MANAGER -->
+    <div class="card">
+      <div class="ct">Lead Source Options</div>
+      <div style="font-size:12px;color:var(--txt3);margin-bottom:14px">These are the options shown in the Member and Waiting List forms. Add, rename, or remove as needed.</div>
+      <div id="ls-list" style="margin-bottom:12px"></div>
+      <div style="display:flex;gap:8px">
+        <input id="ls-new-input" type="text" placeholder="New source name..." style="flex:1;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;padding:8px 10px;color:var(--txt);font-size:14px;font-family:'IBM Plex Sans',sans-serif" onkeydown="if(event.key==='Enter')addLeadSource()">
+        <button onclick="addLeadSource()" style="background:var(--acc);color:#000;border:none;border-radius:6px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer">+ Add</button>
+      </div>
+    </div>
+
+    <!-- MEMBER LEAD SOURCE BREAKDOWN TABLE -->
+    <div class="card">
+      <div class="ct">Member Lead Source Detail</div>
+      <div style="font-size:12px;color:var(--txt3);margin-bottom:14px">All members and waiting list entries with a source recorded</div>
+      <div id="mkt-detail" style="font-size:13px"></div>
+    </div>
+
   </div>
 </div>
 
@@ -670,7 +715,6 @@ function buildDash(){
   const active=DB.members.filter(m=>m.status==='Active'&&m.dues>0).sort((a,b)=>net(b)-net(a));
   const mx=active[0]?net(active[0]):1;
   document.getElementById('rev-bars').innerHTML=active.map(m=>'<div class="ri"><div class="rl" title="'+m.name+'">'+m.name+'</div><div class="rb"><div class="rbf" style="width:'+Math.round(net(m)/mx*100)+'%"></div></div><div class="ra">'+f$(net(m))+'</div></div>').join('')||'<div style="color:var(--txt3);font-size:12px">No active members</div>';
-  loadAnalytics();
 }
 
 function buildBookingsTab(){
@@ -826,7 +870,7 @@ async function loadAnalytics(){
   }
 }
 
-function refreshAll(){ buildDash(); renderOffices(); renderMembers(); renderOccupants(); renderWaitlist(); buildNotify(); buildBookingsTab(); buildNewsletterHistory(); }
+function refreshAll(){ buildDash(); buildMarketing(); renderOffices(); renderMembers(); renderOccupants(); renderWaitlist(); buildNotify(); buildBookingsTab(); buildNewsletterHistory(); }
 
 // === OFFICES ===
 let ofFilter='all',ofSearch='';
@@ -995,6 +1039,7 @@ function openMemberMo(id){
   h+='<div class="di"><label>Email</label><value style="font-size:12px">'+eml(m.email)+'</value></div>';
   h+='<div class="di"><label>Phone</label><value class="mono">'+(m.phone||'-')+'</value></div>';
   if(m.notes)h+='<div class="di full"><label>Notes</label><div class="notebox">'+m.notes+'</div></div>';
+  if(m.leadSource)h+='<div class="di"><label>Found Us Via</label><value style="color:var(--blue)">'+m.leadSource+'</value></div>';
   h+='<div class="di"><label>Agreement Status</label><value><span class="badge '+(m.agreementStatus==='Received'?'bg':m.agreementStatus==='Sent'?'ba':m.agreementStatus==='N/A'?'':'br')+'">'+(m.agreementStatus||'Pending')+'</span></value></div>';
   h+='<div class="di"><label>Agreement Sent</label><value>'+(m.agreementSent?fD(m.agreementSent):'<span style="color:var(--txt3)">Not sent</span>')+'</value></div>';
   h+='<div class="divr"></div><div class="di full"><label>Docs ('+atts.length+')</label>'+(atts.length?'<div class="att-list" id="att-list-view"></div>':'<div style="color:var(--txt3);font-size:12px;margin-top:4px">None. Click Edit to add.</div>')+'</div>';
@@ -1337,8 +1382,11 @@ function openOfficeForm(id){
 
 function openMemberForm(id){
   formType='member';formId=id;pendingFiles=[];const m=id?getMemberById(id):{};
+  const lsOpts=['',  ...(DB.leadSources||[])].map(s=>'<option value="'+s+'" '+((m.leadSource||'')==s?'selected':'')+'>'+(s||'— Select source —')+'</option>').join('');
   document.getElementById('form-title').textContent=id?'Edit Member':'Add Member';
-  document.getElementById('form-body').innerHTML='<div class="fg"><div class="fl full"><label>Member Name *</label><input id="f-name" value="'+(m.name||'')+'" placeholder="Company or individual name"></div>'+statusButtons(m.status||'Active',true)+'<div class="fl"><label>Start Date</label><input id="f-start" type="date" value="'+(m.start||'')+'"></div><div class="fl"><label>Deposit Held ($)</label><input id="f-deposit" type="number" value="'+(m.deposit||'')+'"></div><div class="fl"><label>Billing Email</label><input id="f-email" type="email" value="'+(m.email||'')+'"></div><div class="fl"><label>Phone</label><input id="f-phone" value="'+(m.phone||'')+'"></div><div class="fl full"><label>Notes</label><textarea id="f-notes">'+(m.notes||'')+'</textarea></div><div class="fl"><label>First Month Proration ($) <span style="font-weight:400;color:var(--txt3);font-size:11px">— leave blank if starting on the 1st</span></label><input id="f-proration" type="number" value="'+(m.proration||'')+'" placeholder="e.g. 387"></div><div class="sect-title">Agreements / Documents</div><div class="fl full"><div class="file-drop" id="member-drop-zone"><input type="file" multiple accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" id="member-file-input"><div class="file-drop-txt">&#128206; Drop files or <span>click to browse</span><br><small>PDF, Word, or images &mdash; max 10MB each</small></div></div><div class="pending-files" id="pending-agreements"></div>'+((m.attachments||[]).length?'<div style="margin-top:7px;font-size:11px;color:var(--txt3)">Stored: '+(m.attachments||[]).map(a=>'<span style="color:var(--acc)">'+a.name+'</span>').join(', ')+'</div>':'')+'</div></div>';
+  document.getElementById('form-body').innerHTML='<div class="fg"><div class="fl full"><label>Member Name *</label><input id="f-name" value="'+(m.name||'')+'" placeholder="Company or individual name"></div>'+statusButtons(m.status||'Active',true)+'<div class="fl"><label>Start Date</label><input id="f-start" type="date" value="'+(m.start||'')+'"></div><div class="fl"><label>Deposit Held ($)</label><input id="f-deposit" type="number" value="'+(m.deposit||'')+'"></div><div class="fl"><label>Billing Email</label><input id="f-email" type="email" value="'+(m.email||'')+'"></div><div class="fl"><label>Phone</label><input id="f-phone" value="'+(m.phone||'')+'"></div><div class="fl full"><label>Notes</label><textarea id="f-notes">'+(m.notes||'')+'</textarea></div><div class="fl"><label>First Month Proration ($) <span style="font-weight:400;color:var(--txt3);font-size:11px">— leave blank if starting on the 1st</span></label><input id="f-proration" type="number" value="'+(m.proration||'')+'" placeholder="e.g. 387"></div>'
+    +'<div class="fl"><label>How Did They Find Us?</label><select id="f-leadsource">'+lsOpts+'</select></div>'
+    +'<div class="sect-title">Agreements / Documents</div><div class="fl full"><div class="file-drop" id="member-drop-zone"><input type="file" multiple accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" id="member-file-input"><div class="file-drop-txt">&#128206; Drop files or <span>click to browse</span><br><small>PDF, Word, or images &mdash; max 10MB each</small></div></div><div class="pending-files" id="pending-agreements"></div>'+((m.attachments||[]).length?'<div style="margin-top:7px;font-size:11px;color:var(--txt3)">Stored: '+(m.attachments||[]).map(a=>'<span style="color:var(--acc)">'+a.name+'</span>').join(', ')+'</div>':'')+'</div></div>';
   const mdz=document.getElementById('member-drop-zone');
   if(mdz){mdz.addEventListener('dragover',e=>{e.preventDefault();mdz.classList.add('drag');});mdz.addEventListener('dragleave',()=>mdz.classList.remove('drag'));mdz.addEventListener('drop',e=>{e.preventDefault();mdz.classList.remove('drag');handleFiles(e.dataTransfer.files,'agreements');});}
   const mfi=document.getElementById('member-file-input');
@@ -1381,8 +1429,9 @@ function openOccupantForm(id){
 
 function openWaitForm(id){
   formType='waitlist';formId=id;const w=id?DB.waitlist.find(x=>x.id===id):{};
+  const lsOpts=['',...(DB.leadSources||[])].map(s=>'<option value="'+s+'" '+((w.leadSource||'')==s?'selected':'')+'>'+(s||'— Select source —')+'</option>').join('');
   document.getElementById('form-title').textContent=id?'Edit Entry':'Add to Waiting List';
-  document.getElementById('form-body').innerHTML='<div class="fg"><div class="fl full"><label>Name *</label><input id="f-name" value="'+(w.name||'')+'" placeholder="Full name or company"></div><div class="fl"><label>Phone</label><input id="f-phone" value="'+(w.phone||'')+'"></div><div class="fl"><label>Date Requested</label><input id="f-date" type="date" value="'+(w.date||'')+'"></div><div class="fl full"><label>Comments / Notes</label><textarea id="f-comment">'+(w.comment||'')+'</textarea></div></div>';
+  document.getElementById('form-body').innerHTML='<div class="fg"><div class="fl full"><label>Name *</label><input id="f-name" value="'+(w.name||'')+'" placeholder="Full name or company"></div><div class="fl"><label>Phone</label><input id="f-phone" value="'+(w.phone||'')+'"></div><div class="fl"><label>Date Requested</label><input id="f-date" type="date" value="'+(w.date||'')+'"></div><div class="fl"><label>How Did They Find Us?</label><select id="f-leadsource">'+lsOpts+'</select></div><div class="fl full"><label>Comments / Notes</label><textarea id="f-comment">'+(w.comment||'')+'</textarea></div></div>';
   document.getElementById('form-modal').classList.add('open');
 }
 
@@ -1399,7 +1448,7 @@ async function submitForm(){
   } else if(formType==='member'){
     const name=document.getElementById('f-name').value.trim();if(!name){alert('Member name required.');return;}
     const existing=formId?getMemberById(formId):{attachments:[],agreementSent:'',agreementSigned:''};
-    const obj={id:formId||uid(),name,status:document.getElementById('f-status').value,deposit:Number(document.getElementById('f-deposit').value)||0,proration:Number(document.getElementById('f-proration')?.value)||0,start:document.getElementById('f-start').value,end:document.getElementById('f-end').value,email:document.getElementById('f-email').value.trim(),phone:document.getElementById('f-phone').value.trim(),notes:document.getElementById('f-notes').value.trim(),attachments:[...(existing.attachments||[]),...pendingFiles],agreementSent:existing.agreementSent||'',agreementSigned:existing.agreementSigned||''};
+    const obj={id:formId||uid(),name,status:document.getElementById('f-status').value,deposit:Number(document.getElementById('f-deposit').value)||0,proration:Number(document.getElementById('f-proration')?.value)||0,start:document.getElementById('f-start').value,end:document.getElementById('f-end').value,email:document.getElementById('f-email').value.trim(),phone:document.getElementById('f-phone').value.trim(),notes:document.getElementById('f-notes').value.trim(),leadSource:document.getElementById('f-leadsource')?.value||'',attachments:[...(existing.attachments||[]),...pendingFiles],agreementSent:existing.agreementSent||'',agreementSigned:existing.agreementSigned||''};
     if(formId){const i=DB.members.findIndex(x=>x.id===formId);DB.members[i]=obj;}else DB.members.push(obj);
   } else if(formType==='occupant'){
     const name=document.getElementById('f-name').value.trim();const company=document.getElementById('f-company').value;if(!name||!company){alert('Name and company required.');return;}
@@ -1410,7 +1459,7 @@ async function submitForm(){
     if(formId){const i=DB.occupants.findIndex(x=>x.id===formId);DB.occupants[i]=obj;}else DB.occupants.push(obj);
   } else if(formType==='waitlist'){
     const name=document.getElementById('f-name').value.trim();if(!name){alert('Name required.');return;}
-    const obj={id:formId||uid(),name,phone:document.getElementById('f-phone').value.trim(),date:document.getElementById('f-date').value,comment:document.getElementById('f-comment').value.trim()};
+    const obj={id:formId||uid(),name,phone:document.getElementById('f-phone').value.trim(),date:document.getElementById('f-date').value,leadSource:document.getElementById('f-leadsource')?.value||'',comment:document.getElementById('f-comment').value.trim()};
     if(formId){const i=DB.waitlist.findIndex(x=>x.id===formId);DB.waitlist[i]=obj;}else DB.waitlist.push(obj);
   }
   closeForm();refreshAll();await saveData();toast('Saved &#10003;');
@@ -1448,8 +1497,140 @@ function askDelete(type,id,label){
 function confirmAction(){if(confirmCallback){confirmCallback();confirmCallback=null;}}
 function closeConf(){document.getElementById('conf-modal').classList.remove('open');}
 
+
+// === MARKETING ===
+function buildMarketing(){
+  if(!document.getElementById('page-marketing')) return;
+
+  // ── Lead source manager list ──────────────────────────────────────────────
+  const sources = DB.leadSources || [];
+  document.getElementById('ls-list').innerHTML = sources.length
+    ? sources.map((s,i) =>
+        `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--bdr)">
+          <div style="flex:1;font-size:14px;color:var(--txt)">${s}</div>
+          <button onclick="removeLeadSource(${i})" style="background:none;border:1px solid var(--red);border-radius:5px;color:var(--red);padding:3px 9px;font-size:12px;cursor:pointer">Remove</button>
+        </div>`).join('')
+    : '<div style="color:var(--txt3);font-size:13px;padding:8px 0">No sources yet — add one below.</div>';
+
+  // ── Collect lead source data from members + waitlist ──────────────────────
+  const counts = {};
+  const detail = []; // {name, type, source}
+  const tracked = [
+    ...DB.members.filter(m => m.status !== 'Archive' && m.leadSource),
+    ...DB.waitlist.filter(w => w.leadSource)
+  ];
+  tracked.forEach(entry => {
+    const src = entry.leadSource;
+    counts[src] = (counts[src] || 0) + 1;
+    detail.push({
+      name: entry.name,
+      type: entry.status !== undefined ? 'Member' : 'Waitlist',
+      source: src,
+      status: entry.status || ''
+    });
+  });
+
+  const total = Object.values(counts).reduce((a,b)=>a+b, 0);
+
+  // ── Pie chart ─────────────────────────────────────────────────────────────
+  const pieWrap = document.getElementById('mkt-pie-wrap');
+  const noData  = document.getElementById('mkt-no-data');
+  if(total === 0){
+    pieWrap.style.display = 'none';
+    noData.style.display  = 'block';
+  } else {
+    pieWrap.style.display = 'flex';
+    noData.style.display  = 'none';
+
+    const COLORS = [
+      '#d4a843','#5b9bd5','#4db887','#9b7ed4','#d96060',
+      '#e8994a','#4dc8c8','#c45bb8','#8db85b','#7b8fb5'
+    ];
+    const canvas  = document.getElementById('mkt-pie');
+    const ctx     = canvas.getContext('2d');
+    const cx = 90, cy = 90, r = 80;
+    ctx.clearRect(0, 0, 180, 180);
+
+    const entries = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+    let angle = -Math.PI / 2;
+    entries.forEach(([label, count], i) => {
+      const slice = (count / total) * 2 * Math.PI;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.arc(cx, cy, r, angle, angle + slice);
+      ctx.closePath();
+      ctx.fillStyle = COLORS[i % COLORS.length];
+      ctx.fill();
+      ctx.strokeStyle = '#0b0d11';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      angle += slice;
+    });
+
+    // Legend
+    document.getElementById('mkt-legend').innerHTML = entries.map(([label, count], i) => {
+      const pct = Math.round(count / total * 100);
+      return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:9px">
+        <div style="width:12px;height:12px;border-radius:3px;background:${COLORS[i % COLORS.length]};flex-shrink:0"></div>
+        <div style="flex:1;font-size:13px;color:var(--txt);line-height:1.3">${label}</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--acc);font-weight:700">${count} <span style="color:var(--txt3);font-weight:400">(${pct}%)</span></div>
+      </div>`;
+    }).join('') + `<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--bdr);font-size:12px;color:var(--txt3)">Total tracked: ${total}</div>`;
+  }
+
+  // ── Detail table ──────────────────────────────────────────────────────────
+  const detailEl = document.getElementById('mkt-detail');
+  if(detail.length === 0){
+    detailEl.innerHTML = '<div style="color:var(--txt3);padding:8px 0">No lead source data recorded yet.</div>';
+  } else {
+    detail.sort((a,b)=>a.source.localeCompare(b.source)||a.name.localeCompare(b.name));
+    detailEl.innerHTML = `<table style="width:100%;border-collapse:collapse">
+      <thead><tr>
+        <th style="text-align:left;font-size:11px;color:var(--txt3);padding:5px 8px;border-bottom:1px solid var(--bdr);font-weight:600;text-transform:uppercase;letter-spacing:.06em">Name</th>
+        <th style="text-align:left;font-size:11px;color:var(--txt3);padding:5px 8px;border-bottom:1px solid var(--bdr);font-weight:600;text-transform:uppercase;letter-spacing:.06em">Type</th>
+        <th style="text-align:left;font-size:11px;color:var(--txt3);padding:5px 8px;border-bottom:1px solid var(--bdr);font-weight:600;text-transform:uppercase;letter-spacing:.06em">Source</th>
+      </tr></thead>
+      <tbody>` +
+      detail.map(d => `<tr style="border-bottom:1px solid var(--bdr)">
+        <td style="padding:7px 8px;font-size:13px;color:var(--txt)">${d.name}</td>
+        <td style="padding:7px 8px;font-size:12px;color:var(--txt2)">${d.type}${d.status?' · '+d.status:''}</td>
+        <td style="padding:7px 8px;font-size:13px;color:var(--blue)">${d.source}</td>
+      </tr>`).join('') +
+      `</tbody></table>`;
+  }
+}
+
+async function addLeadSource(){
+  const inp = document.getElementById('ls-new-input');
+  const val = inp.value.trim();
+  if(!val){ inp.focus(); return; }
+  if((DB.leadSources||[]).includes(val)){
+    toast('That source already exists','var(--red)'); return;
+  }
+  DB.leadSources = [...(DB.leadSources||[]), val];
+  inp.value = '';
+  buildMarketing();
+  await saveData();
+  toast('Source added ✓');
+}
+
+async function removeLeadSource(idx){
+  const src = DB.leadSources[idx];
+  if(!confirm(`Remove "${src}"? This won't change existing records, just removes the option from new forms.`)) return;
+  DB.leadSources.splice(idx, 1);
+  buildMarketing();
+  await saveData();
+  toast('Source removed');
+}
+
 // === NAV ===
-function showPage(id,btn){document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));document.querySelectorAll('.nb').forEach(b=>b.classList.remove('on'));document.getElementById('page-'+id).classList.add('on');btn.classList.add('on');}
+function showPage(id,btn){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.nb').forEach(b=>b.classList.remove('on'));
+  document.getElementById('page-'+id).classList.add('on');
+  btn.classList.add('on');
+  if(id==='marketing'){buildMarketing();loadAnalytics();}
+}
 function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.getElementById(id).classList.remove('open');}
 document.addEventListener('keydown',e=>{if(e.key==='Escape')['form-modal','view-modal','conf-modal','onboard-modal','review-modal'].forEach(id=>document.getElementById(id).classList.remove('open'));});
 
