@@ -44,7 +44,15 @@
           {% set net_rate = (o.listDues or 0) - (o.discount or 0) %}
           {% if o.listDues %}${{ "{:,}".format([net_rate, 0]|max) }}/month{% else %}Contact for pricing{% endif %}
         </div>
-        <div style="font-size:12px;color:var(--txt2);margin-bottom:14px">Click to view photos &amp; details</div>
+        {% if o.amenities %}
+        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:12px">
+          {% for a in o.amenities[:4] %}
+          <span style="background:#f0f7ff;border:1px solid #c3deff;border-radius:20px;padding:2px 8px;font-size:11px;color:#1a5276">{{ a }}</span>
+          {% endfor %}
+          {% if o.amenities|length > 4 %}<span style="font-size:11px;color:var(--txt2)">+{{ o.amenities|length - 4 }} more</span>{% endif %}
+        </div>
+        {% endif %}
+        <div style="font-size:12px;color:var(--txt2);margin-bottom:14px">Click to view all photos &amp; amenities</div>
         <a href="/contact" class="btn btn-navy btn-sm" style="width:100%;text-align:center;display:block"
            onclick="event.stopPropagation()">Inquire About This Office</a>
       </div>
