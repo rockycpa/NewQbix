@@ -12,3 +12,4 @@ twilio
 psycopg2-binary
 google-analytics-data
 google-auth
+google-api-python-client
