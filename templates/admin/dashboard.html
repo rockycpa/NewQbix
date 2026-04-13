@@ -43,13 +43,13 @@ nav{display:flex;gap:2px}
 main{padding:20px 22px;max-width:1440px;margin:0 auto}
 .page{display:none}.page.on{display:block}
 .pg-title{font-family:'Playfair Display',serif;font-size:23px;margin-bottom:3px}
-.pg-sub{color:var(--txt2);font-size:12px;margin-bottom:16px}
+.pg-sub{color:var(--txt2);font-size:14px;margin-bottom:16px}
 .stats{display:grid;grid-template-columns:repeat(5,1fr);gap:11px;margin-bottom:16px}
 .sc{background:var(--sur);border:1px solid var(--bdr);border-radius:var(--r);padding:14px 16px;position:relative;overflow:hidden}
 .sc::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
 .sc.g::before{background:var(--grn)}.sc.b::before{background:var(--blue)}.sc.a::before{background:var(--acc)}.sc.r::before{background:var(--red)}.sc.p::before{background:var(--purple)}
-.sc-v{font-family:'IBM Plex Mono',monospace;font-size:25px;line-height:1;margin-bottom:3px}
-.sc-l{font-size:12px;color:var(--txt2)}.sc-s{font-size:11px;color:var(--txt3);margin-top:2px}
+.sc-v{font-family:'IBM Plex Mono',monospace;font-size:28px;font-weight:600;line-height:1;margin-bottom:4px}
+.sc-l{font-size:13px;color:var(--txt2);font-weight:500}.sc-s{font-size:12px;color:var(--txt3);margin-top:3px}
 .card{background:var(--sur);border:1px solid var(--bdr);border-radius:var(--r);padding:16px}
 .ct{font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--txt3);margin-bottom:9px;font-weight:600}
 .tw{overflow-x:auto}
@@ -122,7 +122,7 @@ tr.rclick:hover td{background:rgba(255,255,255,.02);cursor:pointer}
 .fl input:focus,.fl select:focus,.fl textarea:focus{border-color:var(--acc)}
 .fl textarea{resize:vertical;min-height:65px;line-height:1.5}
 .fl select option{background:var(--sur2)}
-.sect-title{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--txt3);font-weight:600;margin:12px 0 9px;padding-top:12px;border-top:1px solid var(--bdr);grid-column:1/-1}
+.sect-title{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--txt2);font-weight:700;margin:14px 0 10px;padding-top:14px;border-top:1px solid var(--bdr);grid-column:1/-1}
 .file-drop{border:2px dashed var(--bdr);border-radius:8px;padding:13px;text-align:center;cursor:pointer;transition:all .15s;position:relative}
 .file-drop:hover,.file-drop.drag{border-color:var(--acc);background:rgba(212,168,67,.04)}
 .file-drop input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
@@ -328,7 +328,7 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
 
 <!-- OFFICES -->
 <div class="page" id="page-offices">
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:3px"><div class="pg-title">Offices</div><button onclick="renderOffices()" style="background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt2);padding:6px 14px;font-size:12px;cursor:pointer;font-family:'IBM Plex Sans',sans-serif">&#8635; Refresh</button></div><div class="pg-sub">Click any tile to view or edit</div>
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:3px"><div class="pg-title">Offices</div><button onclick="renderOffices()" style="background:var(--sur2);border:1px solid var(--acc);border-radius:6px;color:var(--acc);padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;font-family:'IBM Plex Sans',sans-serif">&#8635; Refresh</button></div><div class="pg-sub">Click any tile to view or edit</div>
   <div class="tb">
     <input class="sb" type="text" placeholder="Search office or member..." oninput="filterOffices(this.value)">
     <button class="fb on" id="fa" onclick="setOF('all',this)">All</button>
@@ -342,7 +342,7 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
 
 <!-- MEMBERS -->
 <div class="page" id="page-members">
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:3px"><div class="pg-title">Members</div><button onclick="renderMembers()" style="background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt2);padding:6px 14px;font-size:12px;cursor:pointer;font-family:'IBM Plex Sans',sans-serif">&#8635; Refresh</button></div><div class="pg-sub">Click any row to view or edit</div>
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:3px"><div class="pg-title">Members</div><button onclick="renderMembers()" style="background:var(--sur2);border:1px solid var(--acc);border-radius:6px;color:var(--acc);padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;font-family:'IBM Plex Sans',sans-serif">&#8635; Refresh</button></div><div class="pg-sub">Click any row to view or edit</div>
   <div class="tb">
     <input class="sb" type="text" placeholder="Search member..." oninput="filterMembers(this.value)">
     <button class="fb on" id="mf-active" onclick="setMF('Active',this)">Active</button>
@@ -354,14 +354,14 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
     <button class="btn-add" onclick="openMemberForm(null)" style="background:var(--grn)">+ Add Member</button>
   </div>
   <div class="card"><div class="tw"><table>
-    <thead><tr><th style="width:36px"></th><th style="cursor:pointer" onclick="sortMembers('name')">Member <span id="ms-name">↕</span></th><th>Status</th><th style="cursor:pointer" onclick="sortMembers('start')">Start <span id="ms-start">↕</span></th><th>End</th><th>Gross</th><th>Discount</th><th>Net Dues</th><th>Deposit</th><th>Agreement</th><th>Docs</th></tr></thead>
+    <thead><tr><th style="width:36px"></th><th style="cursor:pointer" onclick="sortMembers('name')">Member <span id="ms-name">↕</span></th><th>Status</th><th style="cursor:pointer" onclick="sortMembers('start')">Start <span id="ms-start">↕</span></th><th>End</th><th style="text-align:right">Gross</th><th style="text-align:right">Discount</th><th style="text-align:right">Net Dues</th><th style="text-align:right">Deposit</th><th>Agreement</th><th>Docs</th></tr></thead>
     <tbody id="m-tbody"></tbody>
   </table></div></div>
 </div>
 
 <!-- OCCUPANTS -->
 <div class="page" id="page-occupants">
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:3px"><div class="pg-title">Occupants</div><button onclick="renderOccupants()" style="background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt2);padding:6px 14px;font-size:12px;cursor:pointer;font-family:'IBM Plex Sans',sans-serif">&#8635; Refresh</button></div><div class="pg-sub">Click any row to view or edit</div>
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:3px"><div class="pg-title">Occupants</div><button onclick="renderOccupants()" style="background:var(--sur2);border:1px solid var(--acc);border-radius:6px;color:var(--acc);padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;font-family:'IBM Plex Sans',sans-serif">&#8635; Refresh</button></div><div class="pg-sub">Click any row to view or edit</div>
   <div class="tb">
     <input class="sb" type="text" placeholder="Search name, company, office..." oninput="filterOccupants(this.value)">
     <button class="fb on" id="of-active" onclick="setOccF('Active',this)">Active</button>
@@ -435,7 +435,7 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
 
 <!-- NEWSLETTER -->
 <div class="page" id="page-newsletter">
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:3px"><div class="pg-title">&#128240; Newsletter</div><button onclick="buildNewsletterHistory()" style="background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt2);padding:6px 14px;font-size:12px;cursor:pointer;font-family:'IBM Plex Sans',sans-serif">&#8635; Refresh</button></div><div class="pg-sub">AI-assisted monthly newsletter &mdash; ~3 cents per draft</div>
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:3px"><div class="pg-title">&#128240; Newsletter</div><button onclick="buildNewsletterHistory()" style="background:var(--sur2);border:1px solid var(--acc);border-radius:6px;color:var(--acc);padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;font-family:'IBM Plex Sans',sans-serif">&#8635; Refresh</button></div><div class="pg-sub">AI-assisted monthly newsletter &mdash; ~3 cents per draft</div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start">
     <div class="card">
       <div class="ct">Generate Draft</div>
@@ -624,6 +624,7 @@ function checkDailyBackup(){
 // === HELPERS ===
 const uid  = () => '_'+Math.random().toString(36).slice(2,9);
 const f$   = n => (n==null||n===''||isNaN(n))? '$0' : '$'+Number(n).toLocaleString();
+const fmt  = n => (n==null||n===''||n===0||isNaN(n))? '-' : Number(n).toLocaleString();
 const fD   = d => { if(!d) return '-'; try{ return new Date(d+(d.includes('T')||d.length>10?'':'T12:00:00')).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }catch(e){return d;} };
 const eml  = e => e ? '<a href="mailto:'+e+'" style="color:var(--blue)">'+e+'</a>' : '-';
 const esc  = s => (s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
@@ -915,20 +916,20 @@ function renderMembers(){
       +'<td><span class="badge '+(m.status==='Active'?'bg':m.status==='Pending'?'ba':'br')+'">'+m.status+'</span></td>'
       +'<td class="mono" style="font-size:13px">'+fD(m.start)+'</td>'
       +'<td class="mono" style="color:'+(m.end?'var(--red)':'var(--txt3)')+';font-size:13px">'+fD(m.end)+'</td>'
-      +'<td class="mono" style="font-size:14px">'+f$(gross)+'</td>'
-      +'<td class="mono" style="color:'+(disc>0?'var(--purple)':'var(--txt3)')+';font-size:14px">'+(disc>0?'- '+f$(disc):'-')+'</td>'
-      +'<td class="mono" style="color:var(--grn);font-size:14px;font-weight:600">'+f$(netDues)+'</td>'
-      +'<td class="mono" style="font-size:14px">'+f$(dep)+'</td>'
+      +'<td class="mono" style="font-size:14px;text-align:right">'+fmt(gross)+'</td>'
+      +'<td class="mono" style="color:'+(disc>0?'var(--purple)':'var(--txt3)')+';font-size:14px;text-align:right">'+(disc>0?'('+fmt(disc)+')':'-')+'</td>'
+      +'<td class="mono" style="color:var(--grn);font-size:14px;font-weight:600;text-align:right">'+fmt(netDues)+'</td>'
+      +'<td class="mono" style="font-size:14px;text-align:right">'+fmt(dep)+'</td>'
       +'<td>'+agStatus+'</td>'
       +'<td style="font-size:12px;color:'+(atts.length?'var(--acc)':'var(--txt3)')+'">&#128206; '+(atts.length||'-')+'</td></tr>';
   }).join('');
   const totalsRow='<tr style="background:var(--sur2);border-top:2px solid var(--acc)">'
     +'<td></td><td style="font-size:13px;color:var(--txt2);padding:10px 8px;font-weight:700">TOTALS ('+list.length+')</td>'
     +'<td></td><td></td><td></td>'
-    +'<td class="mono" style="font-size:15px;color:var(--txt);font-weight:700">'+f$(totGross)+'</td>'
-    +'<td class="mono" style="font-size:15px;color:var(--purple);font-weight:700">- '+f$(totDisc)+'</td>'
-    +'<td class="mono" style="font-size:16px;color:var(--grn);font-weight:700">'+f$(totNet)+'</td>'
-    +'<td class="mono" style="font-size:15px;color:var(--txt);font-weight:700">'+f$(totDep)+'</td>'
+    +'<td class="mono" style="font-size:15px;color:var(--txt);font-weight:700;text-align:right">'+fmt(totGross)+'</td>'
+    +'<td class="mono" style="font-size:15px;color:var(--purple);font-weight:700;text-align:right">'+(totDisc>0?'('+fmt(totDisc)+')':'-')+'</td>'
+    +'<td class="mono" style="font-size:16px;color:var(--grn);font-weight:700;text-align:right">'+fmt(totNet)+'</td>'
+    +'<td class="mono" style="font-size:15px;color:var(--txt);font-weight:700;text-align:right">'+fmt(totDep)+'</td>'
     +'<td></td><td></td></tr>';
   document.getElementById('m-tbody').innerHTML=(rows||'<tr><td colspan="11" style="color:var(--txt3);text-align:center;padding:20px">No members found</td></tr>')+totalsRow;
 }
