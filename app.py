@@ -1413,7 +1413,7 @@ def generate_newsletter():
         import json as json_mod
 
         payload = {
-            'model': 'claude-sonnet-4-5',
+            'model': 'claude-haiku-4-5-20251001',
             'max_tokens': 1000,
             'messages': [{
                 'role': 'user',
@@ -1442,8 +1442,12 @@ def generate_newsletter():
             draft = result['content'][0]['text']
             return jsonify({'ok': True, 'draft': draft})
 
+    except urllib.error.HTTPError as e:
+        body = e.read().decode('utf-8', errors='replace')
+        return jsonify({'ok': False, 'error': f'Anthropic HTTP {e.code}: {body[:400]}'}), 500
     except Exception as e:
-        return jsonify({'ok': False, 'error': str(e)}), 500
+        import traceback
+        return jsonify({'ok': False, 'error': str(e), 'detail': traceback.format_exc()[-600:]}), 500
 
 @app.route('/admin/api/publish-newsletter', methods=['POST'])
 @login_required
