@@ -169,6 +169,16 @@ def load_data():
             m.setdefault('discount', 0)
             m.setdefault('agreementSent', '')
             m.setdefault('agreementSigned', '')
+            # Migrate agreementStatus — infer from existing fields
+            if 'agreementStatus' not in m:
+                if m.get('attachments'):
+                    m['agreementStatus'] = 'Received'
+                elif m.get('agreementSigned'):
+                    m['agreementStatus'] = 'Received'
+                elif m.get('agreementSent'):
+                    m['agreementStatus'] = 'Sent'
+                else:
+                    m['agreementStatus'] = 'Pending'
         for p in d.get('occupants', []):
             p.setdefault('dlAttachment', None)
         return d
@@ -324,6 +334,22 @@ def offices_page():
     data = get_db()
     vacant = [o for o in data['offices'] if o['status'] == 'Vacant']
     return render_template('public/offices.html', vacant=vacant, ga_id=GA_MEASUREMENT_ID)
+
+@app.route('/offices/<office_id>')
+def office_detail(office_id):
+    track_pageview(f'/offices/{office_id}')
+    data = get_db()
+    office = next((o for o in data['offices'] if o['id'] == office_id), None)
+    if not office or office.get('status') != 'Vacant':
+        abort(404)
+    # Get next/prev vacant offices for navigation
+    vacant = [o for o in data['offices'] if o['status'] == 'Vacant']
+    idx = next((i for i, o in enumerate(vacant) if o['id'] == office_id), 0)
+    prev_office = vacant[idx - 1] if idx > 0 else None
+    next_office = vacant[idx + 1] if idx + 1 < len(vacant) else None
+    return render_template('public/office_detail.html', office=office,
+                           prev_office=prev_office, next_office=next_office,
+                           ga_id=GA_MEASUREMENT_ID)
 
 @app.route('/amenities')
 def amenities():
@@ -960,6 +986,25 @@ def generate_onboard_link():
         )
 
     return jsonify({'ok': True, 'link': link, 'token': token})
+
+# ── Agreement status update ───────────────────────────────────────────────────
+
+@app.route('/admin/api/update-agreement-status/<member_id>', methods=['POST'])
+@login_required
+def update_agreement_status(member_id):
+    """Update a member's agreement status (Received, Sent, Pending, N/A)."""
+    data = get_db()
+    member = next((m for m in data['members'] if m['id'] == member_id), None)
+    if not member:
+        return jsonify({'ok': False, 'error': 'Member not found'}), 404
+    payload = request.json or {}
+    status = payload.get('agreementStatus', '')
+    allowed = ['Pending', 'Sent', 'Received', 'N/A']
+    if status not in allowed:
+        return jsonify({'ok': False, 'error': f'Invalid status. Must be one of: {allowed}'}), 400
+    member['agreementStatus'] = status
+    save_data(data)
+    return jsonify({'ok': True, 'agreementStatus': status})
 
 # ── Agreement generator ───────────────────────────────────────────────────────
 
