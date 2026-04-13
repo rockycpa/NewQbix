@@ -564,6 +564,7 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
 
 <div class="toast" id="toast"></div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js"></script>
 <script>
 {% raw %}
 // === DATA ===
@@ -723,20 +724,16 @@ async function generateNewsletter(){
       document.getElementById('nl-subject').value=`Qbix Centre — ${now.toLocaleDateString('en-US',{month:'long',year:'numeric'})} Newsletter`;
       document.getElementById('nl-body').value=result.draft;
       document.getElementById('nl-draft-area').style.display='block';
-      // Init Quill then set content
+      // Init Quill then set content via the proper API so Quill's model updates
       initQuill();
       initNlPhotoUploads();
       resetNlPhotos();
-      // Set Quill content — try immediately then retry after short delay as fallback
-      const setQuillContent = () => {
+      setTimeout(() => {
         if(nlQuill && result.draft){
-          nlQuill.root.innerHTML = result.draft;
+          nlQuill.clipboard.dangerouslyPasteHTML(0, result.draft);
           document.getElementById('nl-body').value = nlQuill.root.innerHTML;
         }
-      };
-      setQuillContent();
-      setTimeout(setQuillContent, 300);
-      setTimeout(setQuillContent, 800);
+      }, 50);
       toast('Draft generated! Review and edit before sending.');
     } else { toast('Error: '+result.error,'var(--red)'); }
   } catch(e){ toast('Generation failed: '+e.message,'var(--red)'); }
@@ -1456,7 +1453,7 @@ editNewsletterPost = function(id){
   _origEdit(id);
   setTimeout(()=>{
     const body = document.getElementById('nl-body').value;
-    if(body && nlQuill) nlQuill.root.innerHTML = body;
+    if(body && nlQuill) nlQuill.clipboard.dangerouslyPasteHTML(0, body);
     if(p) loadNlPhotos(p);
   }, 100);
 };
@@ -1487,12 +1484,11 @@ publishNewsletter = async function(send){
     await saveData();
   }
   
-  if(nlQuill){ nlQuill.root.innerHTML = ''; }
+  if(nlQuill){ nlQuill.setText(''); }
   resetNlPhotos();
 };
 
 {% endraw %}
 </script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js"></script>
 </body>
 </html>
