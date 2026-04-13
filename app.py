@@ -2,7 +2,8 @@
 """
 Qbix Centre — Complete Web Application
 Runs on Railway. Serves both the public website and the management app.
-Data stored in qbix_data.json (committed to Railway or on persistent volume).
+Data stored in PostgreSQL on Railway.
+v2 — office detail pages, agreement status, contrast improvements
 """
 
 import json
@@ -340,8 +341,11 @@ def office_detail(office_id):
     track_pageview(f'/offices/{office_id}')
     data = get_db()
     office = next((o for o in data['offices'] if o['id'] == office_id), None)
-    if not office or office.get('status') != 'Vacant':
+    if not office:
         abort(404)
+    # Only show vacant offices publicly; redirect occupied ones back to offices list
+    if office.get('status') != 'Vacant':
+        return redirect(url_for('offices_page'))
     # Get next/prev vacant offices for navigation
     vacant = [o for o in data['offices'] if o['status'] == 'Vacant']
     idx = next((i for i, o in enumerate(vacant) if o['id'] == office_id), 0)
