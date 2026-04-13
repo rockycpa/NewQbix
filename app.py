@@ -1440,6 +1440,13 @@ def generate_newsletter():
         with urllib.request.urlopen(req, timeout=30) as resp:
             result = json_mod.loads(resp.read())
             draft = result['content'][0]['text']
+            # Strip markdown code fences if model wrapped response in them
+            draft = draft.strip()
+            if draft.startswith('```'):
+                draft = draft.split('\n', 1)[-1]
+            if draft.endswith('```'):
+                draft = draft.rsplit('```', 1)[0]
+            draft = draft.strip()
             return jsonify({'ok': True, 'draft': draft})
 
     except urllib.error.HTTPError as e:
