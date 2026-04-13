@@ -1021,6 +1021,7 @@ def update_agreement_status(member_id):
 @login_required
 def generate_agreement(member_id):
     """Generate a complete, professional filled-in membership agreement as .docx"""
+    waive_setup_fee = request.args.get('waive_setup_fee', 'false').lower() == 'true'
     data   = get_db()
     member = next((m for m in data['members'] if m['id'] == member_id), None)
     if not member:
@@ -1122,7 +1123,7 @@ def generate_agreement(member_id):
         sub = doc.add_paragraph()
         sub.alignment = WD_ALIGN_PARAGRAPH.CENTER
         sub.paragraph_format.space_after = Pt(2)
-        sr = sub.add_run('Membership Agreement & House Guidelines')
+        sr = sub.add_run('Membership Agreement')
         sr.font.size = Pt(12)
         sr.font.color.rgb = RGBColor(0x66, 0x66, 0x66)
 
@@ -1156,8 +1157,9 @@ def generate_agreement(member_id):
         add_heading('1. Membership & Fees')
         add_bullet(f'Monthly dues of {dues_str} are due on the 1st of each month via auto-draft through Bill.com. Payments received after the 5th are considered late.')
         add_bullet(f'A refundable deposit of {deposit_str} (equivalent to one month\'s dues) is required prior to move-in and will be returned less normal wear and tear and cost of unreturned keys.')
-        add_bullet('A one-time setup fee of $200 is due at signing.')
-        add_bullet(f'The initial term is six (6) months beginning {start_str}, automatically renewing on a month-to-month basis at the then-current rate unless terminated in accordance with Section 6.')
+        if not waive_setup_fee:
+            add_bullet('A one-time setup fee of $100 is due at signing.')
+        add_bullet(f'The initial term is six (6) full calendar months beginning {start_str}. This Agreement automatically renews for successive six (6) month periods at the then-current rate unless the Member provides written notice of non-renewal at least thirty (30) days prior to the end of the then-current term. Failure to provide timely notice results in automatic renewal and the Member\'s obligation for the full succeeding term.')
         add_bullet('Address Memberships are month-to-month from inception.')
         add_bullet('A non-refundable background check fee of $35 per cardholder is required prior to access being granted.')
         add_bullet('Additional key/fob holders: $150/month plus $35 background check fee. Both keyholders must be from the same company.')
@@ -1165,7 +1167,7 @@ def generate_agreement(member_id):
         # ── SECTION 2 ──────────────────────────────────────────────────────
         add_heading('2. Access & Use')
         add_bullet('Members receive 24/7 access via card key/fob and a personal access code. Access codes are strictly confidential and must not be shared.')
-        add_bullet(f'The conference room may be reserved online at qbixcentre.com at least 24 hours in advance. Each membership includes {conf_hours} hours per month at no charge; additional time is billed at $50/hour.')
+        add_bullet(f'The conference room may be reserved online at qbixcentre.com at least 24 hours in advance. Each membership includes {conf_hours} hours per month at no charge; additional time is billed at $25/hour.')
         add_bullet('The workspace is for lawful, professional business purposes only. Sleeping, cooking meals, or conducting personal activities on the premises is not permitted.')
         add_bullet('Members are responsible for safeguarding their own confidential information and must respect the privacy and confidentiality of fellow members.')
 
@@ -1173,7 +1175,7 @@ def generate_agreement(member_id):
         add_heading('3. Amenities & Overage Charges')
         add_bullet('Included with all memberships: High-speed Wi-Fi/Ethernet (AT&T Gigabit Fiber), furnished workstations with sit/stand desks, kitchenette with Starbucks coffee and beverages, full-color laser printer/scanner, conference room, free parking, and janitorial service.')
         add_bullet('Monthly printing allowances: 200 black & white pages; 100 color pages. Overages: $0.10/page B&W; $0.20/page color.')
-        add_bullet('Conference room overages beyond included hours: $50/hour, billed monthly.')
+        add_bullet('Conference room overages beyond included hours: $25/hour, billed monthly.')
         add_bullet('Mail handling is included with all private office memberships.')
 
         # ── SECTION 4 ──────────────────────────────────────────────────────
@@ -1193,7 +1195,7 @@ def generate_agreement(member_id):
 
         # ── SECTION 6 ──────────────────────────────────────────────────────
         add_heading('6. Termination')
-        add_bullet('By Member: Written notice of termination must be provided at least thirty (30) days prior to the end of the then-current term. Membership fees remain due and payable through the end of the notice period. No pro-ration of fees for partial months.')
+        add_bullet('By Member: The Member may elect not to renew this Agreement by providing written notice of non-renewal to Qbix Centre at least thirty (30) days prior to the end of the then-current six (6) month term. Notice provided after this deadline will not prevent automatic renewal, and the Member will be responsible for dues for the full succeeding term. Membership fees remain due and payable through the end of any active term with no pro-ration for partial months.')
         add_bullet('By Management: Qbix Centre reserves the right to terminate any membership immediately and without refund for violation of this Agreement, the House Guidelines, or any conduct deemed detrimental to the community or the facility.')
         add_bullet('Upon termination, Member must return all keys and access devices, remove all personal property within 48 hours, and leave their office and any common areas in clean condition. Management may dispose of any property left after 48 hours.')
 
@@ -1207,24 +1209,19 @@ def generate_agreement(member_id):
         add_bullet('Dispute Resolution: The parties agree to attempt to resolve any dispute informally before pursuing legal remedies. This Agreement shall be governed by the laws of the State of Georgia.')
         add_bullet('Entire Agreement: This Agreement, together with the House Guidelines, constitutes the entire agreement between the parties and supersedes all prior negotiations, representations, or agreements.')
 
-        # ── HOUSE GUIDELINES ──────────────────────────────────────────────
+        # ── SECTION 8: HOUSE GUIDELINES ACKNOWLEDGMENT ────────────────────
         add_heading('8. House Guidelines')
-        add_body('The following guidelines are incorporated into and made part of this Agreement:')
-        guidelines = [
-            'Workstations & Equipment: Treat all furniture and equipment with care. Report damage promptly. Do not move furniture without management approval.',
-            'Conference Room: Reserve in advance via qbixcentre.com. Clean up completely after each use — wipe the whiteboard, arrange chairs, and dispose of any trash.',
-            'Kitchenette: Label all food and beverages with your name and date. Unclaimed items will be discarded each Friday. Wash dishes immediately — do not leave in the sink.',
-            'Noise & Privacy: Keep voices low in common areas. Use headphones for all audio. Conference rooms are available for calls and meetings.',
-            'Visitors & Clients: You are welcome to receive clients. Guide them directly to your office or a conference room. Do not leave guests unattended in common areas.',
-            'Internet: Use the network responsibly and lawfully. Do not conduct illegal downloads or activities. Bandwidth-intensive personal streaming is not permitted.',
-            'Printing: Print thoughtfully. Overages will be added to your next invoice.',
-            'Cleanliness: Clear your desk daily. Use recycling bins for paper. Use the secure shredding bin for confidential documents.',
-            'Smoke-Free Facility: No smoking, vaping, or e-cigarettes anywhere on the property, including the parking lot.',
-            'Fragrances: Please be considerate of shared air — avoid strong perfumes, candles, or incense.',
-            'Comfort: Thermostat adjustments should be discussed with management. Do not make changes without approval.',
-        ]
-        for g in guidelines:
-            add_bullet(g)
+        add_body(
+            'Qbix Centre maintains a separate House Guidelines document that governs day-to-day conduct, '
+            'use of common areas, equipment, noise, cleanliness, and other operational matters. '
+            'By signing this Agreement, Member acknowledges that they have received, read, and agree to '
+            'abide by the Qbix Centre House Guidelines in their current form. Member further acknowledges '
+            'and agrees that the House Guidelines are subject to change at any time at the sole discretion '
+            'of the Manager, and that continued use of the premises constitutes acceptance of any updated '
+            'guidelines. The Manager will make reasonable efforts to notify Members of material changes '
+            'by email prior to their effective date.'
+        )
+        doc.add_paragraph()
 
         # ── SIGNATURE PAGE ────────────────────────────────────────────────
         doc.add_page_break()
@@ -1247,8 +1244,10 @@ def generate_agreement(member_id):
         add_heading('Member Acknowledgment')
         add_body(
             'By signing below, Member acknowledges that they have read, understand, and agree to all '
-            'terms and conditions of this Membership Agreement and House Guidelines, and that they '
-            'have the authority to enter into this Agreement on behalf of themselves and/or their company.'
+            'terms and conditions of this Membership Agreement, and acknowledges receipt of and agreement '
+            'to abide by the Qbix Centre House Guidelines (as may be updated from time to time). '
+            'Member represents that they have the authority to enter into this Agreement on behalf of '
+            'themselves and/or their company.'
         )
         doc.add_paragraph()
 
