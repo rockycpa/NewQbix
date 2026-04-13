@@ -205,6 +205,11 @@ tr.rclick:hover td{background:rgba(255,255,255,.02);cursor:pointer}
 .newsletter-preview{background:var(--sur2);border:1px solid var(--bdr);border-radius:8px;padding:16px;max-height:300px;overflow-y:auto;font-size:13px;line-height:1.7;margin-top:10px}
 .pending-bar{background:rgba(212,168,67,.1);border:1px solid rgba(212,168,67,.3);border-radius:8px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;gap:12px}
 .pending-count{font-family:'IBM Plex Mono',monospace;font-size:20px;color:var(--acc);font-weight:700}
+
+.rv-row{display:flex;justify-content:space-between;align-items:baseline;padding:5px 0;border-bottom:1px solid var(--bdr)}
+.rv-row:last-child{border-bottom:none}
+.rv-label{font-size:13px;color:var(--txt2)}
+.rv-val{font-size:13px;color:var(--txt);font-weight:600;text-align:right}
 </style>
 <script>
 function showPage(id,btn){
@@ -562,44 +567,15 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
   </div>
 </div>
 
-<!-- Pre-flight Agreement Modal -->
-<div class="mo" id="preflight-modal" onclick="closeMo(event,'preflight-modal')">
-  <div class="mo-box" style="max-width:440px">
+
+<!-- Agreement Review Modal -->
+<div class="mo" id="review-modal" onclick="closeMo(event,'review-modal')">
+  <div class="mo-box" style="max-width:560px;padding:0">
     <div class="mo-hdr">
-      <span>&#128196; Generate Agreement</span>
-      <button class="mo-close" onclick="document.getElementById('preflight-modal').classList.remove('open')">&#x2715;</button>
+      <span>&#128196; Review Agreement Before Generating</span>
+      <button class="mo-close" onclick="document.getElementById('review-modal').classList.remove('open')">&#x2715;</button>
     </div>
-    <div style="padding:24px 28px">
-      <p style="color:var(--txt2);font-size:14px;margin-bottom:20px">Generating agreement for <strong style="color:var(--txt)" id="pf-member-name"></strong>. Review your options before generating.</p>
-      <input type="hidden" id="pf-member-id">
-
-      <div style="display:flex;flex-direction:column;gap:14px;margin-bottom:28px">
-        <label style="display:flex;align-items:center;gap:12px;cursor:pointer;padding:14px 16px;background:var(--sur2);border:1px solid var(--bdr);border-radius:8px">
-          <input type="checkbox" id="pf-waive-setup" style="width:18px;height:18px;accent-color:var(--acc);cursor:pointer;flex-shrink:0">
-          <div>
-            <div style="color:var(--txt);font-size:14px;font-weight:600">Waive $100 setup fee</div>
-            <div style="color:var(--txt3);font-size:12px;margin-top:2px">Setup fee line item will be omitted from the agreement</div>
-          </div>
-        </label>
-        <label style="display:flex;align-items:center;gap:12px;cursor:pointer;padding:14px 16px;background:var(--sur2);border:1px solid var(--bdr);border-radius:8px">
-          <input type="checkbox" id="pf-waive-bg" style="width:18px;height:18px;accent-color:var(--acc);cursor:pointer;flex-shrink:0">
-          <div>
-            <div style="color:var(--txt);font-size:14px;font-weight:600">Waive background check</div>
-            <div style="color:var(--txt3);font-size:12px;margin-top:2px">A note will be added to your outgoing email only — the background check section stays in the document</div>
-          </div>
-        </label>
-      </div>
-
-      <div style="background:rgba(212,168,67,0.08);border:1px solid rgba(212,168,67,0.25);border-radius:8px;padding:12px 14px;margin-bottom:24px">
-        <div style="color:var(--acc);font-size:12px;font-weight:600;margin-bottom:4px">&#9432; What happens next</div>
-        <div style="color:var(--txt2);font-size:12px;line-height:1.6">The agreement will download automatically. Then Outlook will open with a pre-written email ready to send — just attach the downloaded file and click Send.</div>
-      </div>
-
-      <div style="display:flex;gap:10px">
-        <button class="btn-edit" style="flex:1" onclick="document.getElementById('preflight-modal').classList.remove('open')">Cancel</button>
-        <button class="btn-blue" style="flex:2" onclick="preflightGenerate()">&#128196; Generate &amp; Open Email</button>
-      </div>
-    </div>
+    <div id="review-modal-body"></div>
   </div>
 </div>
 
@@ -1026,7 +1002,7 @@ function openMemberMo(id){
   }
   document.getElementById('mo-actions').innerHTML=
     '<button class="btn-edit" onclick="closeMo(null,\'view-modal\');openMemberForm(\''+esc(m.id)+'\')">Edit</button>'+
-    '<button class="btn-blue" onclick="downloadAgreement(\''+esc(m.id)+'\')">&#128196; Download Agreement</button>'+
+    '<button class="btn-blue" onclick="openAgreementReview(\''+esc(m.id)+'\')">&#128196; Review &amp; Generate Agreement</button>'+
     (!m.agreementSent?'<button class="btn-sm" onclick="markAgreementSent(\''+esc(m.id)+'\')">Mark Agreement Sent</button>':'')+
     (!m.agreementSigned&&m.agreementSent?'<button class="btn-sm" onclick="markAgreementSigned(\''+esc(m.id)+'\')">Mark Agreement Signed</button>':'')+
     '<button class="btn-del" onclick="closeMo(null,\'view-modal\');askDelete(\'member\',\''+esc(m.id)+'\',\''+esc(m.name)+'\')">Delete</button>';
@@ -1045,53 +1021,213 @@ async function updateAgreementStatus(memberId, status, selectEl){
   } catch(e){ toast('Could not save','var(--red)'); }
 }
 
-function downloadAgreement(id){
-  // Open pre-flight modal
-  const m = getMemberById(id);
-  document.getElementById('pf-member-name').textContent = m ? m.name : '';
-  document.getElementById('pf-member-id').value = id;
-  document.getElementById('pf-waive-setup').checked = false;
-  document.getElementById('pf-waive-bg').checked = false;
-  document.getElementById('preflight-modal').classList.add('open');
+
+// ── Agreement preflight & review ─────────────────────────────────────────────
+
+function calcTermDates(startStr) {
+  // If start is not the 1st, term begins 1st of next month
+  if (!startStr) return { termStart: '', termEnd: '', proStart: '', proEnd: '' };
+  const d = new Date(startStr + 'T12:00:00');
+  let termStart, proStart, proEnd;
+  if (d.getDate() === 1) {
+    termStart = new Date(d);
+    proStart  = null;
+    proEnd    = null;
+  } else {
+    proStart  = new Date(d);
+    proEnd    = new Date(d.getFullYear(), d.getMonth() + 1, 0); // last day of start month
+    termStart = new Date(d.getFullYear(), d.getMonth() + 1, 1); // 1st of next month
+  }
+  const termEnd = new Date(termStart.getFullYear(), termStart.getMonth() + 6, 0); // last day of 6th month
+  const fmt = dt => dt ? dt.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '';
+  return {
+    termStart : fmt(termStart),
+    termEnd   : fmt(termEnd),
+    proStart  : fmt(proStart),
+    proEnd    : fmt(proEnd),
+    hasProration: !!proStart
+  };
 }
 
-function preflightGenerate(){
-  const id        = document.getElementById('pf-member-id').value;
-  const waiveFee  = document.getElementById('pf-waive-setup').checked;
-  const waiveBg   = document.getElementById('pf-waive-bg').checked;
-  const m         = getMemberById(id);
+function openAgreementReview(id) {
+  const m = getMemberById(id);
+  if (!m) return;
+
+  // Offices for this member
+  const memberOffices = DB.offices.filter(o => o.member === m.name);
+  // Occupants for this member
+  const memberOccs = DB.occupants.filter(o => o.company === m.name);
+
+  // Net dues (no discount shown to member — net only)
+  const netMonthly = memberNetFromOffices(m) || (m.dues - (m.discount||0)) || 0;
+
+  // Term dates
+  const dates = calcTermDates(m.start);
+
+  // Proration
+  const proAmt = m.proration || 0;
+
+  // Build offices rows
+  let officeRows = '';
+  if (memberOffices.length) {
+    memberOffices.forEach(o => {
+      const oNet = Math.max(0, (Number(o.listDues)||0) - (Number(o.discount)||0));
+      officeRows += `<tr>
+        <td style="padding:7px 10px;color:var(--txt)">Office ${o.num}</td>
+        <td style="padding:7px 10px;color:var(--txt2)">${o.sqft ? o.sqft+' sq ft' : '—'}</td>
+        <td style="padding:7px 10px;color:var(--acc);font-family:'IBM Plex Mono',monospace">$${oNet.toLocaleString()}/mo</td>
+      </tr>`;
+    });
+  } else {
+    officeRows = '<tr><td colspan="3" style="padding:10px;color:var(--red);font-style:italic">⚠ No offices linked to this member</td></tr>';
+  }
+
+  // Build occupant rows
+  let occRows = '';
+  if (memberOccs.length) {
+    memberOccs.forEach(o => {
+      occRows += `<tr>
+        <td style="padding:7px 10px;color:var(--txt)">${o.name}</td>
+        <td style="padding:7px 10px;color:var(--txt2)">${o.office ? 'Office '+o.office : '—'}</td>
+        <td style="padding:7px 10px;color:var(--txt2)">${o.phone||'—'}</td>
+      </tr>`;
+    });
+  } else {
+    occRows = '<tr><td colspan="3" style="padding:10px;color:var(--txt3);font-style:italic">No occupants linked</td></tr>';
+  }
+
+  // Status badge color
+  const statusColor = m.status==='Active'?'var(--grn)':m.status==='Pending'?'var(--acc)':'var(--txt3)';
+
+  // Proration row
+  const proRow = (proAmt > 0 && dates.hasProration)
+    ? `<div class="rv-row"><span class="rv-label">Prorated First Payment</span><span class="rv-val" style="color:var(--acc)">$${Number(proAmt).toLocaleString()} <span style="color:var(--txt3);font-size:11px">(${dates.proStart} – ${dates.proEnd})</span></span></div>`
+    : (proAmt > 0 ? `<div class="rv-row"><span class="rv-label">Prorated First Payment</span><span class="rv-val" style="color:var(--acc)">$${Number(proAmt).toLocaleString()}</span></div>` : '');
+
+  document.getElementById('review-modal-body').innerHTML = `
+    <div style="padding:24px 28px;overflow-y:auto;max-height:75vh">
+
+      <!-- Member header -->
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+        <div>
+          <div style="font-size:20px;font-weight:700;color:var(--txt)">${m.name}</div>
+          <div style="font-size:13px;color:var(--txt2);margin-top:2px">${m.email||''} ${m.phone?'· '+m.phone:''}</div>
+        </div>
+        <span style="margin-left:auto;background:${statusColor}22;color:${statusColor};border:1px solid ${statusColor}55;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:600">${m.status||'Pending'}</span>
+      </div>
+
+      <!-- Term -->
+      <div style="background:var(--sur2);border:1px solid var(--bdr);border-radius:8px;padding:14px 16px;margin-bottom:16px">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--txt3);margin-bottom:10px">Agreement Term</div>
+        ${proRow}
+        <div class="rv-row"><span class="rv-label">Term Start</span><span class="rv-val">${dates.termStart||'—'}</span></div>
+        <div class="rv-row"><span class="rv-label">Term End</span><span class="rv-val">${dates.termEnd||'—'}</span></div>
+        <div class="rv-row"><span class="rv-label">Net Monthly Dues</span><span class="rv-val" style="color:var(--grn);font-family:'IBM Plex Mono',monospace;font-size:16px">$${netMonthly.toLocaleString()}/month</span></div>
+        <div class="rv-row"><span class="rv-label">Deposit Held</span><span class="rv-val">$${Number(m.deposit||0).toLocaleString()}</span></div>
+      </div>
+
+      <!-- Offices -->
+      <div style="margin-bottom:16px">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--txt3);margin-bottom:8px">Offices</div>
+        <table style="width:100%;border-collapse:collapse;background:var(--sur2);border:1px solid var(--bdr);border-radius:8px;overflow:hidden">
+          <thead><tr style="border-bottom:1px solid var(--bdr)">
+            <th style="padding:7px 10px;text-align:left;font-size:11px;color:var(--txt3);font-weight:600">Office</th>
+            <th style="padding:7px 10px;text-align:left;font-size:11px;color:var(--txt3);font-weight:600">Size</th>
+            <th style="padding:7px 10px;text-align:left;font-size:11px;color:var(--txt3);font-weight:600">Net Dues</th>
+          </tr></thead>
+          <tbody>${officeRows}</tbody>
+        </table>
+      </div>
+
+      <!-- Occupants -->
+      <div style="margin-bottom:20px">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--txt3);margin-bottom:8px">Occupants</div>
+        <table style="width:100%;border-collapse:collapse;background:var(--sur2);border:1px solid var(--bdr);border-radius:8px;overflow:hidden">
+          <thead><tr style="border-bottom:1px solid var(--bdr)">
+            <th style="padding:7px 10px;text-align:left;font-size:11px;color:var(--txt3);font-weight:600">Name</th>
+            <th style="padding:7px 10px;text-align:left;font-size:11px;color:var(--txt3);font-weight:600">Office</th>
+            <th style="padding:7px 10px;text-align:left;font-size:11px;color:var(--txt3);font-weight:600">Phone</th>
+          </tr></thead>
+          <tbody>${occRows}</tbody>
+        </table>
+      </div>
+
+      <!-- Waivers -->
+      <div style="border-top:1px solid var(--bdr);padding-top:16px;margin-bottom:20px">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--txt3);margin-bottom:10px">Options</div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <label style="display:flex;align-items:center;gap:12px;cursor:pointer;padding:12px 14px;background:var(--sur2);border:1px solid var(--bdr);border-radius:8px">
+            <input type="checkbox" id="rv-waive-setup" style="width:18px;height:18px;accent-color:var(--acc);cursor:pointer;flex-shrink:0">
+            <div>
+              <div style="color:var(--txt);font-size:14px;font-weight:600">Waive $100 setup fee</div>
+              <div style="color:var(--txt3);font-size:12px;margin-top:2px">Setup fee line item will be omitted from the agreement</div>
+            </div>
+          </label>
+          <label style="display:flex;align-items:center;gap:12px;cursor:pointer;padding:12px 14px;background:var(--sur2);border:1px solid var(--bdr);border-radius:8px">
+            <input type="checkbox" id="rv-waive-bg" style="width:18px;height:18px;accent-color:var(--acc);cursor:pointer;flex-shrink:0">
+            <div>
+              <div style="color:var(--txt);font-size:14px;font-weight:600">Waive background check ($35)</div>
+              <div style="color:var(--txt3);font-size:12px;margin-top:2px">A note will be added to the outgoing email — section stays in the document</div>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <!-- Info box -->
+      <div style="background:rgba(212,168,67,0.08);border:1px solid rgba(212,168,67,0.25);border-radius:8px;padding:12px 14px;margin-bottom:20px">
+        <div style="color:var(--acc);font-size:12px;font-weight:600;margin-bottom:4px">&#9432; What happens next</div>
+        <div style="color:var(--txt2);font-size:12px;line-height:1.6">The agreement will download automatically, then Outlook will open with a pre-written email. Just attach the downloaded file and hit Send.</div>
+      </div>
+
+      <!-- Action buttons -->
+      <div style="display:flex;gap:10px">
+        <button class="btn-edit" style="flex:1" onclick="document.getElementById('review-modal').classList.remove('open')">Go Back</button>
+        <button class="btn-blue" style="flex:2" onclick="commitAgreement('${m.id}')">&#128196; Looks Good — Generate &amp; Email</button>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('review-modal').classList.add('open');
+}
+
+function commitAgreement(id) {
+  const waiveFee = document.getElementById('rv-waive-setup')?.checked;
+  const waiveBg  = document.getElementById('rv-waive-bg')?.checked;
+  const m        = getMemberById(id);
 
   // Build URL
   const params = new URLSearchParams();
-  if(waiveFee) params.set('waive_setup_fee','true');
-  const url = '/admin/api/generate-agreement/'+id+'?'+params.toString();
+  if (waiveFee) params.set('waive_setup_fee', 'true');
+  const url = '/admin/api/generate-agreement/' + id + '?' + params.toString();
 
   // Download agreement
-  window.open(url,'_blank');
+  window.open(url, '_blank');
 
-  // Close preflight, mark sent
-  document.getElementById('preflight-modal').classList.remove('open');
-  if(m && !m.agreementSent){ m.agreementSent=new Date().toISOString().slice(0,10); saveData(); renderMembers(); }
+  // Close modal & mark sent
+  document.getElementById('review-modal').classList.remove('open');
+  if (m && !m.agreementSent) { m.agreementSent = new Date().toISOString().slice(0,10); saveData(); renderMembers(); }
 
-  // Build mailto and open Outlook
-  const email   = m ? (m.email||'') : '';
-  const name    = m ? (m.name||'Member') : 'Member';
+  // Build mailto
+  const email   = m ? (m.email || '') : '';
+  const name    = m ? (m.name  || 'Member') : 'Member';
   const subject = encodeURIComponent('Your Qbix Centre Membership Agreement');
   const notes   = [];
-  if(waiveFee) notes.push('• Setup fee has been waived for your membership.');
-  if(waiveBg)  notes.push('• Background check has been waived for your membership.');
-  const waiveNote = notes.length ? '\n\n'+notes.join('\n') : '';
+  if (waiveFee) notes.push('• The $100 setup fee has been waived for your membership.');
+  if (waiveBg)  notes.push('• The background check requirement has been waived for your membership.');
+  const waiveNote = notes.length ? '\n\n' + notes.join('\n') : '';
   const body = encodeURIComponent(
-    'Hi '+name+',\n\n'+
-    'Thank you for choosing Qbix Centre! Please find your Membership Agreement attached to this email.\n\n'+
-    'Please review, sign, and return the completed agreement at your earliest convenience. '+
-    'If you have any questions, don\'t hesitate to reach out.\n'+
-    waiveNote+'\n\n'+
-    'We look forward to welcoming you to the Qbix Centre community!\n\n'+
+    'Hi ' + name + ',\n\n' +
+    'Thank you for choosing Qbix Centre! Please find your Membership Agreement attached.\n\n' +
+    'Please review all sections, sign where indicated, and return the completed agreement at your earliest convenience. ' +
+    'If you have any questions please don\'t hesitate to reach out.' +
+    waiveNote + '\n\n' +
+    'We look forward to welcoming you to Qbix Centre!\n\n' +
     'Rocky Davidson\nQbix Centre\n500A Northside Crossing, Macon, GA 31210\n(478) 737-9107'
   );
-  setTimeout(()=>{ window.location.href = 'mailto:'+email+'?subject='+subject+'&body='+body; }, 800);
+  setTimeout(() => { window.location.href = 'mailto:' + email + '?subject=' + subject + '&body=' + body; }, 800);
 }
+
+
 function markAgreementSent(id){const m=getMemberById(id);m.agreementSent=new Date().toISOString().slice(0,10);saveData();closeMo(null,'view-modal');setTimeout(()=>openMemberMo(id),60);toast('Marked as sent');}
 function markAgreementSigned(id){const m=getMemberById(id);m.agreementSigned=new Date().toISOString().slice(0,10);if(m.status==='Pending')m.status='Active';saveData();closeMo(null,'view-modal');setTimeout(()=>openMemberMo(id),60);toast('Marked as signed &mdash; status set to Active &#10003;');}
 
@@ -1279,7 +1415,7 @@ function openOfficeForm(id){
 function openMemberForm(id){
   formType='member';formId=id;pendingFiles=[];const m=id?getMemberById(id):{};
   document.getElementById('form-title').textContent=id?'Edit Member':'Add Member';
-  document.getElementById('form-body').innerHTML='<div class="fg"><div class="fl full"><label>Member Name *</label><input id="f-name" value="'+(m.name||'')+'" placeholder="Company or individual name"></div>'+statusButtons(m.status||'Active',true)+'<div class="fl"><label>Start Date</label><input id="f-start" type="date" value="'+(m.start||'')+'"></div><div class="fl"><label>End Date</label><input id="f-end" type="date" value="'+(m.end||'')+'"></div><div class="fl"><label>Gross Monthly Dues ($)</label><input id="f-dues" type="number" value="'+(m.dues||'')+'" oninput="updNet()"></div><div class="fl"><label>Discount ($)</label><input id="f-discount" type="number" value="'+(m.discount||0)+'" oninput="updNet()"></div><div class="fl full" style="background:var(--sur2);border:1px solid var(--bdr);border-radius:7px;padding:9px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--txt3);margin-bottom:3px">Net Monthly Dues</div><div id="net-prev" style="font-family:\'IBM Plex Mono\',monospace;font-size:17px;color:var(--grn)">-</div></div><div class="fl"><label>Deposit Held ($)</label><input id="f-deposit" type="number" value="'+(m.deposit||'')+'"></div><div class="fl"><label>Billing Email</label><input id="f-email" type="email" value="'+(m.email||'')+'"></div><div class="fl"><label>Phone</label><input id="f-phone" value="'+(m.phone||'')+'"></div><div class="fl full"><label>Notes</label><textarea id="f-notes">'+(m.notes||'')+'</textarea></div><div class="sect-title">Agreements / Documents</div><div class="fl full"><div class="file-drop" id="member-drop-zone"><input type="file" multiple accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" id="member-file-input"><div class="file-drop-txt">&#128206; Drop files or <span>click to browse</span><br><small>PDF, Word, or images &mdash; max 10MB each</small></div></div><div class="pending-files" id="pending-agreements"></div>'+((m.attachments||[]).length?'<div style="margin-top:7px;font-size:11px;color:var(--txt3)">Stored: '+(m.attachments||[]).map(a=>'<span style="color:var(--acc)">'+a.name+'</span>').join(', ')+'</div>':'')+'</div></div>';
+  document.getElementById('form-body').innerHTML='<div class="fg"><div class="fl full"><label>Member Name *</label><input id="f-name" value="'+(m.name||'')+'" placeholder="Company or individual name"></div>'+statusButtons(m.status||'Active',true)+'<div class="fl"><label>Start Date</label><input id="f-start" type="date" value="'+(m.start||'')+'"></div><div class="fl"><label>End Date</label><input id="f-end" type="date" value="'+(m.end||'')+'"></div><div class="fl"><label>Gross Monthly Dues ($)</label><input id="f-dues" type="number" value="'+(m.dues||'')+'" oninput="updNet()"></div><div class="fl"><label>Discount ($)</label><input id="f-discount" type="number" value="'+(m.discount||0)+'" oninput="updNet()"></div><div class="fl full" style="background:var(--sur2);border:1px solid var(--bdr);border-radius:7px;padding:9px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--txt3);margin-bottom:3px">Net Monthly Dues</div><div id="net-prev" style="font-family:\'IBM Plex Mono\',monospace;font-size:17px;color:var(--grn)">-</div></div><div class="fl"><label>Deposit Held ($)</label><input id="f-deposit" type="number" value="'+(m.deposit||'')+'"></div><div class="fl"><label>Billing Email</label><input id="f-email" type="email" value="'+(m.email||'')+'"></div><div class="fl"><label>Phone</label><input id="f-phone" value="'+(m.phone||'')+'"></div><div class="fl full"><label>Notes</label><textarea id="f-notes">'+(m.notes||'')+'</textarea></div><div class="fl"><label>First Month Proration ($) <span style="font-weight:400;color:var(--txt3);font-size:11px">— leave blank if starting on the 1st</span></label><input id="f-proration" type="number" value="'+(m.proration||'')+'" placeholder="e.g. 387"></div><div class="sect-title">Agreements / Documents</div><div class="fl full"><div class="file-drop" id="member-drop-zone"><input type="file" multiple accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" id="member-file-input"><div class="file-drop-txt">&#128206; Drop files or <span>click to browse</span><br><small>PDF, Word, or images &mdash; max 10MB each</small></div></div><div class="pending-files" id="pending-agreements"></div>'+((m.attachments||[]).length?'<div style="margin-top:7px;font-size:11px;color:var(--txt3)">Stored: '+(m.attachments||[]).map(a=>'<span style="color:var(--acc)">'+a.name+'</span>').join(', ')+'</div>':'')+'</div></div>';
   updNet();
   const mdz=document.getElementById('member-drop-zone');
   if(mdz){mdz.addEventListener('dragover',e=>{e.preventDefault();mdz.classList.add('drag');});mdz.addEventListener('dragleave',()=>mdz.classList.remove('drag'));mdz.addEventListener('drop',e=>{e.preventDefault();mdz.classList.remove('drag');handleFiles(e.dataTransfer.files,'agreements');});}
@@ -1342,7 +1478,7 @@ async function submitForm(){
   } else if(formType==='member'){
     const name=document.getElementById('f-name').value.trim();if(!name){alert('Member name required.');return;}
     const existing=formId?getMemberById(formId):{attachments:[],agreementSent:'',agreementSigned:''};
-    const obj={id:formId||uid(),name,status:document.getElementById('f-status').value,dues:Number(document.getElementById('f-dues').value)||0,discount:Number(document.getElementById('f-discount').value)||0,deposit:Number(document.getElementById('f-deposit').value)||0,start:document.getElementById('f-start').value,end:document.getElementById('f-end').value,email:document.getElementById('f-email').value.trim(),phone:document.getElementById('f-phone').value.trim(),notes:document.getElementById('f-notes').value.trim(),attachments:[...(existing.attachments||[]),...pendingFiles],agreementSent:existing.agreementSent||'',agreementSigned:existing.agreementSigned||''};
+    const obj={id:formId||uid(),name,status:document.getElementById('f-status').value,dues:Number(document.getElementById('f-dues').value)||0,discount:Number(document.getElementById('f-discount').value)||0,deposit:Number(document.getElementById('f-deposit').value)||0,start:document.getElementById('f-start').value,end:document.getElementById('f-end').value,email:document.getElementById('f-email').value.trim(),phone:document.getElementById('f-phone').value.trim(),notes:document.getElementById('f-notes').value.trim(),proration:Number(document.getElementById('f-proration')?.value)||0,attachments:[...(existing.attachments||[]),...pendingFiles],agreementSent:existing.agreementSent||'',agreementSigned:existing.agreementSigned||''};
     if(formId){const i=DB.members.findIndex(x=>x.id===formId);DB.members[i]=obj;}else DB.members.push(obj);
   } else if(formType==='occupant'){
     const name=document.getElementById('f-name').value.trim();const company=document.getElementById('f-company').value;if(!name||!company){alert('Name and company required.');return;}
@@ -1394,7 +1530,7 @@ function closeConf(){document.getElementById('conf-modal').classList.remove('ope
 // === NAV ===
 function showPage(id,btn){document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));document.querySelectorAll('.nb').forEach(b=>b.classList.remove('on'));document.getElementById('page-'+id).classList.add('on');btn.classList.add('on');}
 function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.getElementById(id).classList.remove('open');}
-document.addEventListener('keydown',e=>{if(e.key==='Escape')['form-modal','view-modal','conf-modal','onboard-modal','preflight-modal'].forEach(id=>document.getElementById(id).classList.remove('open'));});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')['form-modal','view-modal','conf-modal','onboard-modal','review-modal'].forEach(id=>document.getElementById(id).classList.remove('open'));});
 
 loadData();
 

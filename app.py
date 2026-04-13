@@ -1027,15 +1027,58 @@ def generate_agreement(member_id):
     if not member:
         abort(404)
 
-    offices     = offices_for(data, member['name'])
-    office_str  = ', '.join(offices) if offices else 'TBD'
-    dues_amt    = member.get('dues', 0) or 0
+    # Offices (full objects for net dues calc)
+    member_offices = [o for o in data['offices'] if o.get('member') == member['name']]
+    offices        = [o['num'] for o in member_offices]
+    office_str     = ', '.join(f'Office {n}' for n in offices) if offices else 'TBD'
+
+    # Net dues only — no discount language shown to member
+    gross_amt   = sum(float(o.get('listDues') or 0) for o in member_offices)
+    disc_amt    = sum(float(o.get('discount') or 0) for o in member_offices)
+    net_amt     = max(0, gross_amt - disc_amt) or float(member.get('dues') or 0)
     deposit_amt = member.get('deposit', 0) or 0
-    dues_str    = f"${dues_amt:,}/month"
-    deposit_str = f"${deposit_amt:,}"
-    start_str   = member.get('start', '') or '_______________'
-    today_str   = datetime.now().strftime('%B %d, %Y')
-    conf_hours  = len(offices) * 6
+    dues_str    = f'${net_amt:,.0f}/month'
+    deposit_str = f'${deposit_amt:,}'
+
+    # Proration
+    proration_amt = float(member.get('proration') or 0)
+
+    # Term date calculation
+    from calendar import monthrange
+    raw_start  = member.get('start', '')
+    today_str  = datetime.now().strftime('%B %d, %Y')
+    pro_str    = ''
+    if raw_start:
+        try:
+            sd = datetime.strptime(raw_start, '%Y-%m-%d')
+            if sd.day == 1:
+                term_start = sd
+            else:
+                last_day_of_start = monthrange(sd.year, sd.month)[1]
+                pro_end  = sd.replace(day=last_day_of_start)
+                pro_str  = f'{sd.strftime("%B %d")} – {pro_end.strftime("%B %d, %Y")}'
+                if sd.month == 12:
+                    term_start = sd.replace(year=sd.year+1, month=1, day=1)
+                else:
+                    term_start = sd.replace(month=sd.month+1, day=1)
+            end_month  = term_start.month + 5
+            end_year   = term_start.year + (end_month - 1) // 12
+            end_month  = ((end_month - 1) % 12) + 1
+            last_day   = monthrange(end_year, end_month)[1]
+            term_end   = datetime(end_year, end_month, last_day)
+            term_start_str = term_start.strftime('%B %d, %Y')
+            term_end_str   = term_end.strftime('%B %d, %Y')
+            start_str      = sd.strftime('%B %d, %Y')
+        except Exception:
+            term_start_str = '_______________'
+            term_end_str   = '_______________'
+            start_str      = raw_start
+    else:
+        term_start_str = '_______________'
+        term_end_str   = '_______________'
+        start_str      = '_______________'
+
+    conf_hours = len(offices) * 6
 
     try:
         from docx import Document as DocxDocument
@@ -1145,9 +1188,13 @@ def generate_agreement(member_id):
         add_heading('Member Summary')
         add_field_row('Member / Company', member.get('name', ''), bold_value=True)
         add_field_row('Office(s) Assigned', office_str, bold_value=True)
-        add_field_row('Monthly Dues', dues_str, bold_value=True)
+        add_field_row('Monthly Membership Fee', dues_str, bold_value=True)
+        if proration_amt > 0:
+            pro_label = f'Prorated First Payment ({pro_str})' if pro_str else 'Prorated First Payment'
+            add_field_row(pro_label, f'${proration_amt:,.0f}')
         add_field_row('Refundable Deposit', deposit_str)
-        add_field_row('Initial Term Start Date', start_str)
+        add_field_row('Term Start Date', term_start_str)
+        add_field_row('Term End Date', term_end_str)
         add_field_row('Conference Room Hours Included', f'{conf_hours} hours/month')
         add_field_row('Contact Email', member.get('email', ''))
         add_field_row('Contact Phone', member.get('phone', ''))
@@ -1155,12 +1202,14 @@ def generate_agreement(member_id):
 
         # ── SECTION 1 ──────────────────────────────────────────────────────
         add_heading('1. Membership & Fees')
-        add_bullet(f'Monthly dues of {dues_str} are due on the 1st of each month via auto-draft through Bill.com. Payments received after the 5th are considered late.')
-        add_bullet(f'A refundable deposit of {deposit_str} (equivalent to one month\'s dues) is required prior to move-in and will be returned less normal wear and tear and cost of unreturned keys.')
+        add_bullet(f'Monthly membership fee of {dues_str} is due on the 1st of each month via auto-draft through Bill.com. Payments received after the 5th are considered late.')
+        if proration_amt > 0:
+            pro_label = f'Prorated first payment ({pro_str})' if pro_str else 'Prorated first payment'
+            add_bullet(f'{pro_label}: ${proration_amt:,.0f}, due at signing.')
+        add_bullet(f'A refundable deposit of {deposit_str} is required prior to move-in and will be returned, less normal wear and tear and cost of unreturned keys, upon conclusion of the membership.')
         if not waive_setup_fee:
             add_bullet('A one-time setup fee of $100 is due at signing.')
-        add_bullet(f'The initial term is six (6) full calendar months beginning {start_str}. This Agreement automatically renews for successive six (6) month periods at the then-current rate unless the Member provides written notice of non-renewal at least thirty (30) days prior to the end of the then-current term. Failure to provide timely notice results in automatic renewal and the Member\'s obligation for the full succeeding term.')
-        add_bullet('Address Memberships are month-to-month from inception.')
+        add_bullet(f'The initial term of this Agreement is six (6) full calendar months, from {term_start_str} through {term_end_str}. This Agreement automatically renews for successive six (6) month periods at the then-current rate unless the Member provides written notice of non-renewal at least thirty (30) days prior to the end of the then-current term. Failure to provide timely notice results in automatic renewal and the Member's obligation for the full succeeding term.')
         add_bullet('A non-refundable background check fee of $35 per cardholder is required prior to access being granted.')
         add_bullet('Additional key/fob holders: $150/month plus $35 background check fee. Both keyholders must be from the same company.')
 
@@ -1209,15 +1258,15 @@ def generate_agreement(member_id):
         add_bullet('Dispute Resolution: The parties agree to attempt to resolve any dispute informally before pursuing legal remedies. This Agreement shall be governed by the laws of the State of Georgia.')
         add_bullet('Entire Agreement: This Agreement, together with the House Guidelines, constitutes the entire agreement between the parties and supersedes all prior negotiations, representations, or agreements.')
 
-        # ── SECTION 8: HOUSE GUIDELINES ACKNOWLEDGMENT ────────────────────
+        # ── SECTION 8: HOUSE GUIDELINES ACKNOWLEDGMENT ─────────────────────
         add_heading('8. House Guidelines')
         add_body(
-            'Qbix Centre maintains a separate House Guidelines document that governs day-to-day conduct, '
-            'use of common areas, equipment, noise, cleanliness, and other operational matters. '
+            'Qbix Centre maintains a separate House Guidelines document governing day-to-day conduct, '
+            'use of common areas, equipment, noise, cleanliness, and related operational matters. '
             'By signing this Agreement, Member acknowledges that they have received, read, and agree to '
             'abide by the Qbix Centre House Guidelines in their current form. Member further acknowledges '
-            'and agrees that the House Guidelines are subject to change at any time at the sole discretion '
-            'of the Manager, and that continued use of the premises constitutes acceptance of any updated '
+            'that the House Guidelines are subject to change at any time at the sole discretion of the '
+            'Manager, and that continued use of the premises constitutes acceptance of any updated '
             'guidelines. The Manager will make reasonable efforts to notify Members of material changes '
             'by email prior to their effective date.'
         )
@@ -1244,10 +1293,8 @@ def generate_agreement(member_id):
         add_heading('Member Acknowledgment')
         add_body(
             'By signing below, Member acknowledges that they have read, understand, and agree to all '
-            'terms and conditions of this Membership Agreement, and acknowledges receipt of and agreement '
-            'to abide by the Qbix Centre House Guidelines (as may be updated from time to time). '
-            'Member represents that they have the authority to enter into this Agreement on behalf of '
-            'themselves and/or their company.'
+            'terms and conditions of this Membership Agreement and House Guidelines, and that they '
+            'have the authority to enter into this Agreement on behalf of themselves and/or their company.'
         )
         doc.add_paragraph()
 
@@ -1267,10 +1314,12 @@ def generate_agreement(member_id):
         add_sig_line('Date')
         doc.add_paragraph()
 
-        add_field_row('Initial Term Start Date', start_str)
         add_field_row('Office(s) Assigned', office_str)
-        add_field_row('Monthly Dues', dues_str)
+        add_field_row('Monthly Membership Fee', dues_str)
+        if proration_amt > 0:
+            add_field_row('Prorated First Payment', f'${proration_amt:,.0f}')
         add_field_row('Deposit Collected', deposit_str)
+        add_field_row('Term', f'{term_start_str} – {term_end_str}')
 
         # ── BACKGROUND CHECK AUTHORIZATION ────────────────────────────────
         doc.add_page_break()
@@ -1346,6 +1395,8 @@ def generate_agreement(member_id):
 
         add_heading('Monthly Draft Amount')
         add_field_row('Authorized Monthly Amount', dues_str, bold_value=True)
+        if proration_amt > 0:
+            add_field_row('Prorated First Draft', f'${proration_amt:,.0f}')
         add_body('Draft date: 1st of each month. If the 1st falls on a weekend or holiday, the draft will process on the next business day.')
         doc.add_paragraph()
 
