@@ -31,7 +31,7 @@ nav{display:flex;gap:2px}
 .nb.notify-btn{background:rgba(91,155,213,.15);color:var(--blue);border:1px solid rgba(91,155,213,.3)}
 .nb.notify-btn.on{background:var(--blue);color:#fff;border-color:var(--blue)}
 .hstats{margin-left:auto;display:flex;gap:16px;align-items:center}
-.hs{text-align:right}.hs-v{font-family:'IBM Plex Mono',monospace;font-size:15px;color:var(--acc)}.hs-l{font-size:10px;color:var(--txt3);text-transform:uppercase;letter-spacing:.08em}
+.hs{text-align:right}.hs-v{font-family:'IBM Plex Mono',monospace;font-size:16px;color:var(--acc)}.hs-l{font-size:11px;color:var(--txt2);text-transform:uppercase;letter-spacing:.08em}
 .savebar{background:#0d1a0f;border-bottom:1px solid #1a3a1f;padding:6px 22px;display:flex;align-items:center;gap:10px;font-size:12px}
 .save-indicator{display:flex;align-items:center;gap:6px;font-size:12px;color:#4db887}
 .save-dot{width:8px;height:8px;border-radius:50%;background:var(--grn);flex-shrink:0}
@@ -233,7 +233,7 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
     <div class="hs"><div class="hs-v" id="h-occ">{{ occ }}</div><div class="hs-l">Occupied</div></div>
     <div class="hs"><div class="hs-v" id="h-vac">{{ vac }}</div><div class="hs-l">Vacant</div></div>
     <div class="hs"><div class="hs-v" id="h-rev">${{ "{:,.0f}".format(net_rev/1000) }}k</div><div class="hs-l">Net Revenue</div></div>
-    <a href="/admin/logout" style="font-size:11px;color:var(--txt3);margin-left:8px">Sign out</a>
+    <a href="/admin/logout" style="font-size:12px;color:var(--txt2);margin-left:8px">Sign out</a>
   </div>
 </header>
 <div class="savebar">
@@ -813,12 +813,18 @@ function renderOffices(){
   });
   document.getElementById('oc-count').textContent=list.length+' offices';
   const offDues=o=>{
-    if(o.status!=='Occupied'||!o.member) return o.listDues||null;
-    const m=getMember(o.member);
-    if(!m) return null;
-    const memberOffices=DB.offices.filter(x=>x.member===o.member);
-    const count=memberOffices.length||1;
-    return Math.round(net(m)/count);
+    // Use the office's own listDues field directly — this is the per-office rate
+    if(o.listDues) return o.listDues;
+    // Occupied offices: look up member net and divide only if no per-office rate set
+    if(o.status==='Occupied'&&o.member){
+      const m=getMember(o.member);
+      if(m){
+        const memberOffices=DB.offices.filter(x=>x.member===o.member);
+        const count=memberOffices.length||1;
+        return Math.round(net(m)/count);
+      }
+    }
+    return null;
   };
   document.getElementById('office-grid').innerHTML=list.map(o=>'<div class="ot '+(o.status==='Occupied'?'occ':'vac')+'" onclick="openOfficeMo(\''+esc(o.id)+'\')">'+'<div style="display:flex;justify-content:space-between;align-items:flex-start"><div class="on2">'+o.num+'</div><span class="badge '+(o.status==='Occupied'?'bg':'bb')+'">'+o.status+'</span></div>'+'<div class="oten">'+(o.member||'<em style="color:var(--txt3)">Available</em>')+'</div>'+'<div class="osq">'+(o.sqft?o.sqft+(o.dormer?'+'+o.dormer:'')+' sq ft':'-')+'</div>'+(offDues(o)?'<div class="odu">'+f$(offDues(o))+'/mo</div>':'')+'</div>').join('')||'<div style="color:var(--txt3);padding:20px">No offices match.</div>';
 }
@@ -835,15 +841,17 @@ function openOfficeMo(id){
   let h='<div class="di"><label>Status</label><value><span class="badge '+(o.status==='Occupied'?'bg':'bb')+'">'+o.status+'</span></value></div>'+'<div class="di"><label>Square Footage</label><value>'+(o.sqft?o.sqft+(o.dormer?' + '+o.dormer+' dormer':'')+' sq ft':'-')+'</value></div>';
   if(o.member&&m){
     const d=Number(m.discount)||0;
-    const memberOffCount=DB.offices.filter(x=>x.member===o.member).length||1;
-    const offGross=Math.round((Number(m.dues)||0)/memberOffCount);
-    const offDisc=Math.round(d/memberOffCount);
-    const offNet=Math.round(net(m)/memberOffCount);
+    // Use per-office listDues if set, otherwise fall back to dividing member total
+    const memberOffices=DB.offices.filter(x=>x.member===o.member);
+    const memberOffCount=memberOffices.length||1;
+    const offGross=o.listDues||Math.round((Number(m.dues)||0)/memberOffCount);
+    const offDisc=o.listDues?0:Math.round(d/memberOffCount);
+    const offNet=Math.max(0,offGross-offDisc);
     h+='<div class="di full"><label>Dues for this Office</label><div style="margin-top:5px">';
     h+='<div class="dues-row"><span style="color:var(--txt2)">Gross</span><span class="mono">'+f$(offGross)+'</span></div>';
-    if(d>0)h+='<div class="dues-row"><span style="color:var(--purple)">Discount</span><span class="mono" style="color:var(--purple)">- '+f$(offDisc)+'</span></div>';
+    if(offDisc>0)h+='<div class="dues-row"><span style="color:var(--purple)">Discount</span><span class="mono" style="color:var(--purple)">- '+f$(offDisc)+'</span></div>';
     h+='<div class="dues-row total"><span>Net</span><span class="dues-net">'+f$(offNet)+'</span></div>';
-    if(memberOffCount>1)h+='<div style="font-size:11px;color:var(--txt3);margin-top:4px">Member total: '+f$(net(m))+'/mo across '+memberOffCount+' offices</div>';
+    if(memberOffCount>1)h+='<div style="font-size:12px;color:var(--txt3);margin-top:4px">Member total: '+f$(net(m))+'/mo across '+memberOffCount+' offices</div>';
     h+='</div></div>';
     h+='<div class="di"><label>Deposit</label><value class="mono">'+f$(m.deposit)+'</value></div>';
     h+='<div class="di"><label>Tenant Start</label><value>'+(o.tenantStart||'-')+'</value></div>';

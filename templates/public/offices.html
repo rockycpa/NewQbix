@@ -4,9 +4,124 @@
 
 {% block extra_css %}
 <style>
-@keyframes slideIn{from{opacity:0;transform:scale(.96) translateY(8px)}to{opacity:1;transform:none}}
-.office-card{cursor:pointer;transition:all .2s}
-.office-card:hover{transform:translateY(-3px);box-shadow:0 8px 24px rgba(0,0,0,.12)}
+  .office-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+  }
+  .office-card-link {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #fff;
+    border: 1px solid #e0e4ef;
+    border-top: 4px solid var(--gold, #c9a84c);
+    box-shadow: 0 2px 8px rgba(0,0,0,.06);
+    transition: transform .2s, box-shadow .2s;
+    cursor: pointer;
+  }
+  .office-card-link:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 28px rgba(0,0,0,.13);
+    border-color: var(--gold, #c9a84c);
+  }
+  .office-photo {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+    display: block;
+  }
+  .office-photo-placeholder {
+    width: 100%;
+    height: 200px;
+    background: linear-gradient(135deg, #1a2744 0%, #2d4070 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 3rem;
+    color: rgba(255,255,255,.3);
+  }
+  .office-card-body { padding: 1.1rem 1.1rem 1.3rem; }
+  .office-card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: .5rem;
+  }
+  .office-card-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--navy, #1a2744);
+  }
+  .office-badge {
+    background: #dbeafe;
+    color: #1e40af;
+    border-radius: 20px;
+    padding: .2rem .7rem;
+    font-size: .82rem;
+    font-weight: 600;
+    white-space: nowrap;
+    flex-shrink: 0;
+    margin-left: .5rem;
+  }
+  .office-sqft { font-size: .9rem; color: var(--txt2, #666); margin-bottom: .6rem; }
+  .office-desc {
+    font-size: .92rem;
+    color: #444;
+    line-height: 1.6;
+    margin-bottom: .8rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .office-amenities { display: flex; flex-wrap: wrap; gap: .35rem; margin-bottom: .85rem; }
+  .office-amenity-chip {
+    background: #f0f7ff;
+    border: 1px solid #c3deff;
+    border-radius: 20px;
+    padding: .2rem .6rem;
+    font-size: .8rem;
+    color: #1a5276;
+    font-weight: 500;
+  }
+  .office-amenity-more {
+    border-radius: 20px;
+    padding: .2rem .6rem;
+    font-size: .8rem;
+    color: var(--txt2, #888);
+  }
+  .office-price {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--gold, #c9a84c);
+    margin-bottom: .5rem;
+  }
+  .office-cta-hint {
+    font-size: .85rem;
+    color: var(--txt2, #888);
+    margin-bottom: .9rem;
+  }
+  .office-btn {
+    display: block;
+    width: 100%;
+    background: var(--navy, #1a2744);
+    color: #fff;
+    text-align: center;
+    padding: .7rem;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: .95rem;
+    transition: background .15s;
+  }
+  .office-card-link:hover .office-btn {
+    background: var(--gold, #c9a84c);
+    color: #1a1a1a;
+  }
 </style>
 {% endblock %}
 
@@ -18,74 +133,75 @@
 </div>
 
 <section>
-  <div style="text-align:center;margin-bottom:48px">
-    <div class="section-label">Membership Options</div>
+  <div style="text-align:center;margin-bottom:40px">
+    <div class="section-label">Available Now</div>
     <h2 class="section-title">Find Your Perfect Space</h2>
-    <p class="section-sub" style="margin:0 auto">All memberships include 24/7 access, AT&T Fiber internet, Starbucks coffee, conference room access, free parking, and a professional community.</p>
+    <p class="section-sub" style="margin:0 auto">All memberships include 24/7 access, AT&amp;T Fiber internet, Starbucks coffee, conference room access, free parking, and a professional community.</p>
   </div>
 
   {% if vacant %}
-  <div style="margin-bottom:40px">
-    <h3 style="font-family:'Playfair Display',serif;color:var(--navy);font-size:22px;margin-bottom:20px">
-      Available Now <span style="font-family:'Inter',sans-serif;font-size:14px;color:var(--txt2);font-weight:400">&mdash; {{ vacant|length }} office{{ 's' if vacant|length != 1 else '' }} ready for occupancy</span>
-    </h3>
-    <div class="grid-4">
-      {% for o in vacant %}
-      <div class="card office-card" style="border-top:4px solid var(--gold);padding:0;overflow:hidden"
-           onclick="openOfficeDetail({{ loop.index0 }})">
-        {% if o.photos %}
-          <div style="width:100%;height:160px;overflow:hidden">
-            <img src="{{ o.photos[0].data }}" alt="Office {{ o.num }}"
-                 style="width:100%;height:100%;object-fit:cover;display:block">
-          </div>
+    <p style="color:var(--txt2);font-size:14px;margin-bottom:20px">{{ vacant|length }} office{{ 's' if vacant|length != 1 else '' }} ready for occupancy — click any card to see full photos &amp; details</p>
+    <div class="office-grid">
+      {% for office in vacant %}
+      <a href="{{ url_for('office_detail', office_id=office.id) }}" class="office-card-link">
+
+        {% set photos = office.get('photos', []) %}
+        {% if photos %}
+          <img class="office-photo" src="{{ photos[0].data }}" alt="Office {{ office.num }}">
+        {% else %}
+          <div class="office-photo-placeholder">🏢</div>
         {% endif %}
-        <div style="padding:16px">
-          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
-            <div style="font-family:'Playfair Display',serif;font-size:22px;color:var(--navy)">Office {{ o.num }}</div>
-            <span class="badge badge-blue">Available</span>
+
+        <div class="office-card-body">
+          <div class="office-card-header">
+            <div class="office-card-title">Office {{ office.num }}</div>
+            <span class="office-badge">Available</span>
           </div>
-          <div style="font-size:13px;color:var(--txt2);margin-bottom:6px">{{ o.sqft }}{% if o.dormer %} + {{ o.dormer }} dormer{% endif %} sq ft</div>
-          {% if o.description %}
-            <p style="font-size:13px;color:var(--txt2);margin-bottom:10px;line-height:1.6">{{ o.description[:100] }}{% if o.description|length > 100 %}...{% endif %}</p>
+
+          <div class="office-sqft">
+            {{ office.sqft }}{% if office.dormer %} + {{ office.dormer }} dormer{% endif %} sq ft
+          </div>
+
+          {% if office.description %}
+          <div class="office-desc">{{ office.description }}</div>
           {% endif %}
-          {% if o.amenities %}
-          <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px">
-            {% for a in o.amenities[:4] %}
-            <span style="background:#f0f7ff;border:1px solid #c3deff;border-radius:20px;padding:2px 8px;font-size:11px;color:#1a5276">{{ a }}</span>
+
+          {% set amenities = office.get('amenities', []) %}
+          {% if amenities %}
+          <div class="office-amenities">
+            {% for a in amenities[:4] %}
+              <span class="office-amenity-chip">{{ a }}</span>
             {% endfor %}
-            {% if o.amenities|length > 4 %}<span style="font-size:11px;color:var(--txt2)">+{{ o.amenities|length - 4 }} more</span>{% endif %}
+            {% if amenities|length > 4 %}
+              <span class="office-amenity-more">+{{ amenities|length - 4 }} more</span>
+            {% endif %}
           </div>
           {% endif %}
-          <div style="font-size:20px;font-weight:600;color:var(--gold);margin-bottom:10px">
-            {% set net_rate = [(o.listDues or 0) - (o.discount or 0), 0] | max %}
-            {% if o.listDues %}${{ "{:,}".format(net_rate) }}/month{% else %}Contact for pricing{% endif %}
-          </div>
-          <div style="font-size:12px;color:var(--txt2);margin-bottom:12px">&#128247; Click to view all photos &amp; details</div>
-          <a href="/contact" class="btn btn-navy btn-sm" style="width:100%;text-align:center;display:block"
-             onclick="event.stopPropagation()">Inquire About This Office</a>
+
+          {% if office.listDues %}
+          <div class="office-price">${{ "{:,}".format(office.listDues|int) }}/month</div>
+          {% endif %}
+
+          {% if photos|length > 1 %}
+          <div class="office-cta-hint">📷 View all {{ photos|length }} photos &amp; details</div>
+          {% else %}
+          <div class="office-cta-hint">→ View full details</div>
+          {% endif %}
+
+          <span class="office-btn">View This Office</span>
         </div>
-      </div>
+      </a>
       {% endfor %}
     </div>
-  </div>
+
   {% else %}
-  <div style="background:#fef3c7;border:1px solid #f59e0b;border-radius:8px;padding:20px;margin-bottom:40px;text-align:center">
-    <strong>We're currently at full capacity!</strong> Join our waiting list and we'll contact you as soon as space becomes available.
-    <div style="margin-top:12px"><a href="/contact" class="btn btn-gold btn-sm">Join Waiting List</a></div>
-  </div>
+    <div style="background:#fef3c7;border:1px solid #f59e0b;border-radius:8px;padding:20px;margin-bottom:40px;text-align:center">
+      <strong>We're currently at full capacity!</strong> Join our waiting list and we'll contact you as soon as space becomes available.
+      <div style="margin-top:12px"><a href="/contact" class="btn btn-gold btn-sm">Join Waiting List</a></div>
+    </div>
   {% endif %}
 
 </section>
-
-<!-- Office Detail Modal -->
-<div id="office-modal"
-     style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;align-items:center;justify-content:center;padding:20px">
-  <div style="background:#fff;border-radius:16px;width:100%;max-width:720px;max-height:90vh;overflow-y:auto;position:relative;animation:slideIn .2s ease">
-    <button id="modal-close-btn"
-            style="position:absolute;top:14px;right:14px;background:rgba(0,0,0,.15);border:none;border-radius:50%;width:34px;height:34px;font-size:18px;cursor:pointer;z-index:10;display:flex;align-items:center;justify-content:center;line-height:1">&#x2715;</button>
-    <div id="office-detail-content"></div>
-  </div>
-</div>
 
 <section class="section-navy" style="text-align:center">
   <h2 class="section-title">Ready to See It in Person?</h2>
@@ -93,124 +209,4 @@
   <a href="/contact" class="btn btn-gold">Schedule a Tour</a>
 </section>
 
-{% endblock %}
-
-{% block extra_js %}
-<script>
-var officeData = [
-  {% for o in vacant %}
-  {
-    num: {{ o.num | tojson }},
-    sqft: {{ o.sqft or 0 }},
-    dormer: {{ o.dormer or 0 }},
-    listDues: {{ o.listDues or 0 }},
-    discount: {{ o.discount or 0 }},
-    description: {{ o.description | tojson if o.description else '""' }},
-    photos: [{% if o.photos %}{% for p in o.photos %}"{{ p.data }}"{% if not loop.last %},{% endif %}{% endfor %}{% endif %}],
-    amenities: {{ o.amenities | tojson if o.amenities else '[]' }}
-  }{% if not loop.last %},{% endif %}
-  {% endfor %}
-];
-
-var currentPhotos = [];
-var currentPhotoIdx = 0;
-
-function openOfficeDetail(idx) {
-  var o = officeData[idx];
-  var netRate = Math.max(0, (o.listDues || 0) - (o.discount || 0));
-  currentPhotos = o.photos || [];
-  currentPhotoIdx = 0;
-
-  var photosHtml = '';
-  if (currentPhotos.length > 0) {
-    var dots = currentPhotos.length > 1
-      ? currentPhotos.map(function(_, i) {
-          return '<div id="pdot-' + i + '" style="width:9px;height:9px;border-radius:50%;background:' + (i === 0 ? '#fff' : 'rgba(255,255,255,.45)') + ';transition:background .2s"></div>';
-        }).join('')
-      : '';
-    var arrows = currentPhotos.length > 1
-      ? '<button onclick="prevPhoto()" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,.5);border:none;color:#fff;font-size:26px;width:42px;height:42px;border-radius:50%;cursor:pointer;line-height:1">&#8249;</button>'
-        + '<button onclick="nextPhoto()" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,.5);border:none;color:#fff;font-size:26px;width:42px;height:42px;border-radius:50%;cursor:pointer;line-height:1">&#8250;</button>'
-      : '';
-    photosHtml = '<div style="position:relative;background:#000;border-radius:16px 16px 0 0;overflow:hidden;height:320px">'
-      + '<img id="modal-photo" src="' + currentPhotos[0] + '" style="width:100%;height:100%;object-fit:cover;display:block">'
-      + arrows
-      + (dots ? '<div style="position:absolute;bottom:12px;left:50%;transform:translateX(-50%);display:flex;gap:7px">' + dots + '</div>' : '')
-      + '</div>';
-  }
-
-  var amenitiesHtml = '';
-  if (o.amenities && o.amenities.length) {
-    amenitiesHtml = '<div style="margin-top:18px"><div style="font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:#888;font-weight:700;margin-bottom:10px">Amenities Included</div>'
-      + '<div style="display:flex;flex-wrap:wrap;gap:8px">'
-      + o.amenities.map(function(a) {
-          return '<span style="background:#f0f7ff;border:1px solid #c3deff;border-radius:20px;padding:5px 13px;font-size:13px;color:#1a5276">&#10003; ' + a + '</span>';
-        }).join('')
-      + '</div></div>';
-  }
-
-  document.getElementById('office-detail-content').innerHTML =
-    photosHtml
-    + '<div style="padding:26px">'
-    + '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;flex-wrap:wrap;gap:10px">'
-    + '<div><h2 style="font-family:\'Playfair Display\',serif;font-size:30px;color:#1a2744;margin-bottom:4px">Office ' + o.num + '</h2>'
-    + '<div style="color:#666;font-size:14px">' + o.sqft + (o.dormer ? ' + ' + o.dormer + ' dormer' : '') + ' sq ft</div></div>'
-    + '<div style="text-align:right">'
-    + (netRate > 0 ? '<div style="font-size:26px;font-weight:700;color:#c9a84c">$' + netRate.toLocaleString() + '<span style="font-size:15px">/month</span></div>' : '<div style="font-size:15px;color:#666">Contact for pricing</div>')
-    + (o.discount > 0 ? '<div style="font-size:12px;color:#888;margin-top:2px">Listed $' + o.listDues.toLocaleString() + ' — Discount $' + o.discount.toLocaleString() + '</div>' : '')
-    + '</div></div>'
-    + (o.description ? '<p style="color:#444;font-size:15px;line-height:1.75;margin-bottom:12px">' + o.description + '</p>' : '')
-    + amenitiesHtml
-    + '<div style="margin-top:22px;display:flex;gap:12px;flex-wrap:wrap">'
-    + '<a href="/contact" class="btn btn-navy" style="flex:1;text-align:center;min-width:160px">Inquire About This Office</a>'
-    + '<button onclick="closeOfficeDetail()" style="flex:1;min-width:120px;padding:13px;border:2px solid #1a2744;border-radius:8px;background:#fff;color:#1a2744;font-weight:600;cursor:pointer;font-family:\'Inter\',sans-serif;font-size:15px">Close</button>'
-    + '</div></div>';
-
-  var modal = document.getElementById('office-modal');
-  modal.style.display = 'flex';
-  document.body.style.overflow = 'hidden';
-}
-
-function closeOfficeDetail() {
-  document.getElementById('office-modal').style.display = 'none';
-  document.body.style.overflow = '';
-}
-
-function prevPhoto() {
-  currentPhotoIdx = (currentPhotoIdx - 1 + currentPhotos.length) % currentPhotos.length;
-  updatePhoto();
-}
-
-function nextPhoto() {
-  currentPhotoIdx = (currentPhotoIdx + 1) % currentPhotos.length;
-  updatePhoto();
-}
-
-function updatePhoto() {
-  var img = document.getElementById('modal-photo');
-  if (img) img.src = currentPhotos[currentPhotoIdx];
-  currentPhotos.forEach(function(_, i) {
-    var dot = document.getElementById('pdot-' + i);
-    if (dot) dot.style.background = i === currentPhotoIdx ? '#fff' : 'rgba(255,255,255,.45)';
-  });
-}
-
-// Close on backdrop click
-document.getElementById('office-modal').addEventListener('click', function(e) {
-  if (e.target === this) closeOfficeDetail();
-});
-
-// Close button
-document.getElementById('modal-close-btn').addEventListener('click', closeOfficeDetail);
-
-// Keyboard nav
-document.addEventListener('keydown', function(e) {
-  var modal = document.getElementById('office-modal');
-  if (modal.style.display === 'flex') {
-    if (e.key === 'Escape') closeOfficeDetail();
-    if (e.key === 'ArrowLeft') prevPhoto();
-    if (e.key === 'ArrowRight') nextPhoto();
-  }
-});
-</script>
 {% endblock %}
