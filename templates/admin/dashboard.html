@@ -1119,7 +1119,7 @@ function openAgreementReview(id) {
       </div>
       <div style="background:rgba(212,168,67,0.08);border:1px solid rgba(212,168,67,0.25);border-radius:8px;padding:12px 14px;margin-bottom:20px">
         <div style="color:var(--acc);font-size:12px;font-weight:600;margin-bottom:4px">&#9432; What happens next</div>
-        <div style="color:var(--txt2);font-size:12px;line-height:1.6">The agreement will download automatically, then Outlook will open with a pre-written email. Just attach the downloaded file and hit Send.</div>
+        <div style="color:var(--txt2);font-size:12px;line-height:1.6">The agreement will download to your Downloads folder. Attach it to your email before hitting Send.</div>
       </div>
       <div style="display:flex;gap:10px">
         <button class="btn-edit" style="flex:1" onclick="document.getElementById('review-modal').classList.remove('open')">Go Back</button>
@@ -1138,20 +1138,7 @@ function commitAgreement(id) {
   window.open('/admin/api/generate-agreement/'+id+'?'+params.toString(),'_blank');
   document.getElementById('review-modal').classList.remove('open');
   if (m && !m.agreementSent){ m.agreementSent=new Date().toISOString().slice(0,10); saveData(); renderMembers(); }
-  const email   = m ? (m.email||'') : '';
-  const name    = m ? (m.name||'Member') : 'Member';
-  const subject = encodeURIComponent('Your Qbix Centre Membership Agreement');
-  const notes   = [];
-  if (waiveFee) notes.push('• The $100 setup fee has been waived for your membership.');
-  if (waiveBg)  notes.push('• The background check requirement has been waived for your membership.');
-  const waiveNote = notes.length ? '\n\n'+notes.join('\n') : '';
-  const body = encodeURIComponent(
-    'Hi '+name+',\n\nThank you for choosing Qbix Centre! Please find your Membership Agreement attached.\n\n'+
-    'Please review all sections, sign where indicated, and return the completed agreement at your earliest convenience. '+
-    'If you have any questions please don\'t hesitate to reach out.'+waiveNote+'\n\n'+
-    'We look forward to welcoming you to Qbix Centre!\n\nRocky Davidson\nQbix Centre\n500A Northside Crossing, Macon, GA 31210\n(478) 737-9107'
-  );
-  setTimeout(()=>{ window.location.href='mailto:'+email+'?subject='+subject+'&body='+body; }, 800);
+  toast('&#128196; Agreement downloading — attach it to your email before sending');
 }
 function markAgreementSent(id){const m=getMemberById(id);m.agreementSent=new Date().toISOString().slice(0,10);saveData();closeMo(null,'view-modal');setTimeout(()=>openMemberMo(id),60);toast('Marked as sent');}
 function markAgreementSigned(id){const m=getMemberById(id);m.agreementSigned=new Date().toISOString().slice(0,10);if(m.status==='Pending')m.status='Active';saveData();closeMo(null,'view-modal');setTimeout(()=>openMemberMo(id),60);toast('Marked as signed &mdash; status set to Active &#10003;');}
