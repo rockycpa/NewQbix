@@ -333,8 +333,18 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
     <div class="card">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
         <div class="ct" style="margin-bottom:0">Website Traffic</div>
-        <a href="https://analytics.google.com" target="_blank" style="font-size:12px;color:var(--txt2);text-decoration:none">Google Analytics &#8599;</a>
+        <div style="display:flex;align-items:center;gap:10px">
+          <button id="an-refresh-btn" onclick="loadAnalytics(true)" title="Refresh traffic data" style="background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt2);padding:4px 10px;font-size:13px;cursor:pointer;line-height:1" title="Refresh">&#8635;</button>
+          <a href="https://analytics.google.com" target="_blank" style="font-size:12px;color:var(--txt2);text-decoration:none">Google Analytics &#8599;</a>
+        </div>
       </div>
+      <div id="an-not-loaded" style="padding:28px 0;text-align:center;color:var(--txt3);font-size:13px">
+        <div style="font-size:28px;margin-bottom:8px">📊</div>
+        <div>Traffic data not loaded</div>
+        <div style="font-size:12px;margin-top:4px;margin-bottom:14px">Click refresh to fetch the latest from Google Analytics</div>
+        <button onclick="loadAnalytics(true)" style="background:var(--acc);color:#000;border:none;border-radius:7px;padding:8px 20px;font-size:13px;font-weight:700;cursor:pointer;font-family:'IBM Plex Sans',sans-serif">&#8635; Load Traffic Data</button>
+      </div>
+      <div id="an-loaded-content" style="display:none">
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
         <div style="text-align:center;background:var(--sur2);border-radius:8px;padding:10px 6px">
           <div id="an-today" style="font-family:'IBM Plex Mono',monospace;font-size:22px;color:var(--acc)">-</div>
@@ -369,6 +379,7 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
       </div>
       <div id="an-direct-msg" style="display:none;font-size:13px;color:var(--txt3);padding:10px 0">Direct traffic has no further source detail — these visitors typed your URL directly, used a bookmark, or came from a link that didn't pass referrer info.</div>
       <div id="an-pie-loading" style="display:none;font-size:13px;color:var(--txt3);padding:10px 0">Loading...</div>
+      </div><!-- /an-loaded-content -->
     </div>
 
     <!-- LEAD SOURCE PIE CHART -->
@@ -376,18 +387,43 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
       <div class="ct">Where Members Are Finding Us</div>
       <div style="font-size:12px;color:var(--txt3);margin-bottom:14px">Based on active &amp; pending members with a source recorded</div>
       <div id="mkt-pie-wrap" style="display:flex;gap:20px;align-items:flex-start">
-        <canvas id="mkt-pie" width="180" height="180" style="flex-shrink:0"></canvas>
+        <canvas id="mkt-pie" width="180" height="180" style="flex-shrink:0;cursor:pointer"></canvas>
         <div id="mkt-legend" style="flex:1;font-size:13px"></div>
       </div>
       <div id="mkt-no-data" style="display:none;color:var(--txt3);font-size:13px;padding:20px 0">No lead source data yet — add sources to members to see the chart.</div>
     </div>
   </div>
 
-  <!-- DETAIL TABLE — full width -->
+  <!-- LEAD SOURCE DRILLDOWN POPOVER -->
+  <div id="ls-drilldown" style="display:none;background:var(--sur);border:1px solid var(--acc);border-radius:10px;padding:16px;margin-bottom:16px;position:relative">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div style="font-size:14px;font-weight:600;color:var(--acc)" id="ls-drill-title">Source</div>
+      <button onclick="closeLsDrill()" style="background:none;border:none;color:var(--txt3);font-size:20px;cursor:pointer;line-height:1">&times;</button>
+    </div>
+    <div id="ls-drill-list" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+  </div>
+
+  <!-- COMPETITOR REVIEWS — full width -->
   <div class="card" style="margin-bottom:16px">
-    <div class="ct">Member Lead Source Detail</div>
-    <div style="font-size:12px;color:var(--txt3);margin-bottom:14px">All members and waiting list entries with a source recorded</div>
-    <div id="mkt-detail" style="font-size:13px"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+      <div class="ct" style="margin-bottom:0">&#11088; Google Review Comparison</div>
+      <button onclick="toggleReviewEditor()" id="rv-gear-btn" title="Edit review data" style="background:var(--sur2);border:1px solid var(--bdr);border-radius:8px;padding:5px 12px;font-size:12px;color:var(--txt2);cursor:pointer;font-family:'IBM Plex Sans',sans-serif">&#9881;&#65039; Edit Data</button>
+    </div>
+    <div style="font-size:12px;color:var(--txt3);margin-bottom:16px">Click any bar to open Google reviews in a new tab &mdash; update counts periodically to track progress</div>
+
+    <!-- Edit panel -->
+    <div id="rv-editor" style="display:none;background:var(--sur2);border:1px solid var(--bdr);border-radius:9px;padding:14px;margin-bottom:16px">
+      <div style="font-size:13px;font-weight:600;color:var(--txt);margin-bottom:10px">Update Review Data</div>
+      <div id="rv-edit-rows" style="display:grid;gap:10px"></div>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button onclick="saveReviewData()" style="background:var(--acc);color:#000;border:none;border-radius:6px;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer">Save</button>
+        <button onclick="toggleReviewEditor()" style="background:transparent;border:1px solid var(--bdr);border-radius:6px;color:var(--txt2);padding:8px 14px;font-size:13px;cursor:pointer">Cancel</button>
+      </div>
+    </div>
+
+    <!-- Bar chart -->
+    <div id="rv-chart" style="display:flex;align-items:flex-end;gap:32px;padding:10px 20px 0;min-height:160px"></div>
+    <div style="display:flex;gap:32px;padding:4px 20px 8px" id="rv-labels"></div>
   </div>
 
   <!-- SEARCH CONSOLE CARD — full width -->
@@ -893,18 +929,25 @@ const AN_COLORS = ['#d4a843','#5b9bd5','#4db887','#9b7ed4','#d96060','#e8994a','
 let anDays = 30;
 let anChannel = '';  // '' = top level, 'Referral' etc = drilled in
 
+let anLoaded = false; // track if analytics have been loaded this session
+
 function setAnalyticsDays(d, btn){
   anDays = d;
   anChannel = '';
   document.querySelectorAll('#an-d7,#an-d30,#an-d90').forEach(b=>b.classList.remove('on'));
   btn.classList.add('on');
-  loadAnalytics();
+  loadAnalytics(true);
 }
 
-async function loadAnalytics(){
+async function loadAnalytics(force){
+  if(!force && anLoaded) return; // already loaded — persist until manual refresh
+  const notLoaded  = document.getElementById('an-not-loaded');
+  const loadedCont = document.getElementById('an-loaded-content');
   const pieLoading = document.getElementById('an-pie-loading');
   const pieArea    = document.getElementById('an-pie-area');
   const directMsg  = document.getElementById('an-direct-msg');
+  if(notLoaded)  notLoaded.style.display  = 'none';
+  if(loadedCont) loadedCont.style.display = 'block';
   if(pieLoading){ pieLoading.style.display='block'; pieArea.style.display='none'; directMsg.style.display='none'; }
 
   try {
@@ -912,6 +955,7 @@ async function loadAnalytics(){
     const r = await fetch(url);
     const d = await r.json();
     if(!d.ok){ if(pieLoading) pieLoading.style.display='none'; return; }
+    anLoaded = true;
 
     // Session count cards
     document.getElementById('an-today').textContent = d.today;
@@ -1022,17 +1066,23 @@ async function loadAnalytics(){
   } catch(e){
     console.error('Analytics error',e);
     if(pieLoading) pieLoading.style.display='none';
+    if(!anLoaded){
+      const notLoaded=document.getElementById('an-not-loaded');
+      const loadedCont=document.getElementById('an-loaded-content');
+      if(notLoaded) notLoaded.style.display='block';
+      if(loadedCont) loadedCont.style.display='none';
+    }
   }
 }
 
 function drillInto(channel){
   anChannel = channel;
-  loadAnalytics();
+  loadAnalytics(true);
 }
 
 function drillBack(){
   anChannel = '';
-  loadAnalytics();
+  loadAnalytics(true);
 }
 
 function refreshAll(){ buildDash(); buildMarketing(); renderOffices(); renderMembers(); renderOccupants(); renderWaitlist(); buildNotify(); buildBookingsTab(); buildNewsletterHistory(); }
@@ -1760,6 +1810,8 @@ function toggleLeadSourceEditor(){
 }
 
 // === MARKETING ===
+let _mktSlices = []; // [{label, count, members:[]}] for drilldown
+
 function buildMarketing(){
   if(!document.getElementById('page-marketing')) return;
 
@@ -1775,7 +1827,7 @@ function buildMarketing(){
 
   // ── Collect lead source data from members + waitlist ──────────────────────
   const counts = {};
-  const detail = []; // {name, type, source}
+  const bySource = {}; // source -> [names]
   const tracked = [
     ...DB.members.filter(m => m.leadSource),
     ...DB.waitlist.filter(w => w.leadSource)
@@ -1783,12 +1835,8 @@ function buildMarketing(){
   tracked.forEach(entry => {
     const src = entry.leadSource;
     counts[src] = (counts[src] || 0) + 1;
-    detail.push({
-      name: entry.name,
-      type: entry.status !== undefined ? 'Member' : 'Waitlist',
-      source: src,
-      status: entry.status || ''
-    });
+    if(!bySource[src]) bySource[src] = [];
+    bySource[src].push(entry.name);
   });
 
   const total = Object.values(counts).reduce((a,b)=>a+b, 0);
@@ -1796,9 +1844,11 @@ function buildMarketing(){
   // ── Pie chart ─────────────────────────────────────────────────────────────
   const pieWrap = document.getElementById('mkt-pie-wrap');
   const noData  = document.getElementById('mkt-no-data');
+  closeLsDrill();
   if(total === 0){
     pieWrap.style.display = 'none';
     noData.style.display  = 'block';
+    _mktSlices = [];
   } else {
     pieWrap.style.display = 'flex';
     noData.style.display  = 'none';
@@ -1813,52 +1863,57 @@ function buildMarketing(){
     ctx.clearRect(0, 0, 180, 180);
 
     const entries = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+    _mktSlices = entries.map(([label, count], i) => ({
+      label, count, color: COLORS[i % COLORS.length],
+      names: bySource[label] || [],
+      startAngle: 0, endAngle: 0
+    }));
+
     let angle = -Math.PI / 2;
-    entries.forEach(([label, count], i) => {
-      const slice = (count / total) * 2 * Math.PI;
+    _mktSlices.forEach((sl, i) => {
+      const sweep = (sl.count / total) * 2 * Math.PI;
+      sl.startAngle = angle;
+      sl.endAngle   = angle + sweep;
       ctx.beginPath();
       ctx.moveTo(cx, cy);
-      ctx.arc(cx, cy, r, angle, angle + slice);
+      ctx.arc(cx, cy, r, angle, angle + sweep);
       ctx.closePath();
-      ctx.fillStyle = COLORS[i % COLORS.length];
+      ctx.fillStyle = sl.color;
       ctx.fill();
       ctx.strokeStyle = '#0b0d11';
       ctx.lineWidth = 2;
       ctx.stroke();
-      angle += slice;
+      angle += sweep;
     });
 
-    // Legend
-    document.getElementById('mkt-legend').innerHTML = entries.map(([label, count], i) => {
-      const pct = Math.round(count / total * 100);
-      return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:9px">
-        <div style="width:12px;height:12px;border-radius:3px;background:${COLORS[i % COLORS.length]};flex-shrink:0"></div>
-        <div style="flex:1;font-size:13px;color:var(--txt);line-height:1.3">${label}</div>
-        <div style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--acc);font-weight:700">${count} <span style="color:var(--txt3);font-weight:400">(${pct}%)</span></div>
+    // Canvas click → drilldown
+    canvas.onclick = function(e){
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left - cx;
+      const y = e.clientY - rect.top  - cy;
+      if(Math.sqrt(x*x+y*y) > r) return;
+      let clickA = Math.atan2(y, x);
+      for(const sl of _mktSlices){
+        let sa = sl.startAngle, ea = sl.endAngle;
+        let ca = clickA;
+        while(ca < sa) ca += 2*Math.PI;
+        if(ca >= sa && ca < ea){ openLsDrill(sl); return; }
+      }
+    };
+
+    // Legend — click to drill too
+    document.getElementById('mkt-legend').innerHTML = _mktSlices.map((sl, i) => {
+      const pct = Math.round(sl.count / total * 100);
+      return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:9px;cursor:pointer" onclick="openLsDrill(_mktSlices[${i}])" title="Click to see members">
+        <div style="width:12px;height:12px;border-radius:3px;background:${sl.color};flex-shrink:0"></div>
+        <div style="flex:1;font-size:13px;color:var(--blue);text-decoration:underline dotted;line-height:1.3">${sl.label}</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--acc);font-weight:700">${sl.count} <span style="color:var(--txt3);font-weight:400">(${pct}%)</span></div>
       </div>`;
-    }).join('') + `<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--bdr);font-size:12px;color:var(--txt3)">Total tracked: ${total}</div>`;
+    }).join('') + `<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--bdr);font-size:12px;color:var(--txt3)">Total tracked: ${total} &mdash; click a slice or name to see members</div>`;
   }
 
-  // ── Detail table ──────────────────────────────────────────────────────────
-  const detailEl = document.getElementById('mkt-detail');
-  if(detail.length === 0){
-    detailEl.innerHTML = '<div style="color:var(--txt3);padding:8px 0">No lead source data recorded yet.</div>';
-  } else {
-    detail.sort((a,b)=>a.source.localeCompare(b.source)||a.name.localeCompare(b.name));
-    detailEl.innerHTML = `<table style="width:100%;border-collapse:collapse">
-      <thead><tr>
-        <th style="text-align:left;font-size:11px;color:var(--txt3);padding:5px 8px;border-bottom:1px solid var(--bdr);font-weight:600;text-transform:uppercase;letter-spacing:.06em">Name</th>
-        <th style="text-align:left;font-size:11px;color:var(--txt3);padding:5px 8px;border-bottom:1px solid var(--bdr);font-weight:600;text-transform:uppercase;letter-spacing:.06em">Type</th>
-        <th style="text-align:left;font-size:11px;color:var(--txt3);padding:5px 8px;border-bottom:1px solid var(--bdr);font-weight:600;text-transform:uppercase;letter-spacing:.06em">Source</th>
-      </tr></thead>
-      <tbody>` +
-      detail.map(d => `<tr style="border-bottom:1px solid var(--bdr)">
-        <td style="padding:7px 8px;font-size:13px;color:var(--txt)">${d.name}</td>
-        <td style="padding:7px 8px;font-size:12px;color:${d.status==='Archive'?'var(--txt3)':'var(--txt2)'}">${d.type}${d.status?' · '+d.status:''}</td>
-        <td style="padding:7px 8px;font-size:13px;color:var(--blue)">${d.source}</td>
-      </tr>`).join('') +
-      `</tbody></table>`;
-  }
+  // ── Render competitor review chart ────────────────────────────────────────
+  buildReviewChart();
 }
 
 async function addLeadSource(){
@@ -1884,13 +1939,116 @@ async function removeLeadSource(idx){
   toast('Source removed');
 }
 
+// ── Lead source drilldown ─────────────────────────────────────────────────
+function openLsDrill(sl){
+  const panel = document.getElementById('ls-drilldown');
+  document.getElementById('ls-drill-title').textContent = sl.label + ' (' + sl.count + ')';
+  document.getElementById('ls-drill-list').innerHTML = sl.names.length
+    ? sl.names.map(n => `<div style="background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;padding:6px 12px;font-size:13px;color:var(--txt)">${n}</div>`).join('')
+    : '<div style="color:var(--txt3);font-size:13px">No names recorded.</div>';
+  panel.style.display = 'block';
+  panel.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+function closeLsDrill(){
+  const panel = document.getElementById('ls-drilldown');
+  if(panel) panel.style.display = 'none';
+}
+
+// ── Competitor review chart ───────────────────────────────────────────────
+const DEFAULT_REVIEWS = [
+  {name:'Qbix Centre',       count:8,  rating:4.5, url:'https://www.google.com/maps/place/Qbix+Centre/'},
+  {name:'Tucker Coworking',  count:14, rating:5.0, url:'https://www.google.com/maps/place/Tucker+Coworking/'},
+  {name:'The Office at\nCollege Hill', count:26, rating:4.4, url:'https://www.google.com/maps/place/The+Office+at+College+Hill/'},
+];
+
+function getReviewData(){
+  return DB.reviewData || DEFAULT_REVIEWS;
+}
+
+function buildReviewChart(){
+  const data   = getReviewData();
+  const chart  = document.getElementById('rv-chart');
+  const labels = document.getElementById('rv-labels');
+  if(!chart) return;
+
+  const maxCount = Math.max(...data.map(d=>d.count), 1);
+  const BAR_COLORS = ['#d4a843','#5b9bd5','#4db887'];
+  const MAX_H = 130;
+
+  chart.innerHTML = data.map((d,i) => {
+    const h = Math.max(20, Math.round((d.count / maxCount) * MAX_H));
+    const isQbix = d.name.startsWith('Qbix');
+    const stars  = '★'.repeat(Math.floor(d.rating)) + (d.rating % 1 >= 0.5 ? '½' : '');
+    return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer" onclick="window.open('${d.url}','_blank')" title="Open Google reviews for ${d.name.replace(/\n/,' ')}">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:18px;font-weight:700;color:${BAR_COLORS[i%BAR_COLORS.length]}">${d.count}</div>
+      <div style="width:100%;max-width:100px;height:${h}px;background:${BAR_COLORS[i%BAR_COLORS.length]};border-radius:6px 6px 0 0;opacity:${isQbix?1:0.65};transition:opacity .15s;position:relative" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity='${isQbix?1:0.65}'">
+        ${isQbix?'<div style="position:absolute;top:-20px;left:50%;transform:translateX(-50%);font-size:10px;color:var(--acc);white-space:nowrap;font-weight:600">YOU</div>':''}
+      </div>
+      <div style="font-size:12px;color:var(--acc);letter-spacing:.04em">${stars} ${d.rating}</div>
+    </div>`;
+  }).join('');
+
+  labels.innerHTML = data.map((d,i) => {
+    const BAR_COLORS = ['#d4a843','#5b9bd5','#4db887'];
+    return `<div style="flex:1;text-align:center;font-size:12px;color:var(--txt2);line-height:1.3;cursor:pointer" onclick="window.open('${d.url}','_blank')">${d.name.replace(/\n/,'<br>')}</div>`;
+  }).join('');
+}
+
+function toggleReviewEditor(){
+  const ed  = document.getElementById('rv-editor');
+  const btn = document.getElementById('rv-gear-btn');
+  const open = ed.style.display === 'none';
+  ed.style.display = open ? 'block' : 'none';
+  btn.style.borderColor = open ? 'var(--acc)' : 'var(--bdr)';
+  btn.style.color       = open ? 'var(--acc)' : 'var(--txt2)';
+  if(open) renderReviewEditRows();
+}
+
+function renderReviewEditRows(){
+  const data = getReviewData();
+  document.getElementById('rv-edit-rows').innerHTML = data.map((d,i) =>
+    `<div style="background:var(--sur);border:1px solid var(--bdr);border-radius:8px;padding:12px">
+      <div style="font-size:13px;font-weight:600;color:var(--acc);margin-bottom:8px">${d.name.replace(/\n/,' ')}</div>
+      <div style="display:grid;grid-template-columns:80px 80px 1fr;gap:8px;align-items:center">
+        <div>
+          <label style="font-size:10px;color:var(--txt3);text-transform:uppercase;letter-spacing:.07em;display:block;margin-bottom:3px">Reviews</label>
+          <input id="rv-count-${i}" type="number" value="${d.count}" min="0" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:14px;padding:6px 8px;font-family:'IBM Plex Mono',monospace">
+        </div>
+        <div>
+          <label style="font-size:10px;color:var(--txt3);text-transform:uppercase;letter-spacing:.07em;display:block;margin-bottom:3px">Rating</label>
+          <input id="rv-rating-${i}" type="number" value="${d.rating}" min="1" max="5" step="0.1" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:14px;padding:6px 8px;font-family:'IBM Plex Mono',monospace">
+        </div>
+        <div>
+          <label style="font-size:10px;color:var(--txt3);text-transform:uppercase;letter-spacing:.07em;display:block;margin-bottom:3px">Google Reviews URL</label>
+          <input id="rv-url-${i}" type="url" value="${d.url}" placeholder="https://maps.google.com/..." style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:12px;padding:6px 8px;font-family:'IBM Plex Sans',sans-serif">
+        </div>
+      </div>
+    </div>`
+  ).join('');
+}
+
+async function saveReviewData(){
+  const data = getReviewData();
+  const updated = data.map((d,i) => ({
+    ...d,
+    count:  Number(document.getElementById(`rv-count-${i}`).value)  || d.count,
+    rating: Number(document.getElementById(`rv-rating-${i}`).value) || d.rating,
+    url:    document.getElementById(`rv-url-${i}`).value.trim()     || d.url,
+  }));
+  DB.reviewData = updated;
+  toggleReviewEditor();
+  buildReviewChart();
+  await saveData();
+  toast('Review data saved ✓');
+}
+
 // === NAV ===
 function showPage(id,btn){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
   document.querySelectorAll('.nb').forEach(b=>b.classList.remove('on'));
   document.getElementById('page-'+id).classList.add('on');
   btn.classList.add('on');
-  if(id==='marketing'){buildMarketing();loadAnalytics();loadSearchConsole();}
+  if(id==='marketing'){buildMarketing();loadSearchConsole();}
 }
 function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.getElementById(id).classList.remove('open');}
 document.addEventListener('keydown',e=>{if(e.key==='Escape')['form-modal','view-modal','conf-modal','onboard-modal','review-modal'].forEach(id=>document.getElementById(id).classList.remove('open'));});
