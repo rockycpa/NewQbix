@@ -245,6 +245,8 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
 <div class="savebar">
   <div class="save-indicator"><div class="save-dot" id="save-dot"></div><span id="save-status">All changes saved</span></div>
   <button class="bk-btn" onclick="doBackup()">&#128230; Backup Now</button>
+  <button class="bk-btn" onclick="doRestore()" style="border-color:#3a1a1a;color:var(--red);margin-left:6px">&#128257; Restore from Backup</button>
+  <input type="file" id="restore-file-input" accept=".json" style="display:none" onchange="confirmRestore(this)">
 </div>
 <main>
 
@@ -773,10 +775,18 @@ function setSaveStatus(state){
 async function doBackup(){
   try{
     const r = await fetch('/admin/api/backup');
-    const result = await r.json();
-    if(result.ok){ DB.lastBackup=new Date().toISOString().slice(0,10); document.getElementById('save-status').textContent='All changes saved'; toast('Backup saved &#10003;'); }
-    else toast('Backup failed: '+(result.error||''),'var(--red)');
-  } catch(e){ toast('Backup failed','var(--red)'); }
+    if(!r.ok){ toast('Backup failed','var(--red)'); return; }
+    const blob = await r.blob();
+    const today = new Date().toISOString().slice(0,10);
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'qbix-backup-'+today+'.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    DB.lastBackup = today;
+    document.getElementById('save-status').textContent = 'All changes saved';
+    toast('Backup downloaded ✓');
+  } catch(e){ toast('Backup failed: '+e.message,'var(--red)'); }
 }
 
 function checkDailyBackup(){
@@ -784,6 +794,39 @@ function checkDailyBackup(){
   if(DB.lastBackup!==today){
     document.getElementById('save-status').innerHTML='All changes saved &nbsp;|&nbsp; <span style="color:var(--acc);cursor:pointer" onclick="doBackup()">&#9888; No backup today</span>';
   }
+}
+
+function doRestore(){
+  if(!confirm('Restore from a backup file?\n\nThis will OVERWRITE all current data with the contents of the backup file. Make sure you have a current backup first.\n\nContinue?')) return;
+  document.getElementById('restore-file-input').click();
+}
+
+async function confirmRestore(input){
+  const file = input.files[0];
+  if(!file) return;
+  input.value = ''; // reset so same file can be picked again
+  const reader = new FileReader();
+  reader.onload = async function(e){
+    let data;
+    try{ data = JSON.parse(e.target.result); }
+    catch(err){ toast('Invalid backup file — could not parse JSON','var(--red)'); return; }
+    if(!data.offices){ toast('Invalid backup file — missing required data','var(--red)'); return; }
+    try{
+      const r = await fetch('/admin/api/import-data',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(data)
+      });
+      const result = await r.json();
+      if(result.ok){
+        toast('Restore successful \u2713 — reloading...');
+        setTimeout(()=>location.reload(), 1500);
+      } else {
+        toast('Restore failed: '+(result.error||'unknown error'),'var(--red)');
+      }
+    } catch(err){ toast('Restore failed: '+err.message,'var(--red)'); }
+  };
+  reader.readAsText(file);
 }
 
 // === HELPERS ===
