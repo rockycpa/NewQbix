@@ -236,9 +236,6 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
     <button class="nb" onclick="showPage('bookings',this)">&#128197; Bookings</button>
   </nav>
   <div class="hstats">
-    <div class="hs"><div class="hs-v" id="h-occ">{{ occ }}</div><div class="hs-l">Occupied</div></div>
-    <div class="hs"><div class="hs-v" id="h-vac">{{ vac }}</div><div class="hs-l">Vacant</div></div>
-    <div class="hs"><div class="hs-v" id="h-rev">${{ "{:,.0f}".format(net_rev/1000) }}k</div><div class="hs-l">Net Revenue</div></div>
     <a href="/admin/logout" style="font-size:12px;color:var(--txt2);margin-left:8px">Sign out</a>
   </div>
 </header>
@@ -785,8 +782,14 @@ function setSaveStatus(state){
 
 async function doBackup(){
   try{
-    // Navigate directly so Edge treats it as a normal download (avoids .crdownload issue)
-    window.location.href = '/admin/api/backup';
+    // Open in new tab — Edge sees Content-Disposition:attachment and downloads cleanly
+    const a = document.createElement('a');
+    a.href = '/admin/api/backup';
+    a.target = '_blank';
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
     DB.lastBackup = new Date().toISOString().slice(0,10);
     document.getElementById('save-status').textContent = 'All changes saved';
     setTimeout(()=>toast('Backup downloaded ✓'), 1500);
