@@ -403,29 +403,6 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
     <div id="ls-drill-list" style="display:flex;flex-wrap:wrap;gap:8px"></div>
   </div>
 
-  <!-- COMPETITOR REVIEWS — full width -->
-  <div class="card" style="margin-bottom:16px">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
-      <div class="ct" style="margin-bottom:0">&#11088; Google Review Comparison</div>
-      <button onclick="toggleReviewEditor()" id="rv-gear-btn" title="Edit review data" style="background:var(--sur2);border:1px solid var(--bdr);border-radius:8px;padding:5px 12px;font-size:12px;color:var(--txt2);cursor:pointer;font-family:'IBM Plex Sans',sans-serif">&#9881;&#65039; Edit Data</button>
-    </div>
-    <div style="font-size:12px;color:var(--txt3);margin-bottom:16px">Click any bar to open Google reviews in a new tab &mdash; update counts periodically to track progress</div>
-
-    <!-- Edit panel -->
-    <div id="rv-editor" style="display:none;background:var(--sur2);border:1px solid var(--bdr);border-radius:9px;padding:14px;margin-bottom:16px">
-      <div style="font-size:13px;font-weight:600;color:var(--txt);margin-bottom:10px">Update Review Data</div>
-      <div id="rv-edit-rows" style="display:grid;gap:10px"></div>
-      <div style="display:flex;gap:8px;margin-top:12px">
-        <button onclick="saveReviewData()" style="background:var(--acc);color:#000;border:none;border-radius:6px;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer">Save</button>
-        <button onclick="toggleReviewEditor()" style="background:transparent;border:1px solid var(--bdr);border-radius:6px;color:var(--txt2);padding:8px 14px;font-size:13px;cursor:pointer">Cancel</button>
-      </div>
-    </div>
-
-    <!-- Bar chart -->
-    <div id="rv-chart" style="display:flex;align-items:flex-end;gap:32px;padding:10px 20px 0;min-height:160px"></div>
-    <div style="display:flex;gap:32px;padding:4px 20px 8px" id="rv-labels"></div>
-  </div>
-
   <!-- SEARCH CONSOLE CARD — full width -->
   <div class="card" id="sc-card">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
@@ -458,6 +435,46 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
 
     <!-- Query table -->
     <div id="sc-table"></div>
+  </div>
+
+  <!-- COMPETITOR REVIEWS — full width, bottom -->
+  <div class="card" style="margin-top:16px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px">
+      <div class="ct" style="margin-bottom:0">&#11088; Google Review Tracker</div>
+      <button onclick="toggleReviewEditor()" id="rv-gear-btn" style="background:var(--sur2);border:1px solid var(--bdr);border-radius:8px;padding:5px 12px;font-size:12px;color:var(--txt2);cursor:pointer;font-family:'IBM Plex Sans',sans-serif">&#9881;&#65039; Manage</button>
+    </div>
+    <div style="display:flex;align-items:center;gap:16px;margin-bottom:14px">
+      <div style="font-size:12px;color:var(--txt3)">Click any competitor name to open their Google reviews &mdash; log counts periodically to track trends over time</div>
+      <div id="rv-last-updated" style="font-size:11px;color:var(--txt3);white-space:nowrap;font-style:italic"></div>
+    </div>
+
+    <!-- Manage panel -->
+    <div id="rv-editor" style="display:none;background:var(--sur2);border:1px solid var(--bdr);border-radius:9px;padding:16px;margin-bottom:16px">
+      <div style="font-size:13px;font-weight:600;color:var(--txt);margin-bottom:4px">Log Today's Review Counts</div>
+      <div style="font-size:12px;color:var(--txt3);margin-bottom:12px">Enter current counts &mdash; each save adds a new data point to the trend line</div>
+      <div id="rv-edit-rows" style="display:grid;gap:8px;margin-bottom:14px"></div>
+      <!-- Add new competitor -->
+      <div style="border-top:1px solid var(--bdr);padding-top:12px;margin-top:4px">
+        <div style="font-size:12px;font-weight:600;color:var(--txt2);margin-bottom:8px;text-transform:uppercase;letter-spacing:.07em">Add Competitor</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:center">
+          <input id="rv-new-name" type="text" placeholder="Name (e.g. Basecamp Macon)" style="background:var(--sur);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;padding:7px 10px;font-family:'IBM Plex Sans',sans-serif">
+          <input id="rv-new-url" type="url" placeholder="Google Maps reviews URL" style="background:var(--sur);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;padding:7px 10px;font-family:'IBM Plex Sans',sans-serif">
+          <button onclick="addCompetitor()" style="background:var(--grn);color:#fff;border:none;border-radius:6px;padding:7px 14px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap">+ Add</button>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:14px">
+        <button onclick="saveReviewData()" style="background:var(--acc);color:#000;border:none;border-radius:6px;padding:8px 20px;font-size:13px;font-weight:700;cursor:pointer">&#128190; Save Snapshot</button>
+        <button onclick="toggleReviewEditor()" style="background:transparent;border:1px solid var(--bdr);border-radius:6px;color:var(--txt2);padding:8px 14px;font-size:13px;cursor:pointer">Cancel</button>
+      </div>
+    </div>
+
+    <!-- Line chart canvas -->
+    <div style="position:relative;width:100%;height:220px;margin-bottom:6px">
+      <canvas id="rv-canvas" style="width:100%;height:100%"></canvas>
+      <div id="rv-no-data" style="display:none;position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--txt3);font-size:13px">No data yet — open Manage and log your first snapshot</div>
+    </div>
+    <!-- Legend -->
+    <div id="rv-legend" style="display:flex;flex-wrap:wrap;gap:16px;padding:0 8px 4px"></div>
   </div>
 
 </div>
@@ -1916,6 +1933,7 @@ function buildMarketing(){
   buildReviewChart();
 }
 
+
 async function addLeadSource(){
   const inp = document.getElementById('ls-new-input');
   const val = inp.value.trim();
@@ -1955,43 +1973,167 @@ function closeLsDrill(){
 }
 
 // ── Competitor review chart ───────────────────────────────────────────────
-const DEFAULT_REVIEWS = [
-  {name:'Qbix Centre',       count:8,  rating:4.5, url:'https://www.google.com/maps/place/Qbix+Centre/'},
-  {name:'Tucker Coworking',  count:14, rating:5.0, url:'https://www.google.com/maps/place/Tucker+Coworking/'},
-  {name:'The Office at\nCollege Hill', count:26, rating:4.4, url:'https://www.google.com/maps/place/The+Office+at+College+Hill/'},
-];
+// Data structure: DB.reviewData = {
+//   lastUpdated: 'Apr 14, 2026',
+//   competitors: [
+//     { name:'Qbix Centre', url:'...', isQbix:true,
+//       history: [{date:'2026-04-14', count:8, rating:4.5}, ...] }
+//   ]
+// }
+
+const RV_COLORS = ['#d4a843','#5b9bd5','#4db887','#9b7ed4','#d96060','#e8994a','#4dc8c8'];
+
+const DEFAULT_REVIEW_DATA = {
+  lastUpdated: '',
+  competitors: [
+    { name:'Qbix Centre',            url:'https://www.google.com/maps/search/Qbix+Centre+Macon+GA/', isQbix:true,  history:[] },
+    { name:'Tucker Coworking',       url:'https://www.google.com/maps/search/Tucker+Coworking+Macon+GA/', isQbix:false, history:[] },
+    { name:'The Office at College Hill', url:'https://www.google.com/maps/search/The+Office+at+College+Hill+Macon+GA/', isQbix:false, history:[] },
+  ]
+};
 
 function getReviewData(){
-  return DB.reviewData || DEFAULT_REVIEWS;
+  // Migrate old flat array format if needed
+  const d = DB.reviewData;
+  if(!d) return DEFAULT_REVIEW_DATA;
+  if(Array.isArray(d)){
+    // old format — convert
+    return {
+      lastUpdated: '',
+      competitors: d.map(c => ({
+        name: c.name.replace(/\n/,' '), url: c.url,
+        isQbix: c.name.startsWith('Qbix'),
+        history: (c.count != null) ? [{date: new Date().toISOString().slice(0,10), count: c.count, rating: c.rating||0}] : []
+      }))
+    };
+  }
+  return d;
 }
 
 function buildReviewChart(){
-  const data   = getReviewData();
-  const chart  = document.getElementById('rv-chart');
-  const labels = document.getElementById('rv-labels');
-  if(!chart) return;
+  const rv     = getReviewData();
+  const comps  = rv.competitors || [];
+  const canvas = document.getElementById('rv-canvas');
+  const legend = document.getElementById('rv-legend');
+  const noData = document.getElementById('rv-no-data');
+  if(!canvas) return;
 
-  const maxCount = Math.max(...data.map(d=>d.count), 1);
-  const BAR_COLORS = ['#d4a843','#5b9bd5','#4db887'];
-  const MAX_H = 130;
+  // Last updated label
+  const luEl = document.getElementById('rv-last-updated');
+  if(luEl) luEl.textContent = rv.lastUpdated ? 'Last updated: ' + rv.lastUpdated : '';
 
-  chart.innerHTML = data.map((d,i) => {
-    const h = Math.max(20, Math.round((d.count / maxCount) * MAX_H));
-    const isQbix = d.name.startsWith('Qbix');
-    const stars  = '★'.repeat(Math.floor(d.rating)) + (d.rating % 1 >= 0.5 ? '½' : '');
-    return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer" onclick="window.open('${d.url}','_blank')" title="Open Google reviews for ${d.name.replace(/\n/,' ')}">
-      <div style="font-family:'IBM Plex Mono',monospace;font-size:18px;font-weight:700;color:${BAR_COLORS[i%BAR_COLORS.length]}">${d.count}</div>
-      <div style="width:100%;max-width:100px;height:${h}px;background:${BAR_COLORS[i%BAR_COLORS.length]};border-radius:6px 6px 0 0;opacity:${isQbix?1:0.65};transition:opacity .15s;position:relative" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity='${isQbix?1:0.65}'">
-        ${isQbix?'<div style="position:absolute;top:-20px;left:50%;transform:translateX(-50%);font-size:10px;color:var(--acc);white-space:nowrap;font-weight:600">YOU</div>':''}
-      </div>
-      <div style="font-size:12px;color:var(--acc);letter-spacing:.04em">${stars} ${d.rating}</div>
-    </div>`;
-  }).join('');
+  // Gather all dates across all competitors, sorted
+  const allDates = [...new Set(
+    comps.flatMap(c => (c.history||[]).map(h => h.date))
+  )].sort();
 
-  labels.innerHTML = data.map((d,i) => {
-    const BAR_COLORS = ['#d4a843','#5b9bd5','#4db887'];
-    return `<div style="flex:1;text-align:center;font-size:12px;color:var(--txt2);line-height:1.3;cursor:pointer" onclick="window.open('${d.url}','_blank')">${d.name.replace(/\n/,'<br>')}</div>`;
-  }).join('');
+  const hasData = comps.some(c => (c.history||[]).length > 0);
+
+  if(!hasData){
+    canvas.style.display = 'none';
+    noData.style.display = 'flex';
+    if(legend) legend.innerHTML = '';
+    return;
+  }
+  canvas.style.display = 'block';
+  noData.style.display = 'none';
+
+  // Size canvas to its display size
+  const rect = canvas.parentElement.getBoundingClientRect();
+  const W = rect.width || 800;
+  const H = 220;
+  canvas.width  = W;
+  canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, W, H);
+
+  const PAD = {top:20, right:20, bottom:36, left:36};
+  const cW = W - PAD.left - PAD.right;
+  const cH = H - PAD.top  - PAD.bottom;
+
+  // Y axis — max count across all history
+  const allCounts = comps.flatMap(c => (c.history||[]).map(h => h.count));
+  const maxY = Math.max(...allCounts, 10);
+  const minY = 0;
+
+  // Grid lines
+  const gridSteps = 4;
+  ctx.strokeStyle = 'rgba(46,52,72,0.8)';
+  ctx.lineWidth = 1;
+  ctx.fillStyle = '#6b7a96';
+  ctx.font = '11px IBM Plex Mono, monospace';
+  ctx.textAlign = 'right';
+  for(let i = 0; i <= gridSteps; i++){
+    const val = Math.round(minY + (maxY - minY) * (i / gridSteps));
+    const y   = PAD.top + cH - (i / gridSteps) * cH;
+    ctx.beginPath(); ctx.moveTo(PAD.left, y); ctx.lineTo(PAD.left + cW, y); ctx.stroke();
+    ctx.fillText(val, PAD.left - 4, y + 4);
+  }
+
+  // X axis date labels (show up to 6, evenly spaced)
+  ctx.textAlign = 'center';
+  const labelStep = Math.max(1, Math.ceil(allDates.length / 6));
+  allDates.forEach((date, i) => {
+    if(i % labelStep !== 0 && i !== allDates.length - 1) return;
+    const x = PAD.left + (allDates.length === 1 ? cW/2 : (i / (allDates.length - 1)) * cW);
+    const label = date.slice(5); // MM-DD
+    ctx.fillStyle = '#6b7a96';
+    ctx.fillText(label, x, H - PAD.bottom + 16);
+  });
+
+  // Plot each competitor's line
+  comps.forEach((comp, ci) => {
+    const hist = (comp.history || []).slice().sort((a,b) => a.date.localeCompare(b.date));
+    if(!hist.length) return;
+    const color = RV_COLORS[ci % RV_COLORS.length];
+
+    const pts = hist.map(h => {
+      const di = allDates.indexOf(h.date);
+      const x  = PAD.left + (allDates.length === 1 ? cW/2 : (di / (allDates.length - 1)) * cW);
+      const y  = PAD.top  + cH - ((h.count - minY) / (maxY - minY)) * cH;
+      return {x, y, count: h.count, rating: h.rating};
+    });
+
+    // Line
+    ctx.beginPath();
+    ctx.strokeStyle = color;
+    ctx.lineWidth   = comp.isQbix ? 3 : 2;
+    ctx.setLineDash(comp.isQbix ? [] : [5,3]);
+    pts.forEach((p,i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Dots + count labels
+    pts.forEach(p => {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, comp.isQbix ? 5 : 4, 0, Math.PI*2);
+      ctx.fillStyle = color;
+      ctx.fill();
+      ctx.strokeStyle = '#0b0d11';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      // Count label above dot
+      ctx.fillStyle = color;
+      ctx.font = `${comp.isQbix?'bold ':''} 11px IBM Plex Mono, monospace`;
+      ctx.textAlign = 'center';
+      ctx.fillText(p.count, p.x, p.y - 9);
+    });
+  });
+
+  // Legend
+  if(legend){
+    legend.innerHTML = comps.map((comp, ci) => {
+      const hist    = comp.history || [];
+      const latest  = hist.length ? hist[hist.length-1] : null;
+      const color   = RV_COLORS[ci % RV_COLORS.length];
+      const stars   = latest ? ('★'.repeat(Math.floor(latest.rating)) + (latest.rating%1>=0.5?'½':'')) : '';
+      return `<div style="display:flex;align-items:center;gap:7px;cursor:pointer" onclick="window.open('${comp.url}','_blank')" title="Open Google reviews">
+        <div style="width:24px;height:3px;background:${color};border-radius:2px;flex-shrink:0;${comp.isQbix?'':'opacity:0.7'}"></div>
+        <span style="font-size:13px;color:${comp.isQbix?'var(--acc)':'var(--txt2)'};font-weight:${comp.isQbix?'600':'400'};text-decoration:underline dotted">${comp.name}</span>
+        ${latest ? `<span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:${color};font-weight:700">${latest.count}</span><span style="font-size:11px;color:var(--acc)">${stars}</span>` : '<span style="font-size:11px;color:var(--txt3)">no data</span>'}
+      </div>`;
+    }).join('');
+  }
 }
 
 function toggleReviewEditor(){
@@ -2005,41 +2147,86 @@ function toggleReviewEditor(){
 }
 
 function renderReviewEditRows(){
-  const data = getReviewData();
-  document.getElementById('rv-edit-rows').innerHTML = data.map((d,i) =>
-    `<div style="background:var(--sur);border:1px solid var(--bdr);border-radius:8px;padding:12px">
-      <div style="font-size:13px;font-weight:600;color:var(--acc);margin-bottom:8px">${d.name.replace(/\n/,' ')}</div>
-      <div style="display:grid;grid-template-columns:80px 80px 1fr;gap:8px;align-items:center">
-        <div>
-          <label style="font-size:10px;color:var(--txt3);text-transform:uppercase;letter-spacing:.07em;display:block;margin-bottom:3px">Reviews</label>
-          <input id="rv-count-${i}" type="number" value="${d.count}" min="0" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:14px;padding:6px 8px;font-family:'IBM Plex Mono',monospace">
-        </div>
-        <div>
-          <label style="font-size:10px;color:var(--txt3);text-transform:uppercase;letter-spacing:.07em;display:block;margin-bottom:3px">Rating</label>
-          <input id="rv-rating-${i}" type="number" value="${d.rating}" min="1" max="5" step="0.1" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:14px;padding:6px 8px;font-family:'IBM Plex Mono',monospace">
-        </div>
-        <div>
-          <label style="font-size:10px;color:var(--txt3);text-transform:uppercase;letter-spacing:.07em;display:block;margin-bottom:3px">Google Reviews URL</label>
-          <input id="rv-url-${i}" type="url" value="${d.url}" placeholder="https://maps.google.com/..." style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:12px;padding:6px 8px;font-family:'IBM Plex Sans',sans-serif">
-        </div>
+  const rv   = getReviewData();
+  const comps = rv.competitors || [];
+  document.getElementById('rv-edit-rows').innerHTML = comps.length ? comps.map((c, i) => {
+    const latest = (c.history||[]).length ? c.history[c.history.length-1] : null;
+    return `<div style="display:grid;grid-template-columns:1fr 70px 70px auto;gap:8px;align-items:center;background:var(--sur);border:1px solid var(--bdr);border-radius:8px;padding:10px 12px">
+      <div>
+        <div style="font-size:13px;font-weight:600;color:${c.isQbix?'var(--acc)':'var(--txt)'};margin-bottom:2px">${c.name}${c.isQbix?' <span style="font-size:10px;color:var(--acc)">(you)</span>':''}</div>
+        <div style="font-size:11px;color:var(--txt3)">${latest ? 'Last: '+latest.count+' reviews on '+latest.date : 'No snapshots yet'}</div>
       </div>
-    </div>`
-  ).join('');
+      <div>
+        <label style="font-size:10px;color:var(--txt3);text-transform:uppercase;letter-spacing:.07em;display:block;margin-bottom:2px">Reviews</label>
+        <input id="rv-count-${i}" type="number" value="${latest?latest.count:''}" min="0" placeholder="0" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:14px;padding:5px 7px;font-family:'IBM Plex Mono',monospace">
+      </div>
+      <div>
+        <label style="font-size:10px;color:var(--txt3);text-transform:uppercase;letter-spacing:.07em;display:block;margin-bottom:2px">Rating</label>
+        <input id="rv-rating-${i}" type="number" value="${latest?latest.rating:''}" min="1" max="5" step="0.1" placeholder="5.0" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:14px;padding:5px 7px;font-family:'IBM Plex Mono',monospace">
+      </div>
+      <button onclick="removeCompetitor(${i})" title="Remove competitor" style="background:none;border:1px solid var(--red);border-radius:6px;color:var(--red);padding:5px 10px;font-size:12px;cursor:pointer;white-space:nowrap">&times; Remove</button>
+    </div>`;
+  }).join('') : '<div style="color:var(--txt3);font-size:13px;padding:6px 0">No competitors added yet.</div>';
+}
+
+async function addCompetitor(){
+  const nameEl = document.getElementById('rv-new-name');
+  const urlEl  = document.getElementById('rv-new-url');
+  const name   = nameEl.value.trim();
+  const url    = urlEl.value.trim();
+  if(!name){ toast('Enter a competitor name','var(--red)'); nameEl.focus(); return; }
+  if(!url){  toast('Enter a Google Maps URL','var(--red)');  urlEl.focus();  return; }
+  const rv = getReviewData();
+  rv.competitors.push({name, url, isQbix: false, history:[]});
+  DB.reviewData = rv;
+  nameEl.value = ''; urlEl.value = '';
+  renderReviewEditRows();
+  await saveData();
+  toast(name + ' added ✓');
+}
+
+async function removeCompetitor(idx){
+  const rv = getReviewData();
+  const name = rv.competitors[idx].name;
+  if(!confirm(`Remove "${name}" and all its history? This cannot be undone.`)) return;
+  rv.competitors.splice(idx, 1);
+  DB.reviewData = rv;
+  renderReviewEditRows();
+  buildReviewChart();
+  await saveData();
+  toast(name + ' removed');
 }
 
 async function saveReviewData(){
-  const data = getReviewData();
-  const updated = data.map((d,i) => ({
-    ...d,
-    count:  Number(document.getElementById(`rv-count-${i}`).value)  || d.count,
-    rating: Number(document.getElementById(`rv-rating-${i}`).value) || d.rating,
-    url:    document.getElementById(`rv-url-${i}`).value.trim()     || d.url,
-  }));
-  DB.reviewData = updated;
+  const rv    = getReviewData();
+  const comps = rv.competitors || [];
+  const today = new Date().toISOString().slice(0,10);
+  const nowLabel = new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+
+  comps.forEach((c, i) => {
+    const countEl  = document.getElementById(`rv-count-${i}`);
+    const ratingEl = document.getElementById(`rv-rating-${i}`);
+    if(!countEl) return;
+    const count  = Number(countEl.value);
+    const rating = Number(ratingEl.value) || 0;
+    if(!countEl.value.trim()) return; // skip if left blank
+    // Append or update today's snapshot
+    const hist = c.history || [];
+    const todayIdx = hist.findIndex(h => h.date === today);
+    if(todayIdx >= 0){
+      hist[todayIdx] = {date: today, count, rating};
+    } else {
+      hist.push({date: today, count, rating});
+    }
+    c.history = hist;
+  });
+
+  rv.lastUpdated = nowLabel;
+  DB.reviewData  = rv;
   toggleReviewEditor();
   buildReviewChart();
   await saveData();
-  toast('Review data saved ✓');
+  toast('Snapshot saved ✓');
 }
 
 // === NAV ===
@@ -2054,6 +2241,7 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
 document.addEventListener('keydown',e=>{if(e.key==='Escape')['form-modal','view-modal','conf-modal','onboard-modal','review-modal'].forEach(id=>document.getElementById(id).classList.remove('open'));});
 
 loadData();
+window.addEventListener('resize', () => { if(document.getElementById('rv-canvas')) buildReviewChart(); });
 
 // === NEWSLETTER PHOTO MANAGEMENT ===
 let nlHeroPhoto = null;
