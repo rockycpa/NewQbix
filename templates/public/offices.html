@@ -1,6 +1,6 @@
 {% extends "base.html" %}
-{% block title %}Available Office Space{% endblock %}
-{% block description %}View available private office spaces at Qbix Centre in Macon, GA. Flexible memberships starting at $425/month with no long-term lease required.{% endblock %}
+{% block title %}{{ page_title or 'Office Space for Rent in Macon, GA | Qbix Centre' }}{% endblock %}
+{% block description %}{{ page_description or 'View available private offices at Qbix Centre in north Macon. Flexible memberships starting at $425/month.' }}{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -128,7 +128,7 @@
 {% block content %}
 
 <div class="hero" style="padding:60px 5%">
-  <h1>Office Space in <span>Macon, GA</span></h1>
+  {% if page_h1 %}<h1>{{ page_h1 }}</h1>{% else %}<h1>Office Space in <span>Macon, GA</span></h1>{% endif %}
   <p>Flexible private offices for professionals and growing businesses. No long-term commitment required.</p>
 </div>
 

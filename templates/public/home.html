@@ -1,11 +1,12 @@
 {% extends "base.html" %}
-{% block title %}Coworking & Office Space for Rent{% endblock %}
+{% block title %}{{ page_title or 'Coworking & Office Space in North Macon, GA | Qbix Centre' }}{% endblock %}
+{% block description %}{{ page_description }}{% endblock %}
 
 {% block content %}
 
 <!-- HERO -->
 <div class="hero">
-  <h1>Your Professional Home<br>in <span>Macon, Georgia</span></h1>
+  {% if page_h1 %}<h1>{{ page_h1 }}</h1>{% else %}<h1>Your Professional Home<br>in <span>Macon, Georgia</span></h1>{% endif %}
   <p>Private offices and coworking space in North Macon. No long-term leases. 24/7 access. A community built for professionals.</p>
   <div class="hero-btns">
     <a href="/contact" class="btn btn-gold">Schedule a Tour</a>

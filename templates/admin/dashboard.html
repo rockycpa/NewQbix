@@ -225,7 +225,7 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
 <header>
   <div class="logo">Qbix Centre <em>Management Portal</em></div>
   <nav>
-    <button class="nb on" onclick="showPage('dashboard',this)">Dashboard</button>
+    <button class="nb on" onclick="showPage('website',this)">&#127758; Website</button>
     <button class="nb" onclick="showPage('marketing',this)">&#128200; Marketing</button>
     <button class="nb" onclick="showPage('offices',this)">Offices</button>
     <button class="nb" onclick="showPage('members',this)">Members</button>
@@ -248,58 +248,52 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
 <main>
 
 <!-- DASHBOARD -->
-<div class="page on" id="page-dashboard">
-  <div class="pg-title">Dashboard</div><div class="pg-sub">Live overview &mdash; Qbix Centre</div>
+<div class="page on" id="page-website">
+  <div class="pg-title">&#127758; Website</div>
+  <div class="pg-sub">Edit public-facing page titles, descriptions, and H1 headers — changes go live instantly</div>
 
-  {% if pending %}
-  <div class="pending-bar">
-    <div class="pending-count">{{ pending|length }}</div>
-    <div>
-      <div style="font-weight:600;color:var(--acc)">Pending Member{{ 's' if pending|length != 1 else '' }}</div>
-      <div style="font-size:12px;color:var(--txt2)">
-        {% for m in pending[:3] %}{{ m.name }}{% if not loop.last %}, {% endif %}{% endfor %}
-        {% if pending|length > 3 %} + {{ pending|length - 3 }} more{% endif %}
-        &mdash; <a href="#" onclick="showPage('members', document.querySelectorAll('.nb')[2]);setMF('Pending',document.getElementById('mf-pending'))" style="color:var(--acc)">Review now &rarr;</a>
+  <!-- SEO KEYWORDS (moved from Marketing) -->
+  <div class="card" style="margin-bottom:16px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div class="ct" style="margin-bottom:0">&#128270; SEO Keywords</div>
+      <button onclick="toggleSeoEditor()" id="seo-toggle-btn" style="background:var(--sur2);border:1px solid var(--bdr);border-radius:8px;padding:5px 12px;font-size:12px;color:var(--txt2);cursor:pointer;font-family:'IBM Plex Sans',sans-serif">&#9998; Edit</button>
+    </div>
+    <div style="font-size:12px;color:var(--txt3);margin-bottom:10px">Fed to the AI newsletter generator — it weaves 2–3 naturally into every draft. Edit to match your current focus.</div>
+    <div id="seo-read-view">
+      <div id="seo-pills" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+    </div>
+    <div id="seo-edit-view" style="display:none;margin-top:10px">
+      <div id="seo-edit-list" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:6px;margin-bottom:12px"></div>
+      <div style="display:flex;gap:8px;max-width:480px">
+        <input id="seo-new-input" type="text" placeholder="Add keyword or phrase..." style="flex:1;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;padding:8px 10px;color:var(--txt);font-size:14px;font-family:'IBM Plex Sans',sans-serif" onkeydown="if(event.key==='Enter')addSeoKeyword()">
+        <button onclick="addSeoKeyword()" style="background:var(--acc);color:#000;border:none;border-radius:6px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer">+ Add</button>
       </div>
     </div>
   </div>
-  {% endif %}
 
-  <div class="stats">
-    <div class="sc g"><div class="sc-v">{{ occ }}</div><div class="sc-l">Occupied Offices</div><div class="sc-s">{{ "%.0f"|format(occ/(occ+vac)*100) if (occ+vac) else 0 }}% occupancy</div></div>
-    <div class="sc b"><div class="sc-v">{{ vac }}</div><div class="sc-l">Vacant Offices</div><div class="sc-s">&nbsp;</div></div>
-    <div class="sc a"><div class="sc-v">${{ "{:,}".format(gross) }}</div><div class="sc-l">Gross Monthly</div><div class="sc-s">before discounts</div></div>
-    <div class="sc p"><div class="sc-v">${{ "{:,}".format(net_rev) }}</div><div class="sc-l">Net Monthly</div><div class="sc-s">${{ "{:,}".format(net_rev*12) }} annually</div></div>
-    <div class="sc r"><div class="sc-v" id="s4">${{ "{:,}".format(dep) }}</div><div class="sc-l">Deposits Held</div><div class="sc-s">{{ active|length }} active members</div></div>
-  </div>
-
-  <div class="dg2">
-    <div class="card"><div class="ct">Net Dues by Member</div><div id="rev-bars"></div></div>
-    <div>
-      <div class="card" style="margin-bottom:12px">
-        <div class="ct">Upcoming End Dates</div>
-        {% if endings %}
-          {% for m in endings %}
-          <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--bdr)">
-            <div style="font-size:13px">{{ m.name }}</div>
-            <span class="badge br">{{ m.end }}</span>
-          </div>
-          {% endfor %}
-        {% else %}<div style="color:var(--txt3);font-size:12px">No upcoming end dates</div>{% endif %}
-      </div>
-      <div class="card">
-        <div class="ct">Upcoming Bookings</div>
-        {% if upcoming_bookings %}
-          {% for b in upcoming_bookings[:5] %}
-          <div style="padding:5px 0;border-bottom:1px solid var(--bdr);font-size:12px">
-            <div style="font-weight:500">{{ b.date }} {{ b.start }}&ndash;{{ b.end }}</div>
-            <div style="color:var(--txt2)">{{ b.memberName }}: {{ b.title or 'Meeting' }}</div>
-          </div>
-          {% endfor %}
-        {% else %}<div style="color:var(--txt3);font-size:12px">No upcoming bookings</div>{% endif %}
-      </div>
+  <!-- PAGE META / H1 EDITORS -->
+  <div class="card">
+    <div class="ct" style="margin-bottom:14px">&#128196; Page Titles, Descriptions &amp; H1 Headers</div>
+    <div style="font-size:12px;color:var(--txt3);margin-bottom:16px">Changes save instantly and go live on the public site. Title tag appears in Google search results and browser tabs. Meta description appears as the snippet under your listing. H1 is the main visible header on each page.</div>
+    <div id="site-pages-editor" style="display:flex;flex-direction:column;gap:16px"></div>
+    <div style="margin-top:16px">
+      <button onclick="saveSiteSettings()" id="site-save-btn" style="background:var(--acc);color:#000;border:none;border-radius:7px;padding:9px 28px;font-size:14px;font-weight:700;cursor:pointer">&#128190; Save All Pages</button>
     </div>
   </div>
+
+  <!-- NEWS CATEGORIES -->
+  <div class="card" style="margin-top:16px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div class="ct" style="margin-bottom:0">&#127991; News Categories</div>
+    </div>
+    <div style="font-size:12px;color:var(--txt3);margin-bottom:12px">These appear as filter buttons on the public News page and as options in the Newsletter generator.</div>
+    <div id="ncat-list" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px"></div>
+    <div style="display:flex;gap:8px;max-width:480px">
+      <input id="ncat-new-input" type="text" placeholder="Add category..." style="flex:1;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;padding:8px 10px;color:var(--txt);font-size:14px;font-family:'IBM Plex Sans',sans-serif" onkeydown="if(event.key==='Enter')addNewsCategory()">
+      <button onclick="addNewsCategory()" style="background:var(--acc);color:#000;border:none;border-radius:6px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer">+ Add</button>
+    </div>
+  </div>
+
 </div>
 
 </div>
@@ -370,25 +364,6 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
       <div style="display:flex;gap:8px">
         <button onclick="saveGbpHealth()" style="background:var(--acc);color:#000;border:none;border-radius:6px;padding:8px 20px;font-size:13px;font-weight:700;cursor:pointer">&#128190; Save</button>
         <button onclick="toggleGbpEdit()" style="background:transparent;border:1px solid var(--bdr);border-radius:6px;color:var(--txt2);padding:8px 14px;font-size:13px;cursor:pointer">Cancel</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- SEO KEYWORD LIST -->
-  <div class="card" style="margin-bottom:16px">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-      <div class="ct" style="margin-bottom:0">&#128270; SEO Keywords</div>
-      <button onclick="toggleSeoEditor()" id="seo-toggle-btn" style="background:var(--sur2);border:1px solid var(--bdr);border-radius:8px;padding:5px 12px;font-size:12px;color:var(--txt2);cursor:pointer;font-family:'IBM Plex Sans',sans-serif">&#9998; Edit</button>
-    </div>
-    <div style="font-size:12px;color:var(--txt3);margin-bottom:10px">Fed to the AI newsletter generator — it weaves 2–3 naturally into every draft. Edit to match your current focus.</div>
-    <div id="seo-read-view">
-      <div id="seo-pills" style="display:flex;flex-wrap:wrap;gap:6px"></div>
-    </div>
-    <div id="seo-edit-view" style="display:none;margin-top:10px">
-      <div id="seo-edit-list" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:6px;margin-bottom:12px"></div>
-      <div style="display:flex;gap:8px;max-width:480px">
-        <input id="seo-new-input" type="text" placeholder="Add keyword or phrase..." style="flex:1;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;padding:8px 10px;color:var(--txt);font-size:14px;font-family:'IBM Plex Sans',sans-serif" onkeydown="if(event.key==='Enter')addSeoKeyword()">
-        <button onclick="addSeoKeyword()" style="background:var(--acc);color:#000;border:none;border-radius:6px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer">+ Add</button>
       </div>
     </div>
   </div>
@@ -1116,10 +1091,10 @@ function fileToB64(file){ return new Promise((res,rej)=>{const r=new FileReader(
 function openAttachment(att){ if(!att)return; const w=window.open('','_blank'); if(att.type&&att.type.startsWith('image/')){w.document.write('<!DOCTYPE html><html><body style="margin:0;background:#111"><img src="'+att.data+'" style="max-width:100%;height:auto"></body></html>');}else{const a=w.document.createElement('a');a.href=att.data;a.download=att.name;w.document.body.appendChild(a);a.click();setTimeout(()=>w.close(),500);} }
 
 // === DASHBOARD ===
-function buildDash(){
-  const active=DB.members.filter(m=>m.status==='Active'&&m.dues>0).sort((a,b)=>net(b)-net(a));
-  const mx=active[0]?net(active[0]):1;
-  document.getElementById('rev-bars').innerHTML=active.map(m=>'<div class="ri"><div class="rl" title="'+m.name+'">'+m.name+'</div><div class="rb"><div class="rbf" style="width:'+Math.round(net(m)/mx*100)+'%"></div></div><div class="ra">'+f$(net(m))+'</div></div>').join('')||'<div style="color:var(--txt3);font-size:12px">No active members</div>';
+function buildWebsite(){
+  renderSeoKeywords();
+  renderNewsCategories();
+  renderSitePages();
 }
 
 function buildBookingsTab(){
@@ -1448,7 +1423,7 @@ function drillBack(){
   loadAnalytics(true);
 }
 
-function refreshAll(){ buildDash(); buildMarketing(); renderOffices(); renderMembers(); renderOccupants(); renderWaitlist(); buildNotify(); buildBookingsTab(); buildNewsletterHistory(); }
+function refreshAll(){ buildWebsite(); buildMarketing(); renderOffices(); renderMembers(); renderOccupants(); renderWaitlist(); buildNotify(); buildBookingsTab(); buildNewsletterHistory(); }
 
 // === OFFICES ===
 let ofFilter='all',ofSearch='';
@@ -2602,6 +2577,7 @@ function showPage(id,btn){
   document.querySelectorAll('.nb').forEach(b=>b.classList.remove('on'));
   document.getElementById('page-'+id).classList.add('on');
   btn.classList.add('on');
+  if(id==='website'){buildWebsite();}
   if(id==='marketing'){buildMarketing();}
   if(id==='newsletter'){populateNlCategorySelect();}
 }
@@ -3229,6 +3205,148 @@ window.addEventListener('resize',()=>{
   if(document.getElementById('fb-canvas')) buildFbChart();
   if(document.getElementById('nd-canvas')) buildNdChart();
 });
+// ── WEBSITE TAB ───────────────────────────────────────────────────────────────
+const SITE_PAGES = [
+  { key: 'home',      label: '🏠 Home',      path: '/' },
+  { key: 'offices',   label: '🏢 Offices',   path: '/offices' },
+  { key: 'amenities', label: '✅ Amenities', path: '/amenities' },
+  { key: 'news',      label: '📰 News',      path: '/news' },
+  { key: 'contact',   label: '✉️ Contact',   path: '/contact' },
+];
+
+function renderSitePages(){
+  const ss = DB.siteSettings || {};
+  const el = document.getElementById('site-pages-editor');
+  if(!el) return;
+  el.innerHTML = SITE_PAGES.map(p => {
+    const pg = ss[p.key] || {};
+    return `
+    <div style="background:var(--sur2);border:1px solid var(--bdr);border-radius:9px;padding:16px">
+      <div style="font-size:14px;font-weight:700;color:var(--txt);margin-bottom:12px;display:flex;align-items:center;gap:8px">
+        ${p.label}
+        <a href="${p.path}" target="_blank" style="font-size:11px;color:var(--txt3);font-weight:400;text-decoration:none">View page &#8599;</a>
+      </div>
+      <div style="display:grid;gap:8px">
+        <div>
+          <label style="font-size:12px;color:var(--txt2);display:block;margin-bottom:3px">Page Title <span style="color:var(--txt3);font-weight:400">(shown in Google results &amp; browser tab)</span></label>
+          <input id="ss-${p.key}-title" type="text" value="${(pg.title||'').replace(/"/g,'&quot;')}"
+            style="width:100%;background:var(--sur);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;padding:7px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box"
+            placeholder="e.g. Coworking &amp; Office Space in North Macon, GA | Qbix Centre">
+        </div>
+        <div>
+          <label style="font-size:12px;color:var(--txt2);display:block;margin-bottom:3px">Meta Description <span style="color:var(--txt3);font-weight:400">(snippet shown under Google listing, 150–160 chars)</span></label>
+          <textarea id="ss-${p.key}-desc" rows="2"
+            style="width:100%;background:var(--sur);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;padding:7px 10px;font-family:'IBM Plex Sans',sans-serif;resize:vertical;box-sizing:border-box"
+            placeholder="e.g. Private office space in north Macon at Northside Crossing. Flexible memberships, 24/7 access..."
+          >${(pg.description||'').replace(/</g,'&lt;')}</textarea>
+          <div id="ss-${p.key}-desc-count" style="font-size:11px;color:var(--txt3);text-align:right;margin-top:2px"></div>
+        </div>
+        <div>
+          <label style="font-size:12px;color:var(--txt2);display:block;margin-bottom:3px">H1 Header <span style="color:var(--txt3);font-weight:400">(main visible heading on the page)</span></label>
+          <input id="ss-${p.key}-h1" type="text" value="${(pg.h1||'').replace(/"/g,'&quot;')}"
+            style="width:100%;background:var(--sur);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;padding:7px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box"
+            placeholder="e.g. Coworking &amp; Private Office Space in North Macon, GA">
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Wire up char counters for meta descriptions
+  SITE_PAGES.forEach(p => {
+    const ta = document.getElementById('ss-'+p.key+'-desc');
+    const ct = document.getElementById('ss-'+p.key+'-desc-count');
+    if(ta && ct){
+      const update = () => {
+        const len = ta.value.length;
+        ct.textContent = len + ' chars' + (len > 160 ? ' — too long!' : len > 130 ? ' — good' : '');
+        ct.style.color = len > 160 ? 'var(--red)' : len > 130 ? 'var(--grn)' : 'var(--txt3)';
+      };
+      ta.addEventListener('input', update);
+      update();
+    }
+  });
+}
+
+async function saveSiteSettings(){
+  const btn = document.getElementById('site-save-btn');
+  btn.disabled = true; btn.textContent = 'Saving...';
+  const payload = {};
+  SITE_PAGES.forEach(p => {
+    payload[p.key] = {
+      title:       (document.getElementById('ss-'+p.key+'-title')||{}).value||'',
+      description: (document.getElementById('ss-'+p.key+'-desc') ||{}).value||'',
+      h1:          (document.getElementById('ss-'+p.key+'-h1')   ||{}).value||'',
+    };
+  });
+  // Update local DB
+  if(!DB.siteSettings) DB.siteSettings = {};
+  Object.assign(DB.siteSettings, payload);
+  try{
+    const r = await fetch('/admin/api/site-settings',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(payload)
+    });
+    const result = await r.json();
+    if(result.ok) toast('Site settings saved ✓');
+    else toast('Error: '+result.error,'var(--red)');
+  } catch(e){ toast('Save failed: '+e.message,'var(--red)'); }
+  btn.disabled = false; btn.textContent = '💾 Save All Pages';
+}
+
+// ── NEWS CATEGORIES ───────────────────────────────────────────────────────────
+function renderNewsCategories(){
+  const cats = (DB.marketingSettings||{}).newsletterCategories ||
+    ['Monthly Update','Member Spotlight','Community','Availability'];
+  const el = document.getElementById('ncat-list');
+  if(!el) return;
+  el.innerHTML = cats.map((c,i) => `
+    <div style="display:flex;align-items:center;gap:6px;background:var(--sur2);border:1px solid var(--bdr);border-radius:20px;padding:5px 10px 5px 14px">
+      <span style="font-size:13px;color:var(--txt)">${c}</span>
+      <button onclick="removeNewsCategory(${i})" style="background:none;border:none;color:var(--txt3);cursor:pointer;font-size:14px;line-height:1;padding:0 2px" title="Remove">&times;</button>
+    </div>`).join('');
+  // Also sync newsletter tab category select
+  populateNlCategorySelect();
+}
+
+async function addNewsCategory(){
+  const inp = document.getElementById('ncat-new-input');
+  const val = inp.value.trim();
+  if(!val){ inp.focus(); return; }
+  if(!DB.marketingSettings) DB.marketingSettings = {};
+  const cats = DB.marketingSettings.newsletterCategories ||
+    ['Monthly Update','Member Spotlight','Community','Availability'];
+  if(cats.map(c=>c.toLowerCase()).includes(val.toLowerCase())){
+    toast('That category already exists','var(--red)'); return;
+  }
+  cats.push(val);
+  DB.marketingSettings.newsletterCategories = cats;
+  inp.value = '';
+  renderNewsCategories();
+  try{
+    await fetch('/admin/api/marketing-settings',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({newsletterCategories: cats})
+    });
+  } catch(e){}
+  toast('Category added ✓');
+}
+
+async function removeNewsCategory(idx){
+  if(!DB.marketingSettings) return;
+  const cats = DB.marketingSettings.newsletterCategories || [];
+  if(cats.length <= 1){ toast('Must have at least one category','var(--red)'); return; }
+  cats.splice(idx, 1);
+  DB.marketingSettings.newsletterCategories = cats;
+  renderNewsCategories();
+  try{
+    await fetch('/admin/api/marketing-settings',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({newsletterCategories: cats})
+    });
+  } catch(e){}
+  toast('Category removed');
+}
+
 </script>
 </body>
 </html>

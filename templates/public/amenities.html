@@ -1,9 +1,10 @@
 {% extends "base.html" %}
-{% block title %}Amenities & Features{% endblock %}
+{% block title %}{{ page_title or 'Amenities & Features | Qbix Centre Macon GA' }}{% endblock %}
+{% block description %}{{ page_description }}{% endblock %}
 
 {% block content %}
 <div class="hero" style="padding:60px 5%">
-  <h1>Everything You Need,<br><span>Already Included</span></h1>
+  {% if page_h1 %}<h1>{{ page_h1 }}</h1>{% else %}<h1>Everything You Need,<br><span>Already Included</span></h1>{% endif %}
   <p>No surprise fees. No add-ons. Just a complete professional workspace ready for you on day one.</p>
 </div>
 
