@@ -205,6 +205,7 @@ def load_data():
         })
         ms.setdefault('marketingAlerts', [])
         ms.setdefault('facebookTracker', {'history': []})
+        ms.setdefault('nextdoorTracker', {'history': []})
         return d
     except Exception as e:
         print(f"[DB ERROR] load_data: {e}")

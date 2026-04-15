@@ -342,10 +342,10 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
         </div>
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:8px">
-        <a href="https://business.google.com" target="_blank" class="n-btn" style="text-decoration:none;font-size:12px;padding:6px 14px;background:var(--sur2);border:1px solid var(--bdr);color:var(--txt2)">&#128205; Open GBP Manager &#8599;</a>
-        <a href="https://business.google.com/u/0/create-post" target="_blank" class="n-btn" style="text-decoration:none;font-size:12px;padding:6px 14px;background:var(--sur2);border:1px solid var(--bdr);color:var(--txt2)">&#128221; Add Post &#8599;</a>
+        <a href="https://business.google.com" target="_blank" class="n-btn" style="text-decoration:none;font-size:12px;padding:6px 14px;background:var(--sur2);border:1px solid var(--bdr);color:var(--txt2)">&#128205; GBP Dashboard &#8599;</a>
+        <a href="https://business.google.com/posts" target="_blank" class="n-btn" style="text-decoration:none;font-size:12px;padding:6px 14px;background:var(--sur2);border:1px solid var(--bdr);color:var(--txt2)">&#128221; Add Post &#8599;</a>
         <a href="https://business.google.com/reviews" target="_blank" class="n-btn" style="text-decoration:none;font-size:12px;padding:6px 14px;background:var(--sur2);border:1px solid var(--bdr);color:var(--txt2)">&#11088; Reply to Reviews &#8599;</a>
-        <a href="https://business.google.com/questions" target="_blank" class="n-btn" style="text-decoration:none;font-size:12px;padding:6px 14px;background:var(--sur2);border:1px solid var(--bdr);color:var(--txt2)">&#10067; Q&amp;A Section &#8599;</a>
+        <a href="https://business.google.com/questions" target="_blank" class="n-btn" style="text-decoration:none;font-size:12px;padding:6px 14px;background:var(--sur2);border:1px solid var(--bdr);color:var(--txt2)">&#10067; Q&amp;A &#8599;</a>
       </div>
     </div>
     <!-- Edit form -->
@@ -548,6 +548,87 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
     </div>
     <!-- Legend -->
     <div id="rv-legend" style="display:flex;flex-wrap:wrap;gap:16px;padding:0 8px 4px"></div>
+  </div>
+
+  <!-- SOCIAL PLATFORM TRACKERS — side by side -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px">
+
+    <!-- FACEBOOK TRACKER -->
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px">
+        <div class="ct" style="margin-bottom:0">&#128101; Facebook Tracker</div>
+        <button onclick="toggleFbEditor()" id="fb-gear-btn" style="background:var(--sur2);border:1px solid var(--bdr);border-radius:8px;padding:5px 12px;font-size:12px;color:var(--txt2);cursor:pointer;font-family:'IBM Plex Sans',sans-serif">&#9881;&#65039; Log Update</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:16px;margin-bottom:14px">
+        <div style="font-size:12px;color:var(--txt3)">Log follower counts periodically to track growth over time</div>
+        <div id="fb-last-updated" style="font-size:11px;color:var(--txt3);white-space:nowrap;font-style:italic"></div>
+      </div>
+      <!-- Log panel -->
+      <div id="fb-editor" style="display:none;background:var(--sur2);border:1px solid var(--bdr);border-radius:9px;padding:14px;margin-bottom:14px">
+        <div style="font-size:13px;font-weight:600;color:var(--txt);margin-bottom:10px">Log Today's Stats</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+          <div>
+            <label style="font-size:12px;color:var(--txt2);display:block;margin-bottom:4px">Follower Count</label>
+            <input id="fb-in-followers" type="number" min="0" placeholder="e.g. 248" style="width:100%;background:var(--sur);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:14px;padding:7px 10px;font-family:'IBM Plex Mono',monospace;box-sizing:border-box">
+          </div>
+          <div>
+            <label style="font-size:12px;color:var(--txt2);display:block;margin-bottom:4px">Notes (optional)</label>
+            <input id="fb-in-notes" type="text" placeholder="e.g. Boosted post this week" style="width:100%;background:var(--sur);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;padding:7px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box">
+          </div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button onclick="saveFbSnapshot()" style="background:var(--acc);color:#000;border:none;border-radius:6px;padding:8px 20px;font-size:13px;font-weight:700;cursor:pointer">&#128190; Save Snapshot</button>
+          <button onclick="toggleFbEditor()" style="background:transparent;border:1px solid var(--bdr);border-radius:6px;color:var(--txt2);padding:8px 14px;font-size:13px;cursor:pointer">Cancel</button>
+        </div>
+      </div>
+      <!-- Chart -->
+      <div style="position:relative;width:100%;height:180px;margin-bottom:6px">
+        <canvas id="fb-canvas" style="width:100%;height:100%"></canvas>
+        <div id="fb-no-data" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--txt3);font-size:13px;text-align:center;padding:0 20px">No data yet — click Log Update to record your first snapshot</div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;margin-top:4px">
+        <a href="https://www.facebook.com/profile.php?id=61558398536718" target="_blank" style="font-size:12px;color:var(--blue);text-decoration:none">Open Facebook Page &#8599;</a>
+      </div>
+    </div>
+
+    <!-- NEXTDOOR TRACKER -->
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px">
+        <div class="ct" style="margin-bottom:0">&#127968; Nextdoor Tracker</div>
+        <button onclick="toggleNdEditor()" id="nd-gear-btn" style="background:var(--sur2);border:1px solid var(--bdr);border-radius:8px;padding:5px 12px;font-size:12px;color:var(--txt2);cursor:pointer;font-family:'IBM Plex Sans',sans-serif">&#9881;&#65039; Log Update</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:16px;margin-bottom:14px">
+        <div style="font-size:12px;color:var(--txt3)">Log post activity and reach periodically to track engagement</div>
+        <div id="nd-last-updated" style="font-size:11px;color:var(--txt3);white-space:nowrap;font-style:italic"></div>
+      </div>
+      <!-- Log panel -->
+      <div id="nd-editor" style="display:none;background:var(--sur2);border:1px solid var(--bdr);border-radius:9px;padding:14px;margin-bottom:14px">
+        <div style="font-size:13px;font-weight:600;color:var(--txt);margin-bottom:10px">Log Today's Stats</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+          <div>
+            <label style="font-size:12px;color:var(--txt2);display:block;margin-bottom:4px">Reach / Views</label>
+            <input id="nd-in-reach" type="number" min="0" placeholder="e.g. 340" style="width:100%;background:var(--sur);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:14px;padding:7px 10px;font-family:'IBM Plex Mono',monospace;box-sizing:border-box">
+          </div>
+          <div>
+            <label style="font-size:12px;color:var(--txt2);display:block;margin-bottom:4px">Notes (optional)</label>
+            <input id="nd-in-notes" type="text" placeholder="e.g. Posted about conference room" style="width:100%;background:var(--sur);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;padding:7px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box">
+          </div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button onclick="saveNdSnapshot()" style="background:var(--acc);color:#000;border:none;border-radius:6px;padding:8px 20px;font-size:13px;font-weight:700;cursor:pointer">&#128190; Save Snapshot</button>
+          <button onclick="toggleNdEditor()" style="background:transparent;border:1px solid var(--bdr);border-radius:6px;color:var(--txt2);padding:8px 14px;font-size:13px;cursor:pointer">Cancel</button>
+        </div>
+      </div>
+      <!-- Chart -->
+      <div style="position:relative;width:100%;height:180px;margin-bottom:6px">
+        <canvas id="nd-canvas" style="width:100%;height:100%"></canvas>
+        <div id="nd-no-data" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--txt3);font-size:13px;text-align:center;padding:0 20px">No data yet — click Log Update to record your first snapshot</div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;margin-top:4px">
+        <a href="https://nextdoor.com" target="_blank" style="font-size:12px;color:var(--blue);text-decoration:none">Open Nextdoor &#8599;</a>
+      </div>
+    </div>
+
   </div>
 
 </div>
@@ -2100,6 +2181,8 @@ function buildMarketing(){
 
   // ── Render competitor review chart ────────────────────────────────────────
   buildReviewChart();
+  buildFbChart();
+  buildNdChart();
 }
 
 
@@ -2739,6 +2822,213 @@ async function dismissAlert(id){
   renderMarketingAlerts();
   toast('Alert dismissed');
 }
+
+// ── FACEBOOK TRACKER ─────────────────────────────────────────────────────────
+const FB_COLOR = '#5b9bd5';
+
+function getFbData(){
+  return (DB.marketingSettings || {}).facebookTracker || {history:[]};
+}
+
+function toggleFbEditor(){
+  const ed  = document.getElementById('fb-editor');
+  const btn = document.getElementById('fb-gear-btn');
+  const open = ed.style.display === 'none' || ed.style.display === '';
+  ed.style.display = open ? 'block' : 'none';
+  btn.style.borderColor = open ? 'var(--acc)' : 'var(--bdr)';
+  btn.style.color       = open ? 'var(--acc)' : 'var(--txt2)';
+  if(open){ document.getElementById('fb-in-followers').value=''; document.getElementById('fb-in-notes').value=''; }
+}
+
+async function saveFbSnapshot(){
+  const followers = parseInt(document.getElementById('fb-in-followers').value);
+  if(isNaN(followers)||followers<0){ toast('Enter a valid follower count','var(--red)'); return; }
+  const notes = document.getElementById('fb-in-notes').value.trim();
+  if(!DB.marketingSettings) DB.marketingSettings = {};
+  if(!DB.marketingSettings.facebookTracker) DB.marketingSettings.facebookTracker = {history:[]};
+  DB.marketingSettings.facebookTracker.lastUpdated = new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+  DB.marketingSettings.facebookTracker.history.push({
+    date: new Date().toISOString().slice(0,10),
+    followers, notes
+  });
+  try{
+    await fetch('/admin/api/marketing-settings',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({facebookTracker: DB.marketingSettings.facebookTracker})
+    });
+  } catch(e){}
+  toggleFbEditor();
+  buildFbChart();
+  toast('Facebook snapshot saved ✓');
+}
+
+function buildFbChart(){
+  const fb     = getFbData();
+  const hist   = (fb.history||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
+  const canvas = document.getElementById('fb-canvas');
+  const noData = document.getElementById('fb-no-data');
+  const luEl   = document.getElementById('fb-last-updated');
+  if(!canvas) return;
+  if(luEl) luEl.textContent = fb.lastUpdated ? 'Last updated: '+fb.lastUpdated : '';
+  if(!hist.length){
+    canvas.style.display='none'; noData.style.display='flex'; return;
+  }
+  canvas.style.display='block'; noData.style.display='none';
+
+  const rect = canvas.parentElement.getBoundingClientRect();
+  const W = rect.width||400, H=180;
+  canvas.width=W; canvas.height=H;
+  const ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,W,H);
+
+  const PAD={top:18,right:16,bottom:32,left:40};
+  const cW=W-PAD.left-PAD.right, cH=H-PAD.top-PAD.bottom;
+  const vals = hist.map(h=>h.followers);
+  const maxY = Math.max(...vals,10);
+  const minY = Math.max(0, Math.min(...vals)-5);
+
+  // Grid
+  const steps=3;
+  ctx.strokeStyle='rgba(46,52,72,0.8)'; ctx.lineWidth=1;
+  ctx.fillStyle='#6b7a96'; ctx.font='10px IBM Plex Mono,monospace'; ctx.textAlign='right';
+  for(let i=0;i<=steps;i++){
+    const val=Math.round(minY+(maxY-minY)*(i/steps));
+    const y=PAD.top+cH-(i/steps)*cH;
+    ctx.beginPath(); ctx.moveTo(PAD.left,y); ctx.lineTo(PAD.left+cW,y); ctx.stroke();
+    ctx.fillText(val,PAD.left-4,y+4);
+  }
+
+  // X labels
+  ctx.textAlign='center'; ctx.fillStyle='#6b7a96';
+  const labelStep=Math.max(1,Math.ceil(hist.length/5));
+  hist.forEach((h,i)=>{
+    if(i%labelStep!==0 && i!==hist.length-1) return;
+    const x=PAD.left+(hist.length===1?cW/2:(i/(hist.length-1))*cW);
+    ctx.fillText(h.date.slice(5),x,H-PAD.bottom+14);
+  });
+
+  // Line
+  const pts=hist.map((h,i)=>{
+    const x=PAD.left+(hist.length===1?cW/2:(i/(hist.length-1))*cW);
+    const y=PAD.top+cH-((h.followers-minY)/(maxY-minY))*cH;
+    return {x,y,followers:h.followers,notes:h.notes};
+  });
+  ctx.beginPath(); ctx.strokeStyle=FB_COLOR; ctx.lineWidth=2.5; ctx.setLineDash([]);
+  pts.forEach((p,i)=>i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y)); ctx.stroke();
+
+  // Dots + labels
+  pts.forEach(p=>{
+    ctx.beginPath(); ctx.arc(p.x,p.y,4,0,Math.PI*2);
+    ctx.fillStyle=FB_COLOR; ctx.fill();
+    ctx.strokeStyle='#0b0d11'; ctx.lineWidth=1.5; ctx.stroke();
+    ctx.fillStyle=FB_COLOR; ctx.font='bold 10px IBM Plex Mono,monospace'; ctx.textAlign='center';
+    ctx.fillText(p.followers,p.x,p.y-9);
+  });
+}
+
+// ── NEXTDOOR TRACKER ─────────────────────────────────────────────────────────
+const ND_COLOR = '#4db887';
+
+function getNdData(){
+  return (DB.marketingSettings || {}).nextdoorTracker || {history:[]};
+}
+
+function toggleNdEditor(){
+  const ed  = document.getElementById('nd-editor');
+  const btn = document.getElementById('nd-gear-btn');
+  const open = ed.style.display === 'none' || ed.style.display === '';
+  ed.style.display = open ? 'block' : 'none';
+  btn.style.borderColor = open ? 'var(--acc)' : 'var(--bdr)';
+  btn.style.color       = open ? 'var(--acc)' : 'var(--txt2)';
+  if(open){ document.getElementById('nd-in-reach').value=''; document.getElementById('nd-in-notes').value=''; }
+}
+
+async function saveNdSnapshot(){
+  const reach = parseInt(document.getElementById('nd-in-reach').value);
+  if(isNaN(reach)||reach<0){ toast('Enter a valid reach number','var(--red)'); return; }
+  const notes = document.getElementById('nd-in-notes').value.trim();
+  if(!DB.marketingSettings) DB.marketingSettings = {};
+  if(!DB.marketingSettings.nextdoorTracker) DB.marketingSettings.nextdoorTracker = {history:[]};
+  DB.marketingSettings.nextdoorTracker.lastUpdated = new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+  DB.marketingSettings.nextdoorTracker.history.push({
+    date: new Date().toISOString().slice(0,10),
+    reach, notes
+  });
+  try{
+    await fetch('/admin/api/marketing-settings',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({nextdoorTracker: DB.marketingSettings.nextdoorTracker})
+    });
+  } catch(e){}
+  toggleNdEditor();
+  buildNdChart();
+  toast('Nextdoor snapshot saved ✓');
+}
+
+function buildNdChart(){
+  const nd     = getNdData();
+  const hist   = (nd.history||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
+  const canvas = document.getElementById('nd-canvas');
+  const noData = document.getElementById('nd-no-data');
+  const luEl   = document.getElementById('nd-last-updated');
+  if(!canvas) return;
+  if(luEl) luEl.textContent = nd.lastUpdated ? 'Last updated: '+nd.lastUpdated : '';
+  if(!hist.length){
+    canvas.style.display='none'; noData.style.display='flex'; return;
+  }
+  canvas.style.display='block'; noData.style.display='none';
+
+  const rect=canvas.parentElement.getBoundingClientRect();
+  const W=rect.width||400, H=180;
+  canvas.width=W; canvas.height=H;
+  const ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,W,H);
+
+  const PAD={top:18,right:16,bottom:32,left:40};
+  const cW=W-PAD.left-PAD.right, cH=H-PAD.top-PAD.bottom;
+  const vals=hist.map(h=>h.reach);
+  const maxY=Math.max(...vals,10);
+  const minY=Math.max(0,Math.min(...vals)-5);
+
+  const steps=3;
+  ctx.strokeStyle='rgba(46,52,72,0.8)'; ctx.lineWidth=1;
+  ctx.fillStyle='#6b7a96'; ctx.font='10px IBM Plex Mono,monospace'; ctx.textAlign='right';
+  for(let i=0;i<=steps;i++){
+    const val=Math.round(minY+(maxY-minY)*(i/steps));
+    const y=PAD.top+cH-(i/steps)*cH;
+    ctx.beginPath(); ctx.moveTo(PAD.left,y); ctx.lineTo(PAD.left+cW,y); ctx.stroke();
+    ctx.fillText(val,PAD.left-4,y+4);
+  }
+
+  ctx.textAlign='center'; ctx.fillStyle='#6b7a96';
+  const labelStep=Math.max(1,Math.ceil(hist.length/5));
+  hist.forEach((h,i)=>{
+    if(i%labelStep!==0&&i!==hist.length-1) return;
+    const x=PAD.left+(hist.length===1?cW/2:(i/(hist.length-1))*cW);
+    ctx.fillText(h.date.slice(5),x,H-PAD.bottom+14);
+  });
+
+  const pts=hist.map((h,i)=>{
+    const x=PAD.left+(hist.length===1?cW/2:(i/(hist.length-1))*cW);
+    const y=PAD.top+cH-((h.reach-minY)/(maxY-minY))*cH;
+    return {x,y,reach:h.reach};
+  });
+  ctx.beginPath(); ctx.strokeStyle=ND_COLOR; ctx.lineWidth=2.5;
+  pts.forEach((p,i)=>i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y)); ctx.stroke();
+
+  pts.forEach(p=>{
+    ctx.beginPath(); ctx.arc(p.x,p.y,4,0,Math.PI*2);
+    ctx.fillStyle=ND_COLOR; ctx.fill();
+    ctx.strokeStyle='#0b0d11'; ctx.lineWidth=1.5; ctx.stroke();
+    ctx.fillStyle=ND_COLOR; ctx.font='bold 10px IBM Plex Mono,monospace'; ctx.textAlign='center';
+    ctx.fillText(p.reach,p.x,p.y-9);
+  });
+}
+
+window.addEventListener('resize',()=>{
+  if(document.getElementById('fb-canvas')) buildFbChart();
+  if(document.getElementById('nd-canvas')) buildNdChart();
+});
 </script>
 </body>
 </html>
