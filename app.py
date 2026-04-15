@@ -197,6 +197,14 @@ def load_data():
             o.setdefault('confHours', 6)
         for p in d.get('occupants', []):
             p.setdefault('dlAttachment', None)
+        # Migrate: marketingSettings
+        ms = d.setdefault('marketingSettings', {})
+        ms.setdefault('gbpHealth', {
+            'lastPosted': '', 'lastReplied': '',
+            'reviewCount': 8, 'rating': 4.5
+        })
+        ms.setdefault('marketingAlerts', [])
+        ms.setdefault('facebookTracker', {'history': []})
         return d
     except Exception as e:
         print(f"[DB ERROR] load_data: {e}")
@@ -927,6 +935,25 @@ def import_data():
     except Exception as e:
         return jsonify({'ok': False, 'error': str(e)}), 500
 
+@app.route('/admin/api/marketing-settings', methods=['GET'])
+@login_required
+def get_marketing_settings():
+    data = get_db()
+    return jsonify({'ok': True, 'settings': data.get('marketingSettings', {})})
+
+@app.route('/admin/api/marketing-settings', methods=['POST'])
+@login_required
+def save_marketing_settings():
+    data = get_db()
+    incoming = request.json or {}
+    ms = data.setdefault('marketingSettings', {})
+    # Merge top-level keys
+    for k, v in incoming.items():
+        ms[k] = v
+    save_data(data)
+    return jsonify({'ok': True})
+
+
 @app.route('/admin/api/import-photos', methods=['POST'])
 @login_required
 def import_photos():
@@ -1365,6 +1392,79 @@ def generate_newsletter():
         import traceback
         return jsonify({'ok': False, 'error': str(e), 'detail': traceback.format_exc()[-600:]}), 500
 
+@app.route('/admin/api/generate-social-posts', methods=['POST'])
+@login_required
+def generate_social_posts():
+    """Generate Google, Facebook, and Nextdoor posts from newsletter content."""
+    if not ANTHROPIC_API_KEY:
+        return jsonify({'ok': False, 'error': 'Anthropic API key not configured'}), 400
+
+    body_text = request.json.get('body', '')  # newsletter body (HTML or plain)
+    subject   = request.json.get('subject', '')
+
+    # Strip HTML tags for cleaner AI input
+    import re
+    clean_body = re.sub(r'<[^>]+>', ' ', body_text)
+    clean_body = re.sub(r'\s+', ' ', clean_body).strip()[:2000]
+
+    prompt = f"""You are a social media writer for Qbix Centre, a professional coworking space at 500A Northside Crossing in north Macon, GA.
+
+Given this newsletter content:
+Subject: {subject}
+Body: {clean_body}
+
+Write THREE platform-specific posts. Return ONLY valid JSON with this exact structure (no markdown fences):
+{{
+  "google": "...",
+  "facebook": "...",
+  "nextdoor": "..."
+}}
+
+Rules:
+- google: 150-300 words. Professional tone. Include north Macon / Northside Crossing keywords naturally. End with a call to action (e.g. "Contact us to schedule a tour"). No hashtags.
+- facebook: 40-80 words. Warm, conversational. Include a referral hook like "Know someone who needs office space in north Macon?" Add 2-3 hashtags at the end (#QbixCentre #MaconGA #NorthMacon).
+- nextdoor: 40-70 words. Neighbor-to-neighbor tone. Community framing. No hashtags. Never feel like an ad. Something a real neighbor would write.
+
+Do not invent facts not in the newsletter. Return ONLY the JSON object."""
+
+    try:
+        import urllib.request
+        import json as json_mod
+
+        payload = {
+            'model': 'claude-haiku-4-5-20251001',
+            'max_tokens': 1000,
+            'messages': [{'role': 'user', 'content': prompt}]
+        }
+        req = urllib.request.Request(
+            'https://api.anthropic.com/v1/messages',
+            data=json_mod.dumps(payload).encode(),
+            headers={
+                'Content-Type': 'application/json',
+                'x-api-key': ANTHROPIC_API_KEY,
+                'anthropic-version': '2023-06-01',
+            }
+        )
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            result = json_mod.loads(resp.read())
+            raw = result['content'][0]['text'].strip()
+            # Strip fences if present
+            if raw.startswith('```'):
+                raw = raw.split('\n', 1)[-1]
+            if raw.endswith('```'):
+                raw = raw.rsplit('```', 1)[0]
+            raw = raw.strip()
+            posts = json_mod.loads(raw)
+            return jsonify({'ok': True, 'posts': posts})
+
+    except urllib.error.HTTPError as e:
+        body_err = e.read().decode('utf-8', errors='replace')
+        return jsonify({'ok': False, 'error': f'Anthropic HTTP {e.code}: {body_err[:400]}'}), 500
+    except Exception as e:
+        import traceback
+        return jsonify({'ok': False, 'error': str(e), 'detail': traceback.format_exc()[-600:]}), 500
+
+
 @app.route('/admin/api/publish-newsletter', methods=['POST'])
 @login_required
 def publish_newsletter():
@@ -1383,6 +1483,20 @@ def publish_newsletter():
         'sent':    send,
     }
     data.setdefault('newsletter', []).append(post)
+
+    # Add marketing action alert: newsletter published → pending GBP post
+    ms = data.setdefault('marketingSettings', {})
+    alerts = ms.setdefault('marketingAlerts', [])
+    # Remove any prior pending gbp_post_pending alert so we don't pile up duplicates
+    alerts = [a for a in alerts if a.get('type') != 'gbp_post_pending']
+    alerts.append({
+        'id': 'gbp_' + secrets.token_hex(3),
+        'type': 'gbp_post_pending',
+        'message': f'Newsletter "{subject}" was published — post it to Google Business Profile to keep your profile active.',
+        'dismissed': False
+    })
+    ms['marketingAlerts'] = alerts
+
     save_data(data)
 
     if send:

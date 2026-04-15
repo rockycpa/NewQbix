@@ -312,6 +312,69 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
   </div>
   <div class="pg-sub">Lead sources, website traffic &amp; growth tracking</div>
 
+  <!-- MARKETING ACTION QUEUE -->
+  <div id="mkt-alerts-wrap" style="display:none;margin-bottom:14px"></div>
+
+  <!-- GBP HEALTH CARD -->
+  <div class="card" id="gbp-health-card" style="margin-bottom:16px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div class="ct" style="margin-bottom:0">&#128205; Google Business Profile Health</div>
+      <button onclick="toggleGbpEdit()" id="gbp-edit-btn" style="background:var(--sur2);border:1px solid var(--bdr);border-radius:8px;padding:5px 12px;font-size:12px;color:var(--txt2);cursor:pointer;font-family:'IBM Plex Sans',sans-serif">&#9998; Edit</button>
+    </div>
+    <!-- Read view -->
+    <div id="gbp-read-view">
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px">
+        <div style="text-align:center;background:var(--sur2);border-radius:8px;padding:10px 6px">
+          <div id="gbp-stat-reviews" style="font-family:'IBM Plex Mono',monospace;font-size:22px;color:var(--acc)">—</div>
+          <div style="font-size:12px;color:var(--txt2);text-transform:uppercase;letter-spacing:.07em;margin-top:3px">Reviews</div>
+        </div>
+        <div style="text-align:center;background:var(--sur2);border-radius:8px;padding:10px 6px">
+          <div id="gbp-stat-rating" style="font-family:'IBM Plex Mono',monospace;font-size:22px;color:var(--grn)">—</div>
+          <div style="font-size:12px;color:var(--txt2);text-transform:uppercase;letter-spacing:.07em;margin-top:3px">Rating</div>
+        </div>
+        <div style="text-align:center;background:var(--sur2);border-radius:8px;padding:10px 6px">
+          <div id="gbp-stat-posted" style="font-family:'IBM Plex Mono',monospace;font-size:16px;color:var(--blue)">—</div>
+          <div style="font-size:12px;color:var(--txt2);text-transform:uppercase;letter-spacing:.07em;margin-top:3px">Last Post</div>
+        </div>
+        <div style="text-align:center;background:var(--sur2);border-radius:8px;padding:10px 6px">
+          <div id="gbp-stat-replied" style="font-family:'IBM Plex Mono',monospace;font-size:16px;color:var(--purple)">—</div>
+          <div style="font-size:12px;color:var(--txt2);text-transform:uppercase;letter-spacing:.07em;margin-top:3px">Last Reply</div>
+        </div>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px">
+        <a href="https://business.google.com" target="_blank" class="n-btn" style="text-decoration:none;font-size:12px;padding:6px 14px;background:var(--sur2);border:1px solid var(--bdr);color:var(--txt2)">&#128205; Open GBP Manager &#8599;</a>
+        <a href="https://business.google.com/u/0/create-post" target="_blank" class="n-btn" style="text-decoration:none;font-size:12px;padding:6px 14px;background:var(--sur2);border:1px solid var(--bdr);color:var(--txt2)">&#128221; Add Post &#8599;</a>
+        <a href="https://business.google.com/reviews" target="_blank" class="n-btn" style="text-decoration:none;font-size:12px;padding:6px 14px;background:var(--sur2);border:1px solid var(--bdr);color:var(--txt2)">&#11088; Reply to Reviews &#8599;</a>
+        <a href="https://business.google.com/questions" target="_blank" class="n-btn" style="text-decoration:none;font-size:12px;padding:6px 14px;background:var(--sur2);border:1px solid var(--bdr);color:var(--txt2)">&#10067; Q&amp;A Section &#8599;</a>
+      </div>
+    </div>
+    <!-- Edit form -->
+    <div id="gbp-edit-view" style="display:none;margin-top:10px">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:12px">
+        <div>
+          <label style="font-size:12px;color:var(--txt2);display:block;margin-bottom:4px">Review Count</label>
+          <input id="gbp-in-reviews" type="number" min="0" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:14px;padding:7px 10px;font-family:'IBM Plex Mono',monospace;box-sizing:border-box">
+        </div>
+        <div>
+          <label style="font-size:12px;color:var(--txt2);display:block;margin-bottom:4px">Rating</label>
+          <input id="gbp-in-rating" type="number" min="1" max="5" step="0.1" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:14px;padding:7px 10px;font-family:'IBM Plex Mono',monospace;box-sizing:border-box">
+        </div>
+        <div>
+          <label style="font-size:12px;color:var(--txt2);display:block;margin-bottom:4px">Last Post Date</label>
+          <input id="gbp-in-posted" type="date" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:14px;padding:7px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box">
+        </div>
+        <div>
+          <label style="font-size:12px;color:var(--txt2);display:block;margin-bottom:4px">Last Reply Date</label>
+          <input id="gbp-in-replied" type="date" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:14px;padding:7px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box">
+        </div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button onclick="saveGbpHealth()" style="background:var(--acc);color:#000;border:none;border-radius:6px;padding:8px 20px;font-size:13px;font-weight:700;cursor:pointer">&#128190; Save</button>
+        <button onclick="toggleGbpEdit()" style="background:transparent;border:1px solid var(--bdr);border-radius:6px;color:var(--txt2);padding:8px 14px;font-size:13px;cursor:pointer">Cancel</button>
+      </div>
+    </div>
+  </div>
+
   <!-- LEAD SOURCE EDITOR (hidden by default) -->
   <div id="ls-editor" style="display:none;background:var(--sur);border:1px solid var(--bdr);border-radius:10px;padding:16px;margin-bottom:16px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
@@ -642,6 +705,44 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
           <button onclick="saveDraft()" class="n-btn n-copy" style="border:1px solid var(--bdr)">&#128204; Save as Draft</button>
           <button onclick="publishNewsletter(false)" class="n-btn" style="background:var(--purple);color:#fff">&#128190; Save to Website</button>
           <button onclick="publishNewsletter(true)" class="n-btn n-email">&#128231; Save &amp; Email Members</button>
+        </div>
+
+        <!-- SOCIAL POSTS GENERATOR -->
+        <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--bdr)">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+            <div style="font-size:14px;font-weight:700;color:var(--txt)">&#128229; Social Post Generator</div>
+            <button onclick="generateSocialPosts()" id="sp-gen-btn" style="background:var(--grn);color:#fff;border:none;border-radius:7px;padding:7px 18px;font-size:13px;font-weight:700;cursor:pointer;font-family:'IBM Plex Sans',sans-serif">&#10024; Generate Posts</button>
+          </div>
+          <div style="font-size:12px;color:var(--txt3);margin-bottom:12px">Generates platform-specific posts from your newsletter draft &mdash; copy and paste manually</div>
+          <div id="sp-area" style="display:none;gap:12px">
+            <!-- Google Business Post -->
+            <div style="background:var(--sur2);border:1px solid var(--bdr);border-radius:9px;padding:14px">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                <div style="font-size:13px;font-weight:700;color:var(--txt)">&#128269; Google Business Post</div>
+                <button onclick="copySocialPost('sp-google','Google Business')" style="background:var(--sur);border:1px solid var(--bdr);border-radius:6px;color:var(--txt2);padding:4px 12px;font-size:12px;cursor:pointer;font-family:'IBM Plex Sans',sans-serif">&#128203; Copy</button>
+              </div>
+              <div style="font-size:11px;color:var(--txt3);margin-bottom:8px">150–300 words &bull; Professional &bull; Keywords &bull; CTA &bull; No hashtags &bull; <a href="https://business.google.com" target="_blank" style="color:var(--blue);text-decoration:none">Open GBP &#8599;</a></div>
+              <textarea id="sp-google" style="width:100%;min-height:130px;background:var(--sur);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;font-family:'IBM Plex Sans',sans-serif;padding:10px;resize:vertical;line-height:1.6;box-sizing:border-box" placeholder="Google Business Post will appear here..."></textarea>
+            </div>
+            <!-- Facebook Post -->
+            <div style="background:var(--sur2);border:1px solid var(--bdr);border-radius:9px;padding:14px">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                <div style="font-size:13px;font-weight:700;color:var(--txt)">&#128101; Facebook Post</div>
+                <button onclick="copySocialPost('sp-facebook','Facebook')" style="background:var(--sur);border:1px solid var(--bdr);border-radius:6px;color:var(--txt2);padding:4px 12px;font-size:12px;cursor:pointer;font-family:'IBM Plex Sans',sans-serif">&#128203; Copy</button>
+              </div>
+              <div style="font-size:11px;color:var(--txt3);margin-bottom:8px">40–80 words &bull; Conversational &bull; Referral hook &bull; 2–3 hashtags</div>
+              <textarea id="sp-facebook" style="width:100%;min-height:80px;background:var(--sur);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;font-family:'IBM Plex Sans',sans-serif;padding:10px;resize:vertical;line-height:1.6;box-sizing:border-box" placeholder="Facebook Post will appear here..."></textarea>
+            </div>
+            <!-- Nextdoor Post -->
+            <div style="background:var(--sur2);border:1px solid var(--bdr);border-radius:9px;padding:14px">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                <div style="font-size:13px;font-weight:700;color:var(--txt)">&#127968; Nextdoor Post</div>
+                <button onclick="copySocialPost('sp-nextdoor','Nextdoor')" style="background:var(--sur);border:1px solid var(--bdr);border-radius:6px;color:var(--txt2);padding:4px 12px;font-size:12px;cursor:pointer;font-family:'IBM Plex Sans',sans-serif">&#128203; Copy</button>
+              </div>
+              <div style="font-size:11px;color:var(--txt3);margin-bottom:8px">40–70 words &bull; Neighbor-to-neighbor &bull; Community tone &bull; No hashtags</div>
+              <textarea id="sp-nextdoor" style="width:100%;min-height:70px;background:var(--sur);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;font-family:'IBM Plex Sans',sans-serif;padding:10px;resize:vertical;line-height:1.6;box-sizing:border-box" placeholder="Nextdoor Post will appear here..."></textarea>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -1896,6 +1997,10 @@ let _mktSlices = []; // [{label, count, members:[]}] for drilldown
 function buildMarketing(){
   if(!document.getElementById('page-marketing')) return;
 
+  // ── Marketing action queue & GBP health ───────────────────────────────────
+  renderMarketingAlerts();
+  renderGbpHealth();
+
   // ── Lead source manager list ──────────────────────────────────────────────
   const sources = DB.leadSources || [];
   document.getElementById('ls-list').innerHTML = sources.length
@@ -2481,6 +2586,159 @@ publishNewsletter = async function(send){
 };
 
 {% endraw %}
+
+// ── SOCIAL POST GENERATOR ─────────────────────────────────────────────────────
+async function generateSocialPosts(){
+  const btn = document.getElementById('sp-gen-btn');
+  if(!btn) return;
+  btn.disabled = true; btn.textContent = 'Generating...';
+  try{
+    if(nlQuill) document.getElementById('nl-body').value = nlQuill.root.innerHTML;
+    const subject = document.getElementById('nl-subject').value.trim();
+    const body = document.getElementById('nl-body').value.trim();
+    if(!body){ toast('Generate a newsletter draft first','var(--red)'); btn.disabled=false; btn.textContent='✨ Generate Posts'; return; }
+    const r = await fetch('/admin/api/generate-social-posts',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({subject, body})
+    });
+    const result = await r.json();
+    if(result.ok && result.posts){
+      const sp = result.posts;
+      document.getElementById('sp-google').value   = sp.google   || '';
+      document.getElementById('sp-facebook').value = sp.facebook || '';
+      document.getElementById('sp-nextdoor').value = sp.nextdoor || '';
+      document.getElementById('sp-area').style.display = 'grid';
+      toast('Social posts generated! Copy and paste to each platform.');
+    } else {
+      toast('Error: '+(result.error||'Unknown error'),'var(--red)');
+    }
+  } catch(e){ toast('Generation failed: '+e.message,'var(--red)'); }
+  btn.disabled=false; btn.textContent='✨ Generate Posts';
+}
+
+function copySocialPost(id, label){
+  const el = document.getElementById(id);
+  if(!el || !el.value){ toast('No content to copy','var(--red)'); return; }
+  navigator.clipboard.writeText(el.value).then(()=>toast(label+' post copied ✓')).catch(()=>{
+    el.select(); document.execCommand('copy'); toast(label+' post copied ✓');
+  });
+}
+
+// ── GBP HEALTH CARD ──────────────────────────────────────────────────────────
+function renderGbpHealth(){
+  const ms = DB.marketingSettings || {};
+  const gbp = ms.gbpHealth || {};
+  const reviews = gbp.reviewCount != null ? gbp.reviewCount : '—';
+  const rating  = gbp.rating    != null ? gbp.rating    : '—';
+
+  // Days-ago helper
+  function daysAgo(dateStr){
+    if(!dateStr) return '—';
+    const diff = Math.round((Date.now() - new Date(dateStr)) / 86400000);
+    if(diff === 0) return 'Today';
+    if(diff === 1) return '1 day ago';
+    return diff + ' days ago';
+  }
+
+  // Color coding: >30 days = red, >14 = amber, else green
+  function staleness(dateStr){
+    if(!dateStr) return 'var(--red)';
+    const diff = Math.round((Date.now() - new Date(dateStr)) / 86400000);
+    if(diff > 30) return 'var(--red)';
+    if(diff > 14) return 'var(--acc)';
+    return 'var(--grn)';
+  }
+
+  const el = document.getElementById('gbp-stat-reviews');
+  if(!el) return;
+  el.textContent = reviews;
+  document.getElementById('gbp-stat-rating').textContent = rating;
+
+  const postedEl = document.getElementById('gbp-stat-posted');
+  postedEl.textContent = daysAgo(gbp.lastPosted);
+  postedEl.style.color = staleness(gbp.lastPosted);
+
+  const repliedEl = document.getElementById('gbp-stat-replied');
+  repliedEl.textContent = daysAgo(gbp.lastReplied);
+  repliedEl.style.color = staleness(gbp.lastReplied);
+}
+
+function toggleGbpEdit(){
+  const rv = document.getElementById('gbp-read-view');
+  const ev = document.getElementById('gbp-edit-view');
+  const btn = document.getElementById('gbp-edit-btn');
+  const isEditing = ev.style.display !== 'none';
+  if(isEditing){
+    rv.style.display = ''; ev.style.display = 'none'; btn.textContent = '✎ Edit';
+  } else {
+    // Populate inputs from current data
+    const gbp = (DB.marketingSettings || {}).gbpHealth || {};
+    document.getElementById('gbp-in-reviews').value = gbp.reviewCount != null ? gbp.reviewCount : '';
+    document.getElementById('gbp-in-rating').value  = gbp.rating     != null ? gbp.rating     : '';
+    document.getElementById('gbp-in-posted').value  = gbp.lastPosted  || '';
+    document.getElementById('gbp-in-replied').value = gbp.lastReplied || '';
+    rv.style.display = 'none'; ev.style.display = ''; btn.textContent = '✎ Editing';
+  }
+}
+
+async function saveGbpHealth(){
+  if(!DB.marketingSettings) DB.marketingSettings = {};
+  DB.marketingSettings.gbpHealth = {
+    reviewCount: parseFloat(document.getElementById('gbp-in-reviews').value) || 0,
+    rating:      parseFloat(document.getElementById('gbp-in-rating').value)  || 0,
+    lastPosted:  document.getElementById('gbp-in-posted').value,
+    lastReplied: document.getElementById('gbp-in-replied').value,
+  };
+  try{
+    await fetch('/admin/api/marketing-settings', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({gbpHealth: DB.marketingSettings.gbpHealth})
+    });
+  } catch(e){}
+  toggleGbpEdit();
+  renderGbpHealth();
+  toast('GBP data updated ✓');
+}
+
+// ── MARKETING ACTION QUEUE ────────────────────────────────────────────────────
+function renderMarketingAlerts(){
+  const wrap = document.getElementById('mkt-alerts-wrap');
+  if(!wrap) return;
+  const ms = DB.marketingSettings || {};
+  const alerts = (ms.marketingAlerts || []).filter(a => !a.dismissed);
+  if(alerts.length === 0){ wrap.style.display = 'none'; wrap.innerHTML = ''; return; }
+
+  const ICONS = { gbp_post_pending: '📬', office_vacancy: '🏢' };
+  const COLORS = { gbp_post_pending: 'var(--blue)', office_vacancy: 'var(--acc)' };
+
+  wrap.style.display = 'block';
+  wrap.innerHTML = `
+    <div style="font-size:12px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">&#128276; Action Queue</div>
+    <div style="display:grid;gap:8px">
+      ${alerts.map(a => `
+        <div style="background:var(--sur);border:1px solid ${COLORS[a.type]||'var(--bdr)'};border-left:3px solid ${COLORS[a.type]||'var(--acc)'};border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:12px">
+          <div style="font-size:20px;flex-shrink:0">${ICONS[a.type]||'📌'}</div>
+          <div style="flex:1;font-size:13px;color:var(--txt);line-height:1.5">${a.message}</div>
+          <button onclick="dismissAlert('${a.id}')" title="Dismiss" style="background:none;border:1px solid var(--bdr);border-radius:5px;color:var(--txt3);padding:3px 9px;font-size:12px;cursor:pointer;flex-shrink:0;font-family:'IBM Plex Sans',sans-serif">Done &#10003;</button>
+        </div>`).join('')}
+    </div>`;
+}
+
+async function dismissAlert(id){
+  if(!DB.marketingSettings) DB.marketingSettings = {};
+  const alerts = DB.marketingSettings.marketingAlerts || [];
+  const a = alerts.find(x => x.id === id);
+  if(a) a.dismissed = true;
+  DB.marketingSettings.marketingAlerts = alerts;
+  try{
+    await fetch('/admin/api/marketing-settings',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({marketingAlerts: alerts})
+    });
+  } catch(e){}
+  renderMarketingAlerts();
+  toast('Alert dismissed');
+}
 </script>
 </body>
 </html>
