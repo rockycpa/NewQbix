@@ -206,6 +206,14 @@ def load_data():
         ms.setdefault('marketingAlerts', [])
         ms.setdefault('facebookTracker', {'history': []})
         ms.setdefault('nextdoorTracker', {'history': []})
+        ms.setdefault('seoKeywords', [
+            'north Macon office space', 'Northside Crossing',
+            'private office Macon GA', 'flexible office membership',
+            'coworking Macon', 'north Macon coworking', 'furnished office Macon'
+        ])
+        ms.setdefault('newsletterCategories', [
+            'Monthly Update', 'Member Spotlight', 'Community', 'Availability'
+        ])
         return d
     except Exception as e:
         print(f"[DB ERROR] load_data: {e}")
@@ -455,7 +463,14 @@ def news():
     track_pageview('/news')
     data = get_db()
     posts = sorted(data.get('newsletter', []), key=lambda x: x.get('date',''), reverse=True)
-    return render_template('public/news.html', posts=posts, ga_id=GA_MEASUREMENT_ID)
+    # Only show published (not draft) posts
+    posts = [p for p in posts if not p.get('draft')]
+    cat_filter = request.args.get('category', '')
+    categories = sorted(set(p.get('category','') for p in posts if p.get('category')))
+    if cat_filter:
+        posts = [p for p in posts if p.get('category') == cat_filter]
+    return render_template('public/news.html', posts=posts, categories=categories,
+                           cat_filter=cat_filter, ga_id=GA_MEASUREMENT_ID)
 
 @app.route('/news/<post_id>')
 def news_post(post_id):
@@ -1335,29 +1350,94 @@ def generate_newsletter():
     vac    = len([o for o in data['offices'] if o['status'] == 'Vacant'])
     month  = datetime.now().strftime('%B %Y')
 
+    # SEO keywords — weave 2-3 naturally
+    seo_kws = data.get('marketingSettings', {}).get('seoKeywords', [])
+    kw_note = ''
+    if seo_kws:
+        sample = seo_kws[:5]
+        kw_note = f' Naturally weave in 2-3 of these SEO keywords where they fit organically (do not force them): {", ".join(sample)}.'
+
     context = (
         f"Qbix Centre is a professional coworking space in Macon, Georgia at 500A Northside Crossing. "
         f"Current stats: {occ} offices occupied, {vac} vacant, {len(active)} active members. "
         f"Month: {month}. "
         f"Amenities: 24/7 access, AT&T Fiber, Starbucks coffee, furnished offices, conference room, free parking."
+        + kw_note
     )
 
-    custom_notes = request.json.get('notes', '')
+    req_body     = request.json or {}
+    custom_notes = req_body.get('notes', '')
+    nl_type      = req_body.get('nlType', 'Monthly Update')
+    spotlight    = req_body.get('spotlight', {})  # {name, profession, tenure, personalNote}
 
     try:
         import urllib.request
         import json as json_mod
 
-        if custom_notes.strip():
-            intro = 'Write a warm, friendly, professional monthly newsletter for Qbix Centre. '
-            focus = 'The manager has provided specific content to cover — this is the main focus of the newsletter. Cover it fully: ' + custom_notes + ' '
-            outro = 'Add a brief welcoming opener and a friendly closing. Background context (weave in naturally): ' + context + '. Format as clean HTML for email using <p>, <strong>, <ul>/<li> tags. Do not invent details not mentioned. Warm, community-focused tone.'
-            prompt = intro + focus + outro
-        else:
-            prompt = ('Write a warm, friendly, professional monthly newsletter for Qbix Centre. '
-                      '3-4 short paragraphs: welcoming opener, community snapshot, friendly closing. '
-                      'Context: ' + context + '. '
-                      'Format as clean HTML for email. Warm, community-focused tone.')
+        base = 'Format as clean HTML for email using <p>, <strong>, <ul>/<li> tags only. Do not use markdown. Do not invent details not provided.'
+
+        if nl_type == 'Member Spotlight':
+            name        = spotlight.get('name', 'our member')
+            profession  = spotlight.get('profession', '')
+            tenure      = spotlight.get('tenure', '')
+            personal    = spotlight.get('personalNote', '')
+            prompt = (
+                f'Write a warm, engaging Member Spotlight feature article for the Qbix Centre newsletter. '
+                f'This is a profile of one of our members. '
+                f'Member name: {name}. '
+                + (f'Profession/business: {profession}. ' if profession else '')
+                + (f'How long at Qbix: {tenure}. ' if tenure else '')
+                + (f'Personal note from manager: {personal}. ' if personal else '')
+                + f'Structure: warm intro paragraph welcoming them to the spotlight, 2-3 paragraphs about their work and presence in the Qbix community, a friendly closing encouraging members to connect with them. '
+                + f'Tone: warm, personal, community-focused. Do not invent details beyond what is provided. '
+                + f'Background context (weave in lightly): {context}. {base}'
+            )
+
+        elif nl_type == 'Community':
+            if custom_notes.strip():
+                prompt = (
+                    f'Write a warm community-focused newsletter for Qbix Centre about local north Macon business news and happenings relevant to our professional tenant community. '
+                    f'Manager notes on what to cover: {custom_notes}. '
+                    f'3-4 paragraphs. Conversational, neighbor-to-neighbor tone — like a community insider sharing news. '
+                    f'Context: {context}. {base}'
+                )
+            else:
+                prompt = (
+                    f'Write a warm community-focused newsletter for Qbix Centre about the north Macon professional community. '
+                    f'3-4 paragraphs touching on themes like local business, networking, professional growth, and community. '
+                    f'Tone: conversational, warm, community insider. '
+                    f'Context: {context}. {base}'
+                )
+
+        elif nl_type == 'Availability':
+            if custom_notes.strip():
+                prompt = (
+                    f'Write a professional but friendly availability/promotional newsletter for Qbix Centre. '
+                    f'Manager notes: {custom_notes}. '
+                    f'Highlight available office space and membership options. Include a clear call to action to schedule a tour. '
+                    f'Tone: welcoming and professional, not pushy. 2-3 paragraphs. '
+                    f'Context: {context}. {base}'
+                )
+            else:
+                prompt = (
+                    f'Write a professional but friendly availability newsletter for Qbix Centre. '
+                    f'{vac} office(s) currently available. Mention flexible membership options (private office, flex membership, virtual address). '
+                    f'Include a call to action to schedule a tour or reach out. Tone: welcoming, not pushy. 2-3 paragraphs. '
+                    f'Context: {context}. {base}'
+                )
+
+        else:  # Monthly Update (default)
+            if custom_notes.strip():
+                intro  = 'Write a warm, friendly, professional monthly newsletter for Qbix Centre. '
+                focus  = 'The manager has provided specific content to cover — this is the main focus of the newsletter. Cover it fully: ' + custom_notes + ' '
+                outro  = 'Add a brief welcoming opener and a friendly closing. Background context (weave in naturally): ' + context + '. ' + base
+                prompt = intro + focus + outro
+            else:
+                prompt = (
+                    'Write a warm, friendly, professional monthly newsletter for Qbix Centre. '
+                    '3-4 short paragraphs: welcoming opener, community snapshot, friendly closing. '
+                    'Context: ' + context + '. ' + base
+                )
 
         payload = {
             'model': 'claude-haiku-4-5-20251001',
@@ -1377,7 +1457,6 @@ def generate_newsletter():
         with urllib.request.urlopen(req, timeout=30) as resp:
             result = json_mod.loads(resp.read())
             draft = result['content'][0]['text']
-            # Strip markdown code fences if model wrapped response in them
             draft = draft.strip()
             if draft.startswith('```'):
                 draft = draft.split('\n', 1)[-1]
@@ -1471,17 +1550,19 @@ Do not invent facts not in the newsletter. Return ONLY the JSON object."""
 def publish_newsletter():
     """Save newsletter and optionally email to all active members."""
     data    = get_db()
-    subject = request.json.get('subject', f'Qbix Centre Newsletter — {datetime.now().strftime("%B %Y")}')
-    body    = request.json.get('body', '')
-    send    = request.json.get('send', False)
+    subject  = request.json.get('subject', f'Qbix Centre Newsletter — {datetime.now().strftime("%B %Y")}')
+    body     = request.json.get('body', '')
+    send     = request.json.get('send', False)
+    category = request.json.get('category', 'Monthly Update')
 
     post_id = '_' + secrets.token_hex(4)
     post = {
-        'id':      post_id,
-        'subject': subject,
-        'body':    body,
-        'date':    datetime.now().isoformat(),
-        'sent':    send,
+        'id':       post_id,
+        'subject':  subject,
+        'body':     body,
+        'category': category,
+        'date':     datetime.now().isoformat(),
+        'sent':     send,
     }
     data.setdefault('newsletter', []).append(post)
 

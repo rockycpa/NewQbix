@@ -374,6 +374,25 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
     </div>
   </div>
 
+  <!-- SEO KEYWORD LIST -->
+  <div class="card" style="margin-bottom:16px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div class="ct" style="margin-bottom:0">&#128270; SEO Keywords</div>
+      <button onclick="toggleSeoEditor()" id="seo-toggle-btn" style="background:var(--sur2);border:1px solid var(--bdr);border-radius:8px;padding:5px 12px;font-size:12px;color:var(--txt2);cursor:pointer;font-family:'IBM Plex Sans',sans-serif">&#9998; Edit</button>
+    </div>
+    <div style="font-size:12px;color:var(--txt3);margin-bottom:10px">Fed to the AI newsletter generator — it weaves 2–3 naturally into every draft. Edit to match your current focus.</div>
+    <div id="seo-read-view">
+      <div id="seo-pills" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+    </div>
+    <div id="seo-edit-view" style="display:none;margin-top:10px">
+      <div id="seo-edit-list" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:6px;margin-bottom:12px"></div>
+      <div style="display:flex;gap:8px;max-width:480px">
+        <input id="seo-new-input" type="text" placeholder="Add keyword or phrase..." style="flex:1;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;padding:8px 10px;color:var(--txt);font-size:14px;font-family:'IBM Plex Sans',sans-serif" onkeydown="if(event.key==='Enter')addSeoKeyword()">
+        <button onclick="addSeoKeyword()" style="background:var(--acc);color:#000;border:none;border-radius:6px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer">+ Add</button>
+      </div>
+    </div>
+  </div>
+
   <!-- LEAD SOURCE EDITOR (hidden by default) -->
   <div id="ls-editor" style="display:none;background:var(--sur);border:1px solid var(--bdr);border-radius:10px;padding:16px;margin-bottom:16px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
@@ -745,11 +764,51 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start">
     <div class="card">
       <div class="ct">Generate Draft</div>
+
+      <!-- TYPE SELECTOR -->
       <div class="compose-field">
-        <label>Additional Notes for AI</label>
-        <textarea id="nl-notes" placeholder="e.g. 'We just got new chairs in the kitchenette' or 'Spring is here &mdash; encourage use of the conference room'" style="min-height:90px"></textarea>
+        <label>Newsletter Type</label>
+        <div id="nl-type-btns" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px">
+          <button class="fb on" id="nltype-monthly"    onclick="setNlType('Monthly Update',this)">&#128197; Monthly Update</button>
+          <button class="fb"    id="nltype-spotlight"  onclick="setNlType('Member Spotlight',this)">&#11088; Member Spotlight</button>
+          <button class="fb"    id="nltype-community"  onclick="setNlType('Community',this)">&#127968; Community</button>
+          <button class="fb"    id="nltype-avail"      onclick="setNlType('Availability',this)">&#128205; Availability</button>
+        </div>
       </div>
+
+      <!-- MEMBER SPOTLIGHT INTAKE (hidden unless type = Member Spotlight) -->
+      <div id="nl-spotlight-fields" style="display:none;background:var(--sur2);border:1px solid var(--bdr);border-radius:9px;padding:14px;margin-bottom:12px">
+        <div style="font-size:13px;font-weight:600;color:var(--txt);margin-bottom:10px">&#11088; Spotlight Details</div>
+        <div style="display:grid;gap:8px">
+          <div>
+            <label style="font-size:12px;color:var(--txt2);display:block;margin-bottom:3px">Member Name *</label>
+            <input id="nl-spot-name" type="text" placeholder="e.g. Jane Smith / Pinnacle Accounting" style="width:100%;background:var(--sur);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;padding:7px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box">
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div>
+              <label style="font-size:12px;color:var(--txt2);display:block;margin-bottom:3px">Profession / Business</label>
+              <input id="nl-spot-profession" type="text" placeholder="e.g. CPA, Real Estate Agent" style="width:100%;background:var(--sur);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;padding:7px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box">
+            </div>
+            <div>
+              <label style="font-size:12px;color:var(--txt2);display:block;margin-bottom:3px">How Long at Qbix</label>
+              <input id="nl-spot-tenure" type="text" placeholder="e.g. 2 years, since Sept 2023" style="width:100%;background:var(--sur);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;padding:7px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box">
+            </div>
+          </div>
+          <div>
+            <label style="font-size:12px;color:var(--txt2);display:block;margin-bottom:3px">Personal Note (fun fact, hobby, something to highlight)</label>
+            <textarea id="nl-spot-personal" placeholder="e.g. Recently expanded her team, plays in a local band on weekends..." style="width:100%;min-height:60px;background:var(--sur);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;padding:7px 10px;font-family:'IBM Plex Sans',sans-serif;resize:vertical;box-sizing:border-box"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- ADDITIONAL NOTES (label changes by type) -->
+      <div class="compose-field">
+        <label id="nl-notes-label">Additional Notes for AI</label>
+        <textarea id="nl-notes" placeholder="e.g. 'We just got new chairs in the kitchenette' or 'Spring is here — encourage use of the conference room'" style="min-height:90px"></textarea>
+      </div>
+
       <button onclick="generateNewsletter()" class="btn-save" style="width:100%" id="nl-gen-btn">&#10024; Generate Draft with AI</button>
+
       <div id="nl-draft-area" style="display:none;margin-top:16px">
         <div class="compose-field">
           <label>Subject</label>
@@ -781,6 +840,18 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
           </div>
           <div id="nl-gallery-preview" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:7px"></div>
         </div>
+
+        <!-- CATEGORY PICKER -->
+        <div class="compose-field">
+          <label>Post Category</label>
+          <select id="nl-category" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:14px;padding:8px 10px;font-family:'IBM Plex Sans',sans-serif">
+            <option value="Monthly Update">Monthly Update</option>
+            <option value="Member Spotlight">Member Spotlight</option>
+            <option value="Community">Community</option>
+            <option value="Availability">Availability</option>
+          </select>
+        </div>
+
         <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
           <button onclick="saveDraft()" class="n-btn n-copy" style="border:1px solid var(--bdr)">&#128204; Save as Draft</button>
           <button onclick="publishNewsletter(false)" class="n-btn" style="background:var(--purple);color:#fff">&#128190; Save to Website</button>
@@ -1075,7 +1146,11 @@ function buildNewsletterHistory(){
   const posts=(DB.newsletter||[]).slice().reverse();
   document.getElementById('nl-history').innerHTML=posts.length?posts.map(p=>`
     <div style="padding:16px;border:1px solid var(--bdr);border-radius:8px;margin-bottom:10px;background:var(--sur2)">
-      <div style="font-size:13px;color:var(--txt2);margin-bottom:6px">${p.date?p.date.slice(0,10):''} ${p.draft&&!p.sent?'<span style="color:var(--acc);font-weight:600">&#128204; Draft</span>':p.sent?'<span style="color:var(--grn);font-weight:600">&#10003; Sent to members</span>':'<span style="color:var(--blue);font-weight:600">&#128190; Saved to website</span>'}</div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <span style="font-size:13px;color:var(--txt2)">${p.date?p.date.slice(0,10):''}</span>
+        ${p.category?`<span style="font-size:11px;background:var(--sur);border:1px solid var(--bdr);border-radius:4px;padding:2px 7px;color:var(--txt3)">${p.category}</span>`:''}
+        ${p.draft&&!p.sent?'<span style="color:var(--acc);font-weight:600;font-size:12px">&#128204; Draft</span>':p.sent?'<span style="color:var(--grn);font-weight:600;font-size:12px">&#10003; Sent</span>':'<span style="color:var(--blue);font-weight:600;font-size:12px">&#128190; Published</span>'}
+      </div>
       <div style="font-size:17px;font-weight:600;color:var(--txt);margin-bottom:10px;line-height:1.3">${p.subject}</div>
       <div style="display:flex;gap:8px">
         <button class="btn-sm" style="padding:7px 16px;font-size:13px" onclick="editNewsletterPost('${p.id}')">&#9998; Edit</button>
@@ -1087,13 +1162,13 @@ function buildNewsletterHistory(){
 function editNewsletterPost(id){
   const p=(DB.newsletter||[]).find(x=>x.id===id);
   if(!p)return;
-  // Populate the draft area with this post's content for editing
   document.getElementById('nl-subject').value=p.subject||'';
   document.getElementById('nl-body').value=p.body||'';
+  // Set category picker if it exists
+  const catEl=document.getElementById('nl-category');
+  if(catEl && p.category) catEl.value=p.category;
   document.getElementById('nl-draft-area').style.display='block';
-  // Store editing id
   document.getElementById('nl-draft-area').dataset.editId=id;
-  // Scroll to draft area
   document.getElementById('nl-draft-area').scrollIntoView({behavior:'smooth'});
   toast('Post loaded for editing — update and save when ready');
 }
@@ -1106,18 +1181,57 @@ function deleteNewsletterPost(id, title){
   toast('Post deleted','var(--red)');
 }
 
+// Current newsletter type selection
+let _nlType = 'Monthly Update';
+
+function setNlType(type, btn){
+  _nlType = type;
+  document.querySelectorAll('#nl-type-btns .fb').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  // Show/hide spotlight fields
+  const sf = document.getElementById('nl-spotlight-fields');
+  if(sf) sf.style.display = type === 'Member Spotlight' ? 'block' : 'none';
+  // Update notes label
+  const lbl = document.getElementById('nl-notes-label');
+  if(lbl){
+    const labels = {
+      'Monthly Update':   'Additional Notes for AI',
+      'Member Spotlight': 'Additional Notes (optional)',
+      'Community':        'What local/community topics to cover',
+      'Availability':     'Specific offices or offers to highlight',
+    };
+    lbl.textContent = labels[type] || 'Additional Notes for AI';
+  }
+  // Sync category picker to match type
+  const catEl = document.getElementById('nl-category');
+  if(catEl) catEl.value = type;
+}
+
 async function generateNewsletter(){
   const btn=document.getElementById('nl-gen-btn');
   btn.disabled=true; btn.textContent='Generating...';
   try{
-    const r=await fetch('/admin/api/generate-newsletter',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({notes:document.getElementById('nl-notes').value})});
+    const payload = {
+      notes: document.getElementById('nl-notes').value,
+      nlType: _nlType,
+      spotlight: {
+        name:        (document.getElementById('nl-spot-name')     ||{}).value||'',
+        profession:  (document.getElementById('nl-spot-profession')||{}).value||'',
+        tenure:      (document.getElementById('nl-spot-tenure')   ||{}).value||'',
+        personalNote:(document.getElementById('nl-spot-personal') ||{}).value||'',
+      }
+    };
+    const r=await fetch('/admin/api/generate-newsletter',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
     const result=await r.json();
     if(result.ok){
       const now=new Date();
-      document.getElementById('nl-subject').value=`Qbix Centre — ${now.toLocaleDateString('en-US',{month:'long',year:'numeric'})} Newsletter`;
+      const typeLabel = _nlType === 'Monthly Update' ? 'Newsletter' : _nlType;
+      document.getElementById('nl-subject').value=`Qbix Centre — ${now.toLocaleDateString('en-US',{month:'long',year:'numeric'})} ${typeLabel}`;
       document.getElementById('nl-body').value=result.draft;
       document.getElementById('nl-draft-area').style.display='block';
-      // Init Quill then set content via the proper API so Quill's model updates
+      // Sync category picker
+      const catEl=document.getElementById('nl-category');
+      if(catEl) catEl.value=_nlType;
       initQuill();
       initNlPhotoUploads();
       resetNlPhotos();
@@ -1137,13 +1251,12 @@ async function publishNewsletter(send){
   const subject=document.getElementById('nl-subject').value.trim();
   const body=document.getElementById('nl-body').value.trim();
   if(!subject||!body){toast('Subject and body required','var(--red)');return;}
-  
+  const category=(document.getElementById('nl-category')||{}).value||_nlType||'Monthly Update';
   const editId=document.getElementById('nl-draft-area').dataset.editId;
-  
+
   if(editId && !send){
-    // Editing existing post — update locally
     const p=(DB.newsletter||[]).find(x=>x.id===editId);
-    if(p){p.subject=subject;p.body=body;}
+    if(p){p.subject=subject;p.body=body;p.category=category;}
     await saveData();
     buildNewsletterHistory();
     document.getElementById('nl-draft-area').style.display='none';
@@ -1152,18 +1265,20 @@ async function publishNewsletter(send){
     toast('Post updated &#10003;');
     return;
   }
-  
-  const r=await fetch('/admin/api/publish-newsletter',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({subject,body,send})});
+
+  const r=await fetch('/admin/api/publish-newsletter',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({subject,body,send,category})});
   const result=await r.json();
   if(result.ok){
     if(!DB.newsletter)DB.newsletter=[];
     if(editId){
-      // Replace existing post
       const idx=DB.newsletter.findIndex(x=>x.id===editId);
-      if(idx>=0)DB.newsletter[idx]={id:editId,subject,body,date:DB.newsletter[idx].date,sent:send||DB.newsletter[idx].sent};
+      if(idx>=0)DB.newsletter[idx]={id:editId,subject,body,category,date:DB.newsletter[idx].date,sent:send||DB.newsletter[idx].sent};
     } else {
-      DB.newsletter.push({id:result.postId,subject,body,date:new Date().toISOString(),sent:send});
+      DB.newsletter.push({id:result.postId,subject,body,category,date:new Date().toISOString(),sent:send});
     }
+    // Reload alerts so action queue reflects new GBP alert
+    const fresh = await fetch('/admin/api/data').then(r=>r.json()).catch(()=>null);
+    if(fresh && fresh.marketingSettings) DB.marketingSettings = fresh.marketingSettings;
     buildNewsletterHistory();
     document.getElementById('nl-draft-area').style.display='none';
     document.getElementById('nl-draft-area').dataset.editId='';
@@ -2080,6 +2195,7 @@ function buildMarketing(){
   // ── Marketing action queue & GBP health ───────────────────────────────────
   renderMarketingAlerts();
   renderGbpHealth();
+  renderSeoKeywords();
 
   // ── Lead source manager list ──────────────────────────────────────────────
   const sources = DB.leadSources || [];
@@ -2487,6 +2603,7 @@ function showPage(id,btn){
   document.getElementById('page-'+id).classList.add('on');
   btn.classList.add('on');
   if(id==='marketing'){buildMarketing();}
+  if(id==='newsletter'){populateNlCategorySelect();}
 }
 function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.getElementById(id).classList.remove('open');}
 document.addEventListener('keydown',e=>{if(e.key==='Escape')['form-modal','view-modal','conf-modal','onboard-modal','review-modal'].forEach(id=>document.getElementById(id).classList.remove('open'));});
@@ -2707,6 +2824,90 @@ function copySocialPost(id, label){
 }
 
 // ── GBP HEALTH CARD ──────────────────────────────────────────────────────────
+// ── SEO KEYWORD EDITOR ───────────────────────────────────────────────────────
+function populateNlCategorySelect(){
+  const cats = (DB.marketingSettings||{}).newsletterCategories ||
+    ['Monthly Update','Member Spotlight','Community','Availability'];
+  const sel = document.getElementById('nl-category');
+  if(!sel) return;
+  const current = sel.value;
+  sel.innerHTML = cats.map(c=>`<option value="${c}"${c===current?'selected':''}>${c}</option>`).join('');
+}
+function renderSeoKeywords(){
+  const kws = (DB.marketingSettings||{}).seoKeywords || [];
+  // Pills (read view)
+  const pillsEl = document.getElementById('seo-pills');
+  if(pillsEl){
+    pillsEl.innerHTML = kws.length
+      ? kws.map(k=>`<span style="background:var(--sur2);border:1px solid var(--bdr);border-radius:20px;padding:4px 12px;font-size:13px;color:var(--txt2)">${k}</span>`).join('')
+      : '<span style="color:var(--txt3);font-size:13px">No keywords yet — click Edit to add some.</span>';
+  }
+  // Edit list
+  const listEl = document.getElementById('seo-edit-list');
+  if(listEl){
+    listEl.innerHTML = kws.length
+      ? kws.map((k,i)=>`
+          <div style="display:flex;align-items:center;justify-content:space-between;background:var(--sur2);border:1px solid var(--bdr);border-radius:7px;padding:7px 10px;gap:8px">
+            <div style="font-size:13px;color:var(--txt);flex:1">${k}</div>
+            <button onclick="removeSeoKeyword(${i})" style="background:none;border:1px solid var(--red);border-radius:5px;color:var(--red);padding:2px 8px;font-size:11px;cursor:pointer;white-space:nowrap">Remove</button>
+          </div>`).join('')
+      : '<div style="color:var(--txt3);font-size:13px">No keywords yet.</div>';
+  }
+}
+
+function toggleSeoEditor(){
+  const rv  = document.getElementById('seo-read-view');
+  const ev  = document.getElementById('seo-edit-view');
+  const btn = document.getElementById('seo-toggle-btn');
+  const isEditing = ev.style.display !== 'none';
+  if(isEditing){
+    rv.style.display=''; ev.style.display='none'; btn.textContent='✎ Edit';
+    btn.style.borderColor='var(--bdr)'; btn.style.color='var(--txt2)';
+  } else {
+    rv.style.display='none'; ev.style.display=''; btn.textContent='✎ Editing';
+    btn.style.borderColor='var(--acc)'; btn.style.color='var(--acc)';
+    renderSeoKeywords();
+    document.getElementById('seo-new-input').focus();
+  }
+}
+
+async function addSeoKeyword(){
+  const inp = document.getElementById('seo-new-input');
+  const val = inp.value.trim();
+  if(!val){ inp.focus(); return; }
+  if(!DB.marketingSettings) DB.marketingSettings = {};
+  const kws = DB.marketingSettings.seoKeywords || [];
+  if(kws.map(k=>k.toLowerCase()).includes(val.toLowerCase())){
+    toast('That keyword already exists','var(--red)'); return;
+  }
+  kws.push(val);
+  DB.marketingSettings.seoKeywords = kws;
+  inp.value = '';
+  renderSeoKeywords();
+  try{
+    await fetch('/admin/api/marketing-settings',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({seoKeywords: kws})
+    });
+  } catch(e){}
+  toast('Keyword added ✓');
+}
+
+async function removeSeoKeyword(idx){
+  if(!DB.marketingSettings) return;
+  const kws = DB.marketingSettings.seoKeywords || [];
+  kws.splice(idx, 1);
+  DB.marketingSettings.seoKeywords = kws;
+  renderSeoKeywords();
+  try{
+    await fetch('/admin/api/marketing-settings',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({seoKeywords: kws})
+    });
+  } catch(e){}
+  toast('Keyword removed');
+}
+
 function renderGbpHealth(){
   const ms = DB.marketingSettings || {};
   const gbp = ms.gbpHealth || {};
