@@ -39,6 +39,13 @@ nav.site-nav{background:var(--navy);padding:0 5%;display:flex;align-items:center
 .nav-cta:hover{background:var(--gold2)!important}
 .nav-admin{color:rgba(255,255,255,.4)!important;font-size:12px!important}
 
+/* STICKY CTA BAR */
+.sticky-cta{background:#1e3058;border-bottom:1px solid rgba(201,168,76,.25);padding:9px 5%;display:flex;align-items:center;justify-content:center;gap:18px;flex-wrap:wrap;position:sticky;top:70px;z-index:99}
+.sticky-cta-text{color:rgba(255,255,255,.85);font-size:14px}
+.sticky-cta-text a{color:var(--gold);font-weight:600;text-decoration:none;white-space:nowrap}
+.sticky-cta-text a:hover{color:var(--gold2)}
+@media(max-width:600px){.sticky-cta{top:70px;padding:8px 4%;gap:10px}.sticky-cta-text{font-size:13px}}
+
 /* HERO */
 .hero{background:linear-gradient(135deg,var(--navy) 0%,#2d4a7a 100%);color:#fff;padding:90px 5%;text-align:center}
 .hero h1{font-family:'Playfair Display',serif;font-size:clamp(32px,5vw,58px);margin-bottom:18px;line-height:1.15}
@@ -146,14 +153,19 @@ footer a:hover{color:var(--gold)}
   <a href="/" class="nav-logo"><span class="nav-logo-text">Qbix Centre</span><span>Macon, GA</span></a>
   <div class="nav-links">
     <a href="/" class="{% if request.endpoint == 'home' %}active{% endif %}">Home</a>
-    <a href="/offices" class="{% if request.endpoint == 'offices_page' %}active{% endif %}">Offices</a>
-    <a href="/amenities" class="{% if request.endpoint == 'amenities' %}active{% endif %}">Amenities</a>
+    <a href="/#offices">Offices</a>
+    <a href="/#amenities">Amenities</a>
     <a href="/news" class="{% if request.endpoint == 'news' %}active{% endif %}">News</a>
     <a href="/contact" class="{% if request.endpoint == 'contact' %}active{% endif %}">Contact</a>
-    <a href="/book" class="btn btn-gold btn-sm">Book Conference Room</a>
+    <a href="/book" class="btn btn-gold btn-sm nav-cta">Book Conference Room</a>
     <a href="/admin" class="nav-admin">Admin</a>
   </div>
 </nav>
+
+<div class="sticky-cta">
+  <span class="sticky-cta-text">Ready to see a space? Call us at <a href="tel:4787379107">(478) 737-9107</a></span>
+  <a href="/contact" class="btn btn-gold btn-sm">Schedule a Tour</a>
+</div>
 
 {% with messages = get_flashed_messages(with_categories=true) %}
   {% if messages %}
@@ -176,15 +188,15 @@ footer a:hover{color:var(--gold)}
     </div>
     <div>
       <h4>Quick Links</h4>
-      <a href="/offices">Available Offices</a>
-      <a href="/amenities">Amenities</a>
+      <a href="/#offices">Available Offices</a>
+      <a href="/#amenities">Amenities</a>
       <a href="/book">Book Conference Room</a>
       <a href="/news">News</a>
       <a href="/contact">Contact Us</a>
     </div>
     <div>
       <h4>Contact</h4>
-      <a href="tel:4782162876">(478) 216-2876</a>
+      <a href="tel:4787379107">(478) 737-9107</a>
       <a href="mailto:qbixcentre@outlook.com">qbixcentre@outlook.com</a>
       <p style="margin-top:16px;font-size:13px">Open 24/7 for members</p>
     </div>

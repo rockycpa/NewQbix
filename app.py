@@ -414,20 +414,28 @@ def get_site_settings(page_key):
 def home():
     track_pageview('/')
     data = get_db()
-    occupied = len([o for o in data['offices'] if o['status'] == 'Occupied'])
-    total    = len(data['offices'])
-    vacant   = [o for o in data['offices'] if o['status'] == 'Vacant']
+    vacant        = [o for o in data['offices'] if o['status'] == 'Vacant']
+    amenity_list  = data.get('amenityList') or [
+        'High-Speed WiFi', 'Dedicated Desk', 'Filing Cabinet', 'Whiteboard',
+        'Standing Desk Option', 'Extra Storage', 'Private Entry', 'Corner Office',
+        'Window View', 'Kitchenette Access', 'Printer/Copier Access',
+        'Mail & Package Handling', 'Conference Room Access', '24/7 Access',
+        'Parking Included', 'Natural Light', 'Ground Floor', 'Second Floor'
+    ]
+    home_gallery  = data.get('homeGallery', [])
+    posts = sorted(
+        [p for p in data.get('posts', []) if not p.get('draft', False)],
+        key=lambda p: p.get('date', ''), reverse=True
+    )[:3]
     return render_template('public/home.html',
         **get_site_settings('home'),
-        occupied=occupied, total=total, vacant=vacant,
+        vacant=vacant, amenity_list=amenity_list,
+        home_gallery=home_gallery, posts=posts,
         ga_id=GA_MEASUREMENT_ID)
 
 @app.route('/offices')
 def offices_page():
-    track_pageview('/offices')
-    data = get_db()
-    vacant = [o for o in data['offices'] if o['status'] == 'Vacant']
-    return render_template('public/offices.html', **get_site_settings('offices'), vacant=vacant, ga_id=GA_MEASUREMENT_ID)
+    return redirect('/#offices')
 
 @app.route('/offices/<office_id>')
 def office_detail(office_id):
@@ -438,7 +446,7 @@ def office_detail(office_id):
         abort(404)
     # Only show vacant offices publicly; redirect occupied ones back to offices list
     if office.get('status') != 'Vacant':
-        return redirect(url_for('offices_page'))
+        return redirect('/#offices')
     # Get next/prev vacant offices for navigation
     vacant = [o for o in data['offices'] if o['status'] == 'Vacant']
     idx = next((i for i, o in enumerate(vacant) if o['id'] == office_id), 0)
@@ -450,8 +458,7 @@ def office_detail(office_id):
 
 @app.route('/amenities')
 def amenities():
-    track_pageview('/amenities')
-    return render_template('public/amenities.html', **get_site_settings('amenities'), ga_id=GA_MEASUREMENT_ID)
+    return redirect('/#amenities')
 
 @app.route('/contact')
 def contact():
@@ -503,6 +510,17 @@ def api_site_settings():
         return jsonify(db.get('siteSettings', {}))
     data = request.get_json(force=True)
     db['siteSettings'] = data
+    save_data(db)
+    return jsonify({'ok': True})
+
+@app.route('/admin/api/home-gallery', methods=['GET', 'POST'])
+@login_required
+def api_home_gallery():
+    db = get_db()
+    if request.method == 'GET':
+        return jsonify({'ok': True, 'photos': db.get('homeGallery', [])})
+    data = request.get_json(force=True)
+    db['homeGallery'] = data.get('photos', [])
     save_data(db)
     return jsonify({'ok': True})
 

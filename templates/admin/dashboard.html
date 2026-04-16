@@ -295,6 +295,18 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
     </div>
   </div>
 
+  <!-- HOME GALLERY -->
+  <div class="card" style="margin-top:16px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+      <div class="ct" style="margin-bottom:0">&#127968; Home Page Gallery</div>
+      <button onclick="openPickerFor('home-gallery')" style="background:var(--blue);border:none;border-radius:7px;color:#fff;font-family:'IBM Plex Sans',sans-serif;font-size:12px;font-weight:600;padding:7px 14px;cursor:pointer">&#128444; Pick from Library</button>
+    </div>
+    <div style="font-size:12px;color:var(--txt3);margin-bottom:14px">Up to 8 photos shown in the gallery strip on the home page. Drag to reorder — first photo appears first. Click &times; to remove.</div>
+    <div id="hg-thumbs" style="display:flex;flex-wrap:wrap;gap:8px;min-height:40px;margin-bottom:12px"></div>
+    <div id="hg-empty" style="font-size:13px;color:var(--txt3);font-style:italic;display:none">No photos selected yet — click "Pick from Library" to add some.</div>
+    <button onclick="saveHomeGallery()" style="background:var(--grn);border:none;border-radius:7px;color:#fff;font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:600;padding:8px 22px;cursor:pointer">&#128190; Save Gallery</button>
+  </div>
+
 </div>
 
 </div>
@@ -1268,6 +1280,7 @@ function buildWebsite(){
   renderSeoKeywords();
   renderNewsCategories();
   renderSitePages();
+  renderHomeGallery();
 }
 
 function buildBookingsTab(){
@@ -3538,6 +3551,48 @@ async function removeNewsCategory(idx){
 }
 
 // ═══════════════════════════════════════════════════════
+// HOME GALLERY
+// ═══════════════════════════════════════════════════════
+
+function renderHomeGallery(){
+  const photos = DB.homeGallery || [];
+  const wrap = document.getElementById('hg-thumbs');
+  const empty = document.getElementById('hg-empty');
+  if(!wrap) return;
+  if(!photos.length){
+    wrap.innerHTML = '';
+    if(empty) empty.style.display = 'block';
+    return;
+  }
+  if(empty) empty.style.display = 'none';
+  wrap.innerHTML = photos.map((p,i) => {
+    const thumb = cloudinaryUrl(p.url, {ar:'4:3', c:'fill', w:120});
+    return `<div style="position:relative;display:inline-block">
+      <img src="${thumb}" alt="${p.alt||''}" style="width:90px;height:68px;object-fit:cover;border-radius:7px;border:2px solid var(--bdr);display:block;">
+      <button onclick="removeHomeGalleryPhoto(${i})" style="position:absolute;top:-6px;right:-6px;background:var(--red);border:none;border-radius:50%;width:20px;height:20px;color:#fff;cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center;line-height:1">&#x2715;</button>
+    </div>`;
+  }).join('');
+}
+
+function removeHomeGalleryPhoto(idx){
+  if(!DB.homeGallery) return;
+  DB.homeGallery.splice(idx,1);
+  renderHomeGallery();
+}
+
+async function saveHomeGallery(){
+  try{
+    const r = await fetch('/admin/api/home-gallery',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({photos: DB.homeGallery || []})
+    });
+    const d = await r.json();
+    if(d.ok) toast('Home gallery saved ✓');
+    else toast('Save failed: '+d.error,'var(--red)');
+  } catch(e){ toast('Save failed','var(--red)'); }
+}
+
+// ═══════════════════════════════════════════════════════
 // MEDIA LIBRARY
 // ═══════════════════════════════════════════════════════
 
@@ -3957,6 +4012,18 @@ async function confirmPickerSelection(){
     }
     renderNlGalleryPreview();
     toast(selected.length+' photo'+(selected.length===1?'':'s')+' added from library ✓');
+
+  } else if(_pickerTarget === 'home-gallery'){
+    if(!DB.homeGallery) DB.homeGallery = [];
+    for(const asset of selected){
+      if(DB.homeGallery.length >= 8){ toast('Maximum 8 photos in home gallery','var(--red)'); break; }
+      // Don't add duplicates
+      if(!DB.homeGallery.find(p => p.public_id === asset.public_id)){
+        DB.homeGallery.push({url: asset.url, public_id: asset.public_id, alt: asset.alt||''});
+      }
+    }
+    renderHomeGallery();
+    toast(selected.length+' photo'+(selected.length===1?'':'s')+' added — click Save Gallery to publish ✓');
   }
 }
 
