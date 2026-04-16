@@ -227,6 +227,7 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
   <nav>
     <button class="nb on" onclick="showPage('website',this)">&#127758; Website</button>
     <button class="nb" onclick="showPage('marketing',this)">&#128200; Marketing</button>
+    <button class="nb" onclick="showPage('media',this);loadMedia()">&#128444; Media</button>
     <button class="nb" onclick="showPage('offices',this)">Offices</button>
     <button class="nb" onclick="showPage('members',this)">Members</button>
     <button class="nb" onclick="showPage('occupants',this)">Occupants</button>
@@ -624,6 +625,91 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
 
   </div>
 
+</div>
+
+<!-- MEDIA LIBRARY -->
+<div class="page" id="page-media">
+  <div class="pg-title">&#128444; Media Library</div>
+  <div class="pg-sub">All photos stored in Cloudinary — WebP format, CDN-delivered. Upload once, use everywhere.</div>
+
+  <!-- Action bar -->
+  <div class="tb" style="margin-bottom:14px;gap:10px;flex-wrap:wrap">
+    <select id="media-folder-filter" onchange="filterMedia()" style="background:var(--sur2);border:1px solid var(--bdr);border-radius:7px;color:var(--txt);font-family:'IBM Plex Sans',sans-serif;font-size:13px;padding:6px 11px;outline:none">
+      <option value="">All Folders</option>
+      <option value="offices">Offices</option>
+      <option value="news">News</option>
+      <option value="general">General</option>
+    </select>
+    <input class="sb" type="text" id="media-search" placeholder="Search alt text..." oninput="filterMedia()" style="min-width:200px">
+    <span class="cl" id="media-count"></span>
+    <button onclick="document.getElementById('media-upload-input').click()" style="background:var(--grn);border:none;border-radius:7px;color:#fff;font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:600;padding:7px 16px;cursor:pointer;margin-left:auto">&#8679; Upload Photos</button>
+    <input type="file" id="media-upload-input" accept="image/*" multiple style="display:none" onchange="mediaUploadFiles(this.files)">
+    <button onclick="openMigrateModal()" style="background:var(--acc);border:none;border-radius:7px;color:#1a0e00;font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:600;padding:7px 16px;cursor:pointer">&#128256; Migrate Existing Photos</button>
+  </div>
+
+  <!-- Upload progress -->
+  <div id="media-upload-progress" style="display:none;background:var(--sur);border:1px solid var(--bdr);border-radius:9px;padding:14px 16px;margin-bottom:14px">
+    <div style="font-size:13px;color:var(--txt2);margin-bottom:8px" id="media-upload-msg">Uploading...</div>
+    <div style="background:var(--sur2);border-radius:4px;height:6px;overflow:hidden">
+      <div id="media-upload-bar" style="height:100%;background:var(--grn);border-radius:4px;transition:width .3s;width:0%"></div>
+    </div>
+  </div>
+
+  <!-- Grid -->
+  <div id="media-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px"></div>
+  <div id="media-empty" style="display:none;color:var(--txt3);padding:40px 0;text-align:center;font-size:14px">No photos yet — upload some or run the migration to import existing photos.</div>
+</div>
+
+<!-- MEDIA EDIT MODAL -->
+<div class="mo" id="media-edit-modal" onclick="closeMo(event,'media-edit-modal')">
+  <div class="mi" style="max-width:520px">
+    <button class="mx" onclick="document.getElementById('media-edit-modal').classList.remove('open')">&#x2715;</button>
+    <div class="mt">Edit Photo</div>
+    <div style="margin-bottom:14px;text-align:center">
+      <img id="med-preview" src="" alt="" style="max-width:100%;max-height:260px;border-radius:8px;border:1px solid var(--bdr);object-fit:contain">
+    </div>
+    <input type="hidden" id="med-public-id">
+    <div class="fl" style="margin-bottom:10px">
+      <label style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--txt3);font-weight:600;display:block;margin-bottom:3px">Alt Text <span style="font-weight:400;color:var(--txt3)">(shown to screen readers, used for SEO)</span></label>
+      <input id="med-alt" type="text" style="background:var(--sur2);border:1px solid var(--bdr);border-radius:7px;color:var(--txt);font-family:'IBM Plex Sans',sans-serif;font-size:13px;padding:7px 10px;outline:none;width:100%;transition:border-color .15s" placeholder="e.g. Office 19A at Qbix Centre north Macon" onfocus="this.style.borderColor='var(--acc)'" onblur="this.style.borderColor='var(--bdr)'">
+    </div>
+    <div class="fl" style="margin-bottom:14px">
+      <label style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--txt3);font-weight:600;display:block;margin-bottom:3px">Caption <span style="font-weight:400;color:var(--txt3)">(optional)</span></label>
+      <input id="med-caption" type="text" style="background:var(--sur2);border:1px solid var(--bdr);border-radius:7px;color:var(--txt);font-family:'IBM Plex Sans',sans-serif;font-size:13px;padding:7px 10px;outline:none;width:100%;transition:border-color .15s" placeholder="e.g. Bright corner office with natural light" onfocus="this.style.borderColor='var(--acc)'" onblur="this.style.borderColor='var(--bdr)'">
+    </div>
+    <div style="background:var(--sur2);border:1px solid var(--bdr);border-radius:7px;padding:9px 12px;font-size:12px;color:var(--txt2);margin-bottom:14px">
+      <div style="margin-bottom:4px"><strong>URL (copy to use anywhere):</strong></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input id="med-url-display" readonly style="flex:1;background:var(--bg);border:1px solid var(--bdr);border-radius:5px;color:var(--acc);font-family:'IBM Plex Mono',monospace;font-size:11px;padding:5px 8px;outline:none" value="">
+        <button onclick="copyMediaUrl()" style="background:var(--acc);border:none;border-radius:5px;color:#1a0e00;font-size:11px;font-weight:600;padding:5px 10px;cursor:pointer;white-space:nowrap">Copy URL</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:9px;justify-content:space-between;padding-top:12px;border-top:1px solid var(--bdr)">
+      <button onclick="confirmDeleteMedia()" style="background:transparent;border:1px solid var(--red);border-radius:7px;color:var(--red);font-family:'IBM Plex Sans',sans-serif;font-size:13px;padding:7px 16px;cursor:pointer">&#128465; Delete</button>
+      <div style="display:flex;gap:9px">
+        <button onclick="document.getElementById('media-edit-modal').classList.remove('open')" style="background:transparent;border:1px solid var(--bdr);border-radius:7px;color:var(--txt2);font-family:'IBM Plex Sans',sans-serif;font-size:13px;padding:7px 16px;cursor:pointer">Cancel</button>
+        <button onclick="saveMediaEdit()" style="background:var(--grn);border:none;border-radius:7px;color:#fff;font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:600;padding:7px 20px;cursor:pointer">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MIGRATE MODAL -->
+<div class="mo" id="migrate-modal" onclick="closeMo(event,'migrate-modal')">
+  <div class="mi" style="max-width:480px">
+    <button class="mx" onclick="document.getElementById('migrate-modal').classList.remove('open')">&#x2715;</button>
+    <div class="mt">&#128256; Migrate Existing Photos</div>
+    <div class="ms">Move all base64 photos from your database to Cloudinary</div>
+    <div style="background:var(--sur2);border:1px solid var(--bdr);border-radius:8px;padding:14px;margin-bottom:16px;font-size:13px;color:var(--txt2);line-height:1.7">
+      This will scan every office and news post for photos stored as base64 in your database, upload each one to Cloudinary as WebP, and replace the database entry with the Cloudinary URL.<br><br>
+      <strong style="color:var(--acc)">Safe to run multiple times</strong> — already-migrated photos are skipped. Your site stays live during migration.
+    </div>
+    <div id="migrate-result" style="display:none;background:var(--sur2);border:1px solid var(--bdr);border-radius:8px;padding:14px;margin-bottom:16px;font-size:13px;line-height:1.8"></div>
+    <div style="display:flex;gap:9px;justify-content:flex-end;padding-top:12px;border-top:1px solid var(--bdr)">
+      <button onclick="document.getElementById('migrate-modal').classList.remove('open')" style="background:transparent;border:1px solid var(--bdr);border-radius:7px;color:var(--txt2);font-family:'IBM Plex Sans',sans-serif;font-size:13px;padding:7px 16px;cursor:pointer">Close</button>
+      <button id="migrate-run-btn" onclick="runMigration()" style="background:var(--acc);border:none;border-radius:7px;color:#1a0e00;font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:600;padding:7px 20px;cursor:pointer">&#9654; Run Migration</button>
+    </div>
+  </div>
 </div>
 
 <!-- OFFICES -->
@@ -1492,7 +1578,7 @@ function openOfficeMo(id){
   if(occs.length){h+='<div class="divr"></div><div class="di full"><label>Occupants ('+occs.length+')</label><div style="margin-top:5px">'+occs.map(p=>'<div class="occ-tag" onclick="closeMo(null,\'view-modal\');setTimeout(()=>openOccMo(\''+esc(p.id)+'\'),60)"><span class="occ-dot '+(p.status==='Active'?'active':'archive')+'"></span>'+p.name+'</div>').join('')+'</div></div>';}
   if((o.photos||[]).length){
     h+='<div class="divr"></div><div class="di full"><label>Photos ('+o.photos.length+')</label><div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">';
-    h+=o.photos.map((p,i)=>'<div style="position:relative"><img src="'+p.data+'" style="height:80px;width:110px;object-fit:cover;border-radius:6px;border:1px solid var(--bdr)"><button onclick="deleteOfficePhoto(\''+esc(o.id)+'\','+i+')" style="position:absolute;top:3px;right:3px;background:var(--red);border:none;border-radius:50%;width:20px;height:20px;color:#fff;cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center;line-height:1">&#x2715;</button></div>').join('');
+    h+=o.photos.map((p,i)=>'<div style="position:relative"><img src="'+(p.url||p.data||'')+'" style="height:80px;width:110px;object-fit:cover;border-radius:6px;border:1px solid var(--bdr)"><button onclick="deleteOfficePhoto(\''+esc(o.id)+'\','+i+')" style="position:absolute;top:3px;right:3px;background:var(--red);border:none;border-radius:50%;width:20px;height:20px;color:#fff;cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center;line-height:1">&#x2715;</button></div>').join('');
     h+='</div></div>';
   }
   document.getElementById('mo-body').innerHTML=h;
@@ -1898,16 +1984,16 @@ function statusButtons(cur,includesPending){
 }
 
 function openOfficeForm(id){
-  formType='office';formId=id;const o=id?DB.offices.find(x=>x.id===id):{};
+  formType='office';formId=id;_remainingOfficePhotos=null;const o=id?DB.offices.find(x=>x.id===id):{};
   const sortedMbrs=[...DB.members].sort((a,b)=>a.name.localeCompare(b.name));
   const mOpts=['',...sortedMbrs.map(m=>m.name)].map(n=>'<option value="'+n+'" '+((o.member||'')==n?'selected':'')+'>'+(n||'-- Vacant --')+'</option>').join('');
   document.getElementById('form-title').textContent=id?'Edit Office':'Add Office';
-  // Build existing photos preview with delete buttons
+  // Build existing photos preview — support both {url} (Cloudinary) and {data} (legacy base64)
   const existingPhotosHtml = (o.photos||[]).length
     ? '<div style="margin-top:10px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--txt3);margin-bottom:6px;font-weight:600">Current Photos (click X to remove)</div>'
       + '<div style="display:flex;gap:6px;flex-wrap:wrap" id="existing-photos-preview">'
-      + (o.photos||[]).map((p,i)=>`<div style="position:relative" id="existing-photo-${i}"><img src="${p.data}" style="height:70px;width:100px;object-fit:cover;border-radius:6px;border:1px solid var(--bdr)"><button type="button" onclick="removeExistingPhoto(${i})" style="position:absolute;top:3px;right:3px;background:var(--red);border:none;border-radius:50%;width:18px;height:18px;color:#fff;cursor:pointer;font-size:10px;line-height:1;display:flex;align-items:center;justify-content:center">&#x2715;</button></div>`).join('')
-      + '</div><div style="font-size:11px;color:var(--txt3);margin-top:5px">Adding new photos below will add to existing (up to 6 total).</div></div>'
+      + (o.photos||[]).map((p,i)=>`<div style="position:relative" id="existing-photo-${i}"><img src="${p.url||p.data||''}" style="height:70px;width:100px;object-fit:cover;border-radius:6px;border:1px solid var(--bdr)"><button type="button" onclick="removeExistingPhoto(${i})" style="position:absolute;top:3px;right:3px;background:var(--red);border:none;border-radius:50%;width:18px;height:18px;color:#fff;cursor:pointer;font-size:10px;line-height:1;display:flex;align-items:center;justify-content:center">&#x2715;</button></div>`).join('')
+      + '</div><div style="font-size:11px;color:var(--txt3);margin-top:5px">Adding new photos will upload to Cloudinary as WebP (up to 6 total).</div></div>'
     : '';
 
   document.getElementById('form-body').innerHTML='<div class="fg">'
@@ -1923,13 +2009,15 @@ function openOfficeForm(id){
     +'<div class="fl full" style="background:var(--sur2);border:1px solid var(--bdr);border-radius:7px;padding:9px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--txt3);margin-bottom:3px">Net Rate</div><div id="office-net-prev" style="font-family:\'IBM Plex Mono\',monospace;font-size:17px;color:var(--grn)">-</div></div>'
     +'<div class="fl full"><label>Description (shown on website for vacant offices)</label><textarea id="f-desc" style="min-height:70px">'+(o.description||'')+'</textarea></div>'
     +'<div class="sect-title">Office Photos (shown on website for vacant offices)</div>'
-    +'<div class="fl full">'+existingPhotosHtml+'<div class="file-drop" id="office-drop-zone" style="margin-top:10px"><input type="file" multiple accept="image/*" id="office-photo-input"><div class="file-drop-txt">&#128247; Add more photos or <span>click to browse</span><br><small>JPG, PNG &mdash; up to 6 photos total, max 5MB each</small></div></div>'
-    +'<div class="pending-files" id="pending-office-photos"></div>'
-    +'</div></div>';
+    +'<div class="fl full">'+existingPhotosHtml
+    +'<div style="margin-top:10px"><div class="file-drop" id="office-drop-zone"><input type="file" multiple accept="image/*" id="office-photo-input"><div class="file-drop-txt">&#128247; Drop photos or <span>click to browse</span> — uploads to Cloudinary as WebP<br><small>JPG, PNG — up to 6 total, max 10MB each</small></div></div>'
+    +'<div id="office-upload-status" style="font-size:12px;color:var(--txt2);margin-top:6px"></div>'
+    +'</div></div></div>';
+  updOfficeNet();
   const dz=document.getElementById('office-drop-zone');
-  if(dz){dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag');});dz.addEventListener('dragleave',()=>dz.classList.remove('drag'));dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('drag');handleFiles(e.dataTransfer.files,'office-photos');});}
+  if(dz){dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag');});dz.addEventListener('dragleave',()=>dz.classList.remove('drag'));dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('drag');handleOfficePhotos(e.dataTransfer.files);});}
   const fi=document.getElementById('office-photo-input');
-  if(fi){fi.addEventListener('change',()=>handleFiles(fi.files,'office-photos'));}
+  if(fi){fi.addEventListener('change',()=>handleOfficePhotos(fi.files));}
   document.getElementById('form-modal').classList.add('open');
 }
 
@@ -1992,9 +2080,9 @@ async function submitForm(){
   if(formType==='office'){
     const num=document.getElementById('f-num').value.trim();if(!num){alert('Office number required.');return;}
     const existing=formId?DB.offices.find(x=>x.id===formId):{photos:[]};
-    const newPhotos=pendingFiles.filter(f=>f.type&&f.type.startsWith('image/'));
-    // Merge new photos with remaining existing photos (after deletions)
+    // _remainingOfficePhotos tracks what's left after user deletes; _pendingCloudinaryPhotos are newly uploaded
     const remainingExisting = _remainingOfficePhotos || (existing.photos||[]);
+    const newPhotos = _pendingCloudinaryPhotos || [];
     const mergedPhotos = [...remainingExisting, ...newPhotos].slice(0,6);
     const obj={id:formId||uid(),num,status:document.getElementById('f-status').value,member:document.getElementById('f-member').value,tenantStart:document.getElementById('f-tstart').value,sqft:Number(document.getElementById('f-sqft').value)||null,dormer:Number(document.getElementById('f-dormer').value)||null,listDues:Number(document.getElementById('f-ldues').value)||null,discount:Number(document.getElementById('f-odiscount')?.value)||0,confHours:Number(document.getElementById('f-confhours')?.value)??6,description:document.getElementById('f-desc')?.value||'',photos:mergedPhotos};
     if(formId){const i=DB.offices.findIndex(x=>x.id===formId);DB.offices[i]=obj;}else DB.offices.push(obj);
@@ -2017,21 +2105,20 @@ async function submitForm(){
   }
   closeForm();refreshAll();await saveData();toast('Saved &#10003;');
 }
-function closeForm(){document.getElementById('form-modal').classList.remove('open');formType=null;formId=null;pendingFiles=[];_remainingOfficePhotos=null;}
+function closeForm(){document.getElementById('form-modal').classList.remove('open');formType=null;formId=null;pendingFiles=[];_remainingOfficePhotos=null;_pendingCloudinaryPhotos=[];}
 
 let _remainingOfficePhotos = null;
+let _pendingCloudinaryPhotos = [];
 
 function removeExistingPhoto(idx){
   const o = DB.offices.find(x=>x.id===formId);
   if(!o) return;
-  // Initialize remaining photos from current office if not already tracking
   if(!_remainingOfficePhotos) _remainingOfficePhotos = [...(o.photos||[])];
   _remainingOfficePhotos.splice(idx, 1);
-  // Remove from DOM and re-render remaining
   const preview = document.getElementById('existing-photos-preview');
   if(preview){
     preview.innerHTML = _remainingOfficePhotos.map((p,i)=>
-      `<div style="position:relative" id="existing-photo-${i}"><img src="${p.data}" style="height:70px;width:100px;object-fit:cover;border-radius:6px;border:1px solid var(--bdr)"><button type="button" onclick="removeExistingPhoto(${i})" style="position:absolute;top:3px;right:3px;background:var(--red);border:none;border-radius:50%;width:18px;height:18px;color:#fff;cursor:pointer;font-size:10px;line-height:1;display:flex;align-items:center;justify-content:center">&#x2715;</button></div>`
+      `<div style="position:relative" id="existing-photo-${i}"><img src="${p.url||p.data||''}" style="height:70px;width:100px;object-fit:cover;border-radius:6px;border:1px solid var(--bdr)"><button type="button" onclick="removeExistingPhoto(${i})" style="position:absolute;top:3px;right:3px;background:var(--red);border:none;border-radius:50%;width:18px;height:18px;color:#fff;cursor:pointer;font-size:10px;line-height:1;display:flex;align-items:center;justify-content:center">&#x2715;</button></div>`
     ).join('');
   }
   toast('Photo removed — click Save to confirm');
@@ -2613,11 +2700,18 @@ function initNlPhotoUploads(){
 
 async function handleNlHero(file){
   if(!file) return;
-  if(file.size > 5*1024*1024){ toast('File too large (max 5MB)','var(--red)'); return; }
-  const b64 = await fileToB64(file);
-  nlHeroPhoto = b64;
-  document.getElementById('nl-hero-img').src = b64.data;
-  document.getElementById('nl-hero-preview').style.display = 'block';
+  if(file.size > 10*1024*1024){ toast('File too large (max 10MB)','var(--red)'); return; }
+  toast('Uploading hero photo...');
+  const fd = new FormData(); fd.append('file',file); fd.append('folder','news'); fd.append('alt','');
+  try{
+    const r = await fetch('/admin/api/media/upload',{method:'POST',body:fd});
+    const d = await r.json();
+    if(!d.ok) throw new Error(d.error);
+    nlHeroPhoto = {url:d.url, public_id:d.public_id, alt:d.alt||''};
+    document.getElementById('nl-hero-img').src = d.url;
+    document.getElementById('nl-hero-preview').style.display = 'block';
+    toast('Hero photo uploaded ✓');
+  }catch(e){ toast('Upload failed: '+e.message,'var(--red)'); }
 }
 
 function removeNlHero(){
@@ -2629,17 +2723,23 @@ function removeNlHero(){
 async function handleNlGallery(files){
   for(const file of files){
     if(nlGalleryPhotos.length >= 6){ toast('Maximum 6 gallery photos','var(--red)'); break; }
-    if(file.size > 5*1024*1024){ toast('File too large (max 5MB)','var(--red)'); continue; }
-    const b64 = await fileToB64(file);
-    nlGalleryPhotos.push(b64);
+    if(file.size > 10*1024*1024){ toast('File too large (max 10MB)','var(--red)'); continue; }
+    toast('Uploading photo '+(nlGalleryPhotos.length+1)+'...');
+    const fd = new FormData(); fd.append('file',file); fd.append('folder','news'); fd.append('alt','');
+    try{
+      const r = await fetch('/admin/api/media/upload',{method:'POST',body:fd});
+      const d = await r.json();
+      if(!d.ok) throw new Error(d.error);
+      nlGalleryPhotos.push({url:d.url, public_id:d.public_id, alt:d.alt||''});
+      renderNlGalleryPreview();
+    }catch(e){ toast('Upload failed: '+e.message,'var(--red)'); }
   }
-  renderNlGalleryPreview();
 }
 
 function renderNlGalleryPreview(){
   document.getElementById('nl-gallery-preview').innerHTML = nlGalleryPhotos.map((p,i) =>
     `<div style="position:relative">
-      <img src="${p.data}" style="height:70px;width:100px;object-fit:cover;border-radius:6px;border:1px solid var(--bdr)">
+      <img src="${p.url||p.data||''}" style="height:70px;width:100px;object-fit:cover;border-radius:6px;border:1px solid var(--bdr)">
       <button onclick="removeNlGalleryPhoto(${i})" style="position:absolute;top:3px;right:3px;background:var(--red);border:none;border-radius:50%;width:18px;height:18px;color:#fff;cursor:pointer;font-size:10px">&#x2715;</button>
     </div>`
   ).join('');
@@ -2663,7 +2763,7 @@ function loadNlPhotos(post){
   resetNlPhotos();
   if(post.heroPhoto){
     nlHeroPhoto = post.heroPhoto;
-    document.getElementById('nl-hero-img').src = post.heroPhoto.data;
+    document.getElementById('nl-hero-img').src = post.heroPhoto.url || post.heroPhoto.data || '';
     document.getElementById('nl-hero-preview').style.display = 'block';
   }
   if(post.galleryPhotos && post.galleryPhotos.length){
@@ -3345,6 +3445,230 @@ async function removeNewsCategory(idx){
     });
   } catch(e){}
   toast('Category removed');
+}
+
+// ═══════════════════════════════════════════════════════
+// MEDIA LIBRARY
+// ═══════════════════════════════════════════════════════
+
+let _allMediaAssets = [];
+let _mediaLoaded = false;
+
+async function loadMedia(force){
+  if(_mediaLoaded && !force) return;
+  const grid = document.getElementById('media-grid');
+  const empty = document.getElementById('media-empty');
+  if(!grid) return;
+  grid.innerHTML = '<div style="color:var(--txt3);font-size:13px;padding:20px 0">Loading...</div>';
+  try{
+    const r = await fetch('/admin/api/media');
+    const d = await r.json();
+    if(!d.ok) throw new Error(d.error);
+    _allMediaAssets = d.assets;
+    _mediaLoaded = true;
+    filterMedia();
+  }catch(e){
+    grid.innerHTML = '<div style="color:var(--red);font-size:13px;padding:20px 0">Could not load media: '+e.message+'</div>';
+  }
+}
+
+function filterMedia(){
+  const folder = document.getElementById('media-folder-filter')?.value || '';
+  const q = (document.getElementById('media-search')?.value || '').toLowerCase();
+  let assets = _allMediaAssets;
+  if(folder) assets = assets.filter(a => a.folder === folder);
+  if(q) assets = assets.filter(a => (a.alt||'').toLowerCase().includes(q) || (a.caption||'').toLowerCase().includes(q) || a.public_id.toLowerCase().includes(q));
+  renderMediaGrid(assets);
+}
+
+function renderMediaGrid(assets){
+  const grid = document.getElementById('media-grid');
+  const empty = document.getElementById('media-empty');
+  if(!grid) return;
+  document.getElementById('media-count').textContent = assets.length + ' photo' + (assets.length===1?'':'s');
+  if(!assets.length){
+    grid.style.display = 'none';
+    empty.style.display = 'block';
+    return;
+  }
+  grid.style.display = 'grid';
+  empty.style.display = 'none';
+  grid.innerHTML = assets.map(a => {
+    const kb = a.bytes ? Math.round(a.bytes/1024)+'KB' : '';
+    const folder = a.folder || 'general';
+    const folderColor = folder==='offices'?'var(--grn)':folder==='news'?'var(--blue)':'var(--txt3)';
+    return `<div onclick="openMediaEdit('${esc2(a.public_id)}')" style="background:var(--sur);border:1px solid var(--bdr);border-radius:10px;overflow:hidden;cursor:pointer;transition:all .15s" onmouseover="this.style.borderColor='var(--acc)';this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='var(--bdr)';this.style.transform='none'">
+      <div style="height:130px;background:var(--sur2);overflow:hidden">
+        <img src="${a.url}" alt="${a.alt||''}" style="width:100%;height:100%;object-fit:cover" loading="lazy">
+      </div>
+      <div style="padding:8px 10px">
+        <div style="font-size:12px;color:var(--txt);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:3px">${a.alt || '<span style="color:var(--txt3);font-style:italic">No alt text</span>'}</div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:10px;color:${folderColor};text-transform:uppercase;letter-spacing:.05em">${folder}</span>
+          <span style="font-size:10px;color:var(--txt3);font-family:'IBM Plex Mono',monospace">${kb}</span>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function esc2(s){ return String(s).replace(/'/g,"\\'"); }
+
+function openMediaEdit(public_id){
+  const a = _allMediaAssets.find(x => x.public_id === public_id);
+  if(!a) return;
+  document.getElementById('med-public-id').value = a.public_id;
+  document.getElementById('med-preview').src = a.url;
+  document.getElementById('med-alt').value = a.alt || '';
+  document.getElementById('med-caption').value = a.caption || '';
+  document.getElementById('med-url-display').value = a.url;
+  document.getElementById('media-edit-modal').classList.add('open');
+}
+
+function copyMediaUrl(){
+  const u = document.getElementById('med-url-display').value;
+  navigator.clipboard.writeText(u).then(()=>toast('URL copied ✓')).catch(()=>{
+    document.getElementById('med-url-display').select();
+    document.execCommand('copy');
+    toast('URL copied ✓');
+  });
+}
+
+async function saveMediaEdit(){
+  const public_id = document.getElementById('med-public-id').value;
+  const alt       = document.getElementById('med-alt').value.trim();
+  const caption   = document.getElementById('med-caption').value.trim();
+  try{
+    const r = await fetch('/admin/api/media/update',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({public_id,alt,caption})});
+    const d = await r.json();
+    if(!d.ok) throw new Error(d.error);
+    const a = _allMediaAssets.find(x=>x.public_id===public_id);
+    if(a){ a.alt=alt; a.caption=caption; }
+    document.getElementById('media-edit-modal').classList.remove('open');
+    filterMedia();
+    toast('Alt text saved ✓');
+  }catch(e){ toast('Save failed: '+e.message,'var(--red)'); }
+}
+
+async function confirmDeleteMedia(){
+  const public_id = document.getElementById('med-public-id').value;
+  if(!confirm('Permanently delete this photo from Cloudinary? This cannot be undone.')) return;
+  try{
+    const r = await fetch('/admin/api/media/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({public_id})});
+    const d = await r.json();
+    if(!d.ok) throw new Error(d.error);
+    _allMediaAssets = _allMediaAssets.filter(x=>x.public_id!==public_id);
+    document.getElementById('media-edit-modal').classList.remove('open');
+    filterMedia();
+    toast('Photo deleted','var(--red)');
+  }catch(e){ toast('Delete failed: '+e.message,'var(--red)'); }
+}
+
+async function mediaUploadFiles(files){
+  if(!files || !files.length) return;
+  const prog = document.getElementById('media-upload-progress');
+  const bar  = document.getElementById('media-upload-bar');
+  const msg  = document.getElementById('media-upload-msg');
+  const folder = document.getElementById('media-folder-filter')?.value || 'general';
+  prog.style.display = 'block';
+  let done = 0;
+  for(const file of files){
+    msg.textContent = `Uploading ${file.name}... (${done+1}/${files.length})`;
+    bar.style.width = Math.round(done/files.length*100)+'%';
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('folder', folder);
+    fd.append('alt', '');
+    try{
+      const r = await fetch('/admin/api/media/upload',{method:'POST',body:fd});
+      const d = await r.json();
+      if(d.ok){
+        _allMediaAssets.unshift({
+          public_id:d.public_id, url:d.url, width:d.width, height:d.height,
+          bytes:d.bytes, format:d.format, alt:d.alt||'', caption:d.caption||'',
+          folder:d.folder, created: new Date().toISOString()
+        });
+      }
+    }catch(e){ toast('Upload failed: '+e.message,'var(--red)'); }
+    done++;
+  }
+  bar.style.width = '100%';
+  msg.textContent = `Done! ${done} photo${done===1?'':'s'} uploaded.`;
+  setTimeout(()=>{ prog.style.display='none'; bar.style.width='0%'; },3000);
+  filterMedia();
+  toast(done+' photo'+(done===1?'':'s')+' uploaded ✓');
+}
+
+function openMigrateModal(){
+  document.getElementById('migrate-result').style.display = 'none';
+  document.getElementById('migrate-run-btn').disabled = false;
+  document.getElementById('migrate-run-btn').textContent = '▶ Run Migration';
+  document.getElementById('migrate-modal').classList.add('open');
+}
+
+async function runMigration(){
+  const btn = document.getElementById('migrate-run-btn');
+  const res = document.getElementById('migrate-result');
+  btn.disabled = true;
+  btn.textContent = '⏳ Migrating...';
+  res.style.display = 'block';
+  res.innerHTML = '<span style="color:var(--txt2)">Uploading photos to Cloudinary — this may take 30–60 seconds...</span>';
+  try{
+    const r = await fetch('/admin/api/media/migrate',{method:'POST'});
+    const d = await r.json();
+    if(d.ok){
+      res.innerHTML = `
+        <div style="color:var(--grn);font-weight:600;font-size:15px;margin-bottom:8px">✓ ${d.message}</div>
+        <div style="color:var(--txt2)">📁 Office photos migrated: <strong style="color:var(--txt)">${d.offices}</strong></div>
+        <div style="color:var(--txt2)">📰 News photos migrated: <strong style="color:var(--txt)">${d.news}</strong></div>
+        <div style="color:var(--txt2)">⏭ Already migrated (skipped): <strong style="color:var(--txt)">${d.skipped}</strong></div>
+        ${d.errors.length ? '<div style="color:var(--red);margin-top:8px">⚠ Errors ('+d.errors.length+'):<br>'+d.errors.map(e=>'<small>'+e+'</small>').join('<br>')+'</div>' : ''}
+        <div style="color:var(--txt3);font-size:12px;margin-top:10px">Reload the Media tab to see your migrated photos.</div>`;
+      _mediaLoaded = false; // Force reload next time
+      btn.textContent = '✓ Done';
+    } else {
+      res.innerHTML = '<div style="color:var(--red)">Error: '+d.error+'</div>';
+      btn.disabled = false;
+      btn.textContent = '▶ Run Migration';
+    }
+  }catch(e){
+    res.innerHTML = '<div style="color:var(--red)">Request failed: '+e.message+'</div>';
+    btn.disabled = false;
+    btn.textContent = '▶ Run Migration';
+  }
+}
+
+// ── Cloudinary upload for office photos (replaces base64 handleFiles) ────────
+async function handleOfficePhotos(files){
+  const statusEl = document.getElementById('office-upload-status');
+  const num = document.getElementById('f-num')?.value || 'office';
+  let done = 0;
+  for(const file of files){
+    const remaining = _remainingOfficePhotos ? _remainingOfficePhotos.length : (DB.offices.find(x=>x.id===formId)?.photos||[]).length;
+    if((remaining + _pendingCloudinaryPhotos.length) >= 6){ toast('Maximum 6 photos per office','var(--red)'); break; }
+    if(statusEl) statusEl.textContent = 'Uploading photo '+(done+1)+' of '+files.length+'...';
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('folder', 'offices');
+    fd.append('alt', 'Office '+num);
+    try{
+      const r = await fetch('/admin/api/media/upload',{method:'POST',body:fd});
+      const d = await r.json();
+      if(!d.ok) throw new Error(d.error);
+      _pendingCloudinaryPhotos.push({url:d.url, public_id:d.public_id, alt:d.alt||'Office '+num, width:d.width, height:d.height});
+      // Add thumbnail preview
+      const preview = document.getElementById('existing-photos-preview');
+      const dz = document.getElementById('office-drop-zone');
+      if(dz){
+        const thumb = document.createElement('div');
+        thumb.style.cssText = 'position:relative';
+        thumb.innerHTML = `<img src="${d.url}" style="height:70px;width:100px;object-fit:cover;border-radius:6px;border:2px solid var(--grn)"><div style="position:absolute;top:3px;left:3px;background:var(--grn);border-radius:4px;padding:1px 5px;font-size:10px;color:#fff">New</div>`;
+        if(preview) preview.appendChild(thumb);
+      }
+      done++;
+    }catch(e){ toast('Upload failed: '+e.message,'var(--red)'); }
+  }
+  if(statusEl) statusEl.textContent = done ? done+' photo'+(done===1?'':'s')+' uploaded ✓ — click Save to keep.' : '';
 }
 
 </script>

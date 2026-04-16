@@ -26,6 +26,14 @@ from flask import (Flask, render_template, request, jsonify, redirect,
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 from dotenv import load_dotenv
 
+try:
+    import cloudinary
+    import cloudinary.uploader
+    import cloudinary.api
+    _cloudinary_available = True
+except ImportError:
+    _cloudinary_available = False
+
 load_dotenv()
 
 # ── App setup ────────────────────────────────────────────────────────────────
@@ -52,6 +60,15 @@ TWILIO_PHONE_NUMBER = os.environ.get('TWILIO_PHONE_NUMBER', '')
 
 # TOTP secret for 2FA (generated once and stored in env)
 TOTP_SECRET = os.environ.get('TOTP_SECRET', pyotp.random_base32())
+
+# ── Cloudinary config ────────────────────────────────────────────────────────
+if _cloudinary_available:
+    cloudinary.config(
+        cloud_name = os.environ.get('CLOUDINARY_CLOUD_NAME', ''),
+        api_key    = os.environ.get('CLOUDINARY_API_KEY', ''),
+        api_secret = os.environ.get('CLOUDINARY_API_SECRET', ''),
+        secure     = True
+    )
 
 # Serializer for signed tokens (onboarding links, booking tokens)
 serializer = URLSafeTimedSerializer(app.secret_key)
@@ -1877,6 +1894,300 @@ def admin_setup():
 @app.context_processor
 def inject_now():
     return {'now': datetime.now()}
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# CLOUDINARY — Media Library
+# ══════════════════════════════════════════════════════════════════════════════
+
+@app.route('/admin/api/media', methods=['GET'])
+@login_required
+def media_list():
+    """Return all assets in the qbix folder from Cloudinary."""
+    if not _cloudinary_available:
+        return jsonify({'ok': False, 'error': 'Cloudinary not installed'}), 500
+    try:
+        result = cloudinary.api.resources(
+            type='upload',
+            prefix='qbix/',
+            max_results=200,
+            context=True,
+            tags=True
+        )
+        assets = []
+        for r in result.get('resources', []):
+            ctx = r.get('context', {}).get('custom', {})
+            parts = r['public_id'].split('/')
+            folder = parts[1] if len(parts) > 1 else 'general'
+            assets.append({
+                'public_id': r['public_id'],
+                'url':       r['secure_url'],
+                'width':     r.get('width', 0),
+                'height':    r.get('height', 0),
+                'bytes':     r.get('bytes', 0),
+                'format':    r.get('format', ''),
+                'created':   r.get('created_at', ''),
+                'alt':       ctx.get('alt', ''),
+                'caption':   ctx.get('caption', ''),
+                'folder':    folder,
+            })
+        assets.sort(key=lambda x: x['created'], reverse=True)
+        return jsonify({'ok': True, 'assets': assets})
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+
+@app.route('/admin/api/media/upload', methods=['POST'])
+@login_required
+def media_upload():
+    """Upload an image to Cloudinary. Accepts multipart file or base64 data URI."""
+    if not _cloudinary_available:
+        return jsonify({'ok': False, 'error': 'Cloudinary not installed'}), 500
+    try:
+        folder  = request.form.get('folder', 'general')
+        alt     = request.form.get('alt', '')
+        caption = request.form.get('caption', '')
+
+        ctx_parts = []
+        if alt:     ctx_parts.append(f'alt={alt}')
+        if caption: ctx_parts.append(f'caption={caption}')
+        ctx_str = '|'.join(ctx_parts) if ctx_parts else None
+
+        upload_opts = {
+            'folder':          f'qbix/{folder}',
+            'use_filename':    True,
+            'unique_filename': True,
+            'overwrite':       False,
+            'resource_type':   'image',
+            'format':          'webp',
+            'transformation':  [{'quality': 'auto', 'fetch_format': 'webp'}],
+        }
+        if ctx_str:
+            upload_opts['context'] = ctx_str
+
+        if 'file' in request.files:
+            f = request.files['file']
+            result = cloudinary.uploader.upload(f, **upload_opts)
+        elif request.is_json and request.json.get('data'):
+            j = request.json
+            alt     = j.get('alt', alt)
+            caption = j.get('caption', caption)
+            folder  = j.get('folder', folder)
+            upload_opts['folder'] = f'qbix/{folder}'
+            ctx_parts = []
+            if alt:     ctx_parts.append(f'alt={alt}')
+            if caption: ctx_parts.append(f'caption={caption}')
+            if ctx_parts:
+                upload_opts['context'] = '|'.join(ctx_parts)
+            result = cloudinary.uploader.upload(j['data'], **upload_opts)
+        else:
+            return jsonify({'ok': False, 'error': 'No file provided'}), 400
+
+        ctx = result.get('context', {}).get('custom', {})
+        return jsonify({
+            'ok':        True,
+            'public_id': result['public_id'],
+            'url':       result['secure_url'],
+            'width':     result.get('width', 0),
+            'height':    result.get('height', 0),
+            'bytes':     result.get('bytes', 0),
+            'format':    result.get('format', 'webp'),
+            'alt':       ctx.get('alt', alt),
+            'caption':   ctx.get('caption', caption),
+            'folder':    folder,
+        })
+    except Exception as e:
+        import traceback
+        return jsonify({'ok': False, 'error': str(e), 'detail': traceback.format_exc()[-400:]}), 500
+
+
+@app.route('/admin/api/media/update', methods=['POST'])
+@login_required
+def media_update():
+    """Update alt text and caption for a Cloudinary asset."""
+    if not _cloudinary_available:
+        return jsonify({'ok': False, 'error': 'Cloudinary not installed'}), 500
+    try:
+        public_id = request.json.get('public_id', '')
+        alt       = request.json.get('alt', '')
+        caption   = request.json.get('caption', '')
+        ctx_parts = []
+        if alt:     ctx_parts.append(f'alt={alt}')
+        if caption: ctx_parts.append(f'caption={caption}')
+        ctx_str = '|'.join(ctx_parts) if ctx_parts else 'alt='
+        cloudinary.uploader.explicit(public_id, type='upload', context=ctx_str)
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+
+@app.route('/admin/api/media/delete', methods=['POST'])
+@login_required
+def media_delete():
+    """Permanently delete a Cloudinary asset."""
+    if not _cloudinary_available:
+        return jsonify({'ok': False, 'error': 'Cloudinary not installed'}), 500
+    try:
+        public_id = request.json.get('public_id', '')
+        if not public_id:
+            return jsonify({'ok': False, 'error': 'public_id required'}), 400
+        cloudinary.uploader.destroy(public_id)
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+
+@app.route('/admin/api/media/migrate', methods=['POST'])
+@login_required
+def media_migrate():
+    """
+    One-time migration: reads all base64 photos from offices and newsletter posts,
+    uploads them to Cloudinary as WebP, updates the DB with new URLs.
+    Safe to run multiple times — skips anything already a URL.
+    """
+    if not _cloudinary_available:
+        return jsonify({'ok': False, 'error': 'Cloudinary not installed'}), 500
+    try:
+        data   = get_db()
+        report = {'offices': 0, 'news': 0, 'skipped': 0, 'errors': []}
+
+        # ── Offices ───────────────────────────────────────────────────────────
+        for office in data.get('offices', []):
+            photos     = office.get('photos', [])
+            new_photos = []
+            changed    = False
+
+            for i, photo in enumerate(photos):
+                # Already migrated
+                if isinstance(photo, dict) and photo.get('url', '').startswith('http'):
+                    new_photos.append(photo)
+                    report['skipped'] += 1
+                    continue
+
+                data_uri    = photo.get('data', '') if isinstance(photo, dict) else (photo if isinstance(photo, str) else '')
+                existing_alt = photo.get('name', '') or photo.get('alt', '') if isinstance(photo, dict) else ''
+
+                if not (data_uri and data_uri.startswith('data:')):
+                    new_photos.append(photo)
+                    report['skipped'] += 1
+                    continue
+
+                try:
+                    result = cloudinary.uploader.upload(
+                        data_uri,
+                        folder='qbix/offices',
+                        unique_filename=True,
+                        resource_type='image',
+                        format='webp',
+                        transformation=[{'quality': 'auto', 'fetch_format': 'webp'}],
+                        context=f'alt=Office {office.get("num","")}'
+                    )
+                    new_photos.append({
+                        'url':       result['secure_url'],
+                        'public_id': result['public_id'],
+                        'alt':       existing_alt or f'Office {office.get("num","")}',
+                        'width':     result.get('width', 0),
+                        'height':    result.get('height', 0),
+                    })
+                    report['offices'] += 1
+                    changed = True
+                except Exception as e:
+                    report['errors'].append(f'Office {office.get("num","?")} photo {i}: {str(e)[:120]}')
+                    new_photos.append(photo)
+
+            if changed:
+                office['photos'] = new_photos
+
+            # heroPhoto
+            hero = office.get('heroPhoto')
+            if hero and isinstance(hero, dict) and hero.get('data', '').startswith('data:'):
+                try:
+                    result = cloudinary.uploader.upload(
+                        hero['data'],
+                        folder='qbix/offices',
+                        unique_filename=True,
+                        resource_type='image',
+                        format='webp',
+                        transformation=[{'quality': 'auto', 'fetch_format': 'webp'}],
+                        context=f'alt=Office {office.get("num","")} hero'
+                    )
+                    office['heroPhoto'] = {
+                        'url':       result['secure_url'],
+                        'public_id': result['public_id'],
+                        'alt':       f'Office {office.get("num","")}',
+                    }
+                    report['offices'] += 1
+                except Exception as e:
+                    report['errors'].append(f'Office {office.get("num","?")} hero: {str(e)[:120]}')
+
+        # ── Newsletter posts ──────────────────────────────────────────────────
+        for post in data.get('newsletter', []):
+            hero = post.get('heroPhoto')
+            if hero and isinstance(hero, dict) and hero.get('data', '').startswith('data:'):
+                try:
+                    result = cloudinary.uploader.upload(
+                        hero['data'],
+                        folder='qbix/news',
+                        unique_filename=True,
+                        resource_type='image',
+                        format='webp',
+                        transformation=[{'quality': 'auto', 'fetch_format': 'webp'}],
+                        context=f'alt={post.get("subject","")[:80]}'
+                    )
+                    post['heroPhoto'] = {
+                        'url':       result['secure_url'],
+                        'public_id': result['public_id'],
+                        'alt':       post.get('subject', '')[:80],
+                    }
+                    report['news'] += 1
+                except Exception as e:
+                    report['errors'].append(f'Post {post.get("id","?")} hero: {str(e)[:120]}')
+
+            gallery     = post.get('galleryPhotos', [])
+            new_gallery = []
+            for i, photo in enumerate(gallery):
+                if isinstance(photo, dict) and photo.get('url', '').startswith('http'):
+                    new_gallery.append(photo)
+                    report['skipped'] += 1
+                    continue
+                data_uri = photo.get('data', '') if isinstance(photo, dict) else (photo if isinstance(photo, str) else '')
+                if data_uri and data_uri.startswith('data:'):
+                    try:
+                        result = cloudinary.uploader.upload(
+                            data_uri,
+                            folder='qbix/news',
+                            unique_filename=True,
+                            resource_type='image',
+                            format='webp',
+                            transformation=[{'quality': 'auto', 'fetch_format': 'webp'}],
+                        )
+                        new_gallery.append({
+                            'url':       result['secure_url'],
+                            'public_id': result['public_id'],
+                            'alt':       '',
+                        })
+                        report['news'] += 1
+                    except Exception as e:
+                        report['errors'].append(f'Post {post.get("id","?")} gallery {i}: {str(e)[:120]}')
+                        new_gallery.append(photo)
+                else:
+                    new_gallery.append(photo)
+            post['galleryPhotos'] = new_gallery
+
+        save_data(data)
+        total = report['offices'] + report['news']
+        return jsonify({
+            'ok':            True,
+            'total_migrated': total,
+            'offices':       report['offices'],
+            'news':          report['news'],
+            'skipped':       report['skipped'],
+            'errors':        report['errors'],
+            'message':       f'Done! {total} photos → Cloudinary WebP. {report["skipped"]} already migrated. {len(report["errors"])} errors.'
+        })
+    except Exception as e:
+        import traceback
+        return jsonify({'ok': False, 'error': str(e), 'detail': traceback.format_exc()[-600:]}), 500
 
 
 if __name__ == '__main__':
