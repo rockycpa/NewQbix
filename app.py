@@ -364,6 +364,49 @@ def health():
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# SEO HELPERS
+# ══════════════════════════════════════════════════════════════════════════════
+
+def get_site_settings(page_key):
+    """Return page_title, page_desc, page_h1 for a public page, falling back to defaults."""
+    defaults = {
+        'home': {
+            'title': 'Private Office & Coworking Space in North Macon, GA | Qbix Centre',
+            'description': 'Furnished private offices and coworking space at Northside Crossing in north Macon, GA. 24/7 access, AT&T Gigabit fiber, Starbucks coffee, conference room included. No long-term lease.',
+            'h1': 'Your Professional Home in North Macon, Georgia',
+        },
+        'offices': {
+            'title': 'Private Office Space for Rent in North Macon, GA | Qbix Centre',
+            'description': "Browse available furnished offices at Qbix Centre — north Macon's flexible office membership community. Private, lockable offices from $575/mo. Schedule a tour today.",
+            'h1': 'Office Space in North Macon, GA',
+        },
+        'amenities': {
+            'title': 'Office Amenities & Included Features | Qbix Centre Macon GA',
+            'description': 'Every furnished office at Qbix Centre includes AT&T Gigabit fiber, Starbucks coffee, conference room access, 24/7 entry, free parking, and janitorial service — all included.',
+            'h1': 'Everything Included with Your Qbix Membership',
+        },
+        'news': {
+            'title': 'News & Updates from Qbix Centre | North Macon Coworking',
+            'description': "Stay up to date with Qbix Centre — announcements, member spotlights, and community news from north Macon's premier coworking and private office community.",
+            'h1': 'Qbix Centre News & Updates',
+        },
+        'contact': {
+            'title': 'Contact Qbix Centre | Schedule a Tour | North Macon Office Space',
+            'description': 'Ready to see Qbix Centre in person? Schedule a tour at 500A Northside Crossing, Macon GA 31210. Call (478) 216-2876 or send a message — we respond within one business day.',
+            'h1': 'Get in Touch with Qbix Centre',
+        },
+    }
+    db = get_db()
+    saved = db.get('siteSettings', {}).get(page_key, {})
+    d = defaults.get(page_key, {})
+    return {
+        'page_title': saved.get('title') or d.get('title', ''),
+        'page_desc':  saved.get('description') or d.get('description', ''),
+        'page_h1':    saved.get('h1') or d.get('h1', ''),
+    }
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # PUBLIC WEBSITE ROUTES
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -375,6 +418,7 @@ def home():
     total    = len(data['offices'])
     vacant   = [o for o in data['offices'] if o['status'] == 'Vacant']
     return render_template('public/home.html',
+        **get_site_settings('home'),
         occupied=occupied, total=total, vacant=vacant,
         ga_id=GA_MEASUREMENT_ID)
 
@@ -383,7 +427,7 @@ def offices_page():
     track_pageview('/offices')
     data = get_db()
     vacant = [o for o in data['offices'] if o['status'] == 'Vacant']
-    return render_template('public/offices.html', vacant=vacant, ga_id=GA_MEASUREMENT_ID)
+    return render_template('public/offices.html', **get_site_settings('offices'), vacant=vacant, ga_id=GA_MEASUREMENT_ID)
 
 @app.route('/offices/<office_id>')
 def office_detail(office_id):
@@ -407,12 +451,12 @@ def office_detail(office_id):
 @app.route('/amenities')
 def amenities():
     track_pageview('/amenities')
-    return render_template('public/amenities.html', ga_id=GA_MEASUREMENT_ID)
+    return render_template('public/amenities.html', **get_site_settings('amenities'), ga_id=GA_MEASUREMENT_ID)
 
 @app.route('/contact')
 def contact():
     track_pageview('/contact')
-    return render_template('public/contact.html', ga_id=GA_MEASUREMENT_ID)
+    return render_template('public/contact.html', **get_site_settings('contact'), ga_id=GA_MEASUREMENT_ID)
 
 @app.route('/privacy')
 def privacy():
@@ -451,6 +495,18 @@ def contact_submit():
     flash('Thank you! We will be in touch shortly.', 'success')
     return redirect(url_for('contact'))
 
+@app.route('/admin/api/site-settings', methods=['GET', 'POST'])
+@login_required
+def api_site_settings():
+    db = get_db()
+    if request.method == 'GET':
+        return jsonify(db.get('siteSettings', {}))
+    data = request.get_json(force=True)
+    db['siteSettings'] = data
+    save_data(db)
+    return jsonify({'ok': True})
+
+
 @app.route('/admin/api/contact-messages')
 @login_required
 def get_contact_messages():
@@ -486,7 +542,8 @@ def news():
     categories = sorted(set(p.get('category','') for p in posts if p.get('category')))
     if cat_filter:
         posts = [p for p in posts if p.get('category') == cat_filter]
-    return render_template('public/news.html', posts=posts, categories=categories,
+    return render_template('public/news.html', **get_site_settings('news'),
+                           posts=posts, categories=categories,
                            cat_filter=cat_filter, ga_id=GA_MEASUREMENT_ID)
 
 @app.route('/news/<post_id>')
