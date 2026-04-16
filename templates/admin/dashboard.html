@@ -210,6 +210,37 @@ tr.rclick:hover td{background:rgba(255,255,255,.02);cursor:pointer}
 .rv-row:last-child{border-bottom:none}
 .rv-label{font-size:13px;color:var(--txt2)}
 .rv-val{font-size:13px;color:var(--txt);font-weight:600;text-align:right}
+
+/* ── HELP DRAWER ─────────────────────────────────────── */
+.help-btn{background:none;border:1px solid var(--bdr);border-radius:50%;width:22px;height:22px;color:var(--txt3);font-size:12px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;line-height:1;flex-shrink:0;font-family:'IBM Plex Sans',sans-serif;transition:all .15s;vertical-align:middle;margin-left:7px}
+.help-btn:hover{border-color:var(--acc);color:var(--acc);background:rgba(212,168,67,.08)}
+#help-overlay{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:500;display:none}
+#help-overlay.open{display:block}
+#help-drawer{position:fixed;top:0;right:-420px;width:420px;max-width:95vw;height:100vh;background:var(--sur);border-left:1px solid var(--bdr);z-index:501;display:flex;flex-direction:column;transition:right .28s cubic-bezier(.4,0,.2,1);overflow:hidden}
+#help-drawer.open{right:0}
+#help-drawer-header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--bdr);flex-shrink:0}
+#help-drawer-title{font-family:'Playfair Display',serif;font-size:18px;color:var(--txt)}
+#help-drawer-close{background:none;border:none;color:var(--txt2);font-size:22px;cursor:pointer;line-height:1;padding:0}
+#help-drawer-close:hover{color:var(--txt)}
+#help-toc{padding:12px 20px 8px;border-bottom:1px solid var(--bdr);flex-shrink:0}
+#help-toc-title{font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--txt3);font-weight:700;margin-bottom:8px}
+#help-toc-links{display:flex;flex-wrap:wrap;gap:5px}
+#help-toc-links a{font-size:12px;color:var(--acc);text-decoration:none;background:rgba(212,168,67,.1);border-radius:4px;padding:3px 8px;border:1px solid rgba(212,168,67,.2)}
+#help-toc-links a:hover{background:rgba(212,168,67,.2)}
+#help-body{overflow-y:auto;flex:1;padding:20px}
+#help-body h2{font-family:'Playfair Display',serif;font-size:17px;color:var(--acc);margin:24px 0 8px;padding-top:20px;border-top:1px solid var(--bdr)}
+#help-body h2:first-child{margin-top:0;padding-top:0;border-top:none}
+#help-body h3{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--txt2);font-weight:700;margin:14px 0 6px}
+#help-body p{font-size:13px;color:var(--txt2);line-height:1.65;margin-bottom:8px}
+#help-body ul{padding-left:16px;margin-bottom:8px}
+#help-body li{font-size:13px;color:var(--txt2);line-height:1.65;margin-bottom:4px}
+#help-body li strong,#help-body p strong{color:var(--txt);font-weight:600}
+#help-body .help-tip{background:rgba(212,168,67,.08);border:1px solid rgba(212,168,67,.2);border-radius:7px;padding:9px 12px;font-size:12px;color:var(--txt2);margin-top:8px;line-height:1.6}
+#help-body .help-tip strong{color:var(--acc)}
+#help-body .help-workflow{background:var(--sur2);border:1px solid var(--bdr);border-radius:7px;padding:10px 14px;margin-top:8px}
+#help-body .help-workflow li{counter-increment:step;list-style:none;padding-left:0;display:flex;gap:8px;align-items:flex-start}
+#help-body .help-workflow li::before{content:counter(step);background:var(--acc);color:#1a0e00;border-radius:50%;min-width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;margin-top:2px}
+#help-body .help-workflow{counter-reset:step}
 </style>
 <script>
 function showPage(id,btn){
@@ -250,13 +281,13 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
 
 <!-- DASHBOARD -->
 <div class="page on" id="page-website">
-  <div class="pg-title">&#127758; Website</div>
+  <div class="pg-title">&#127758; Website <button class="help-btn" onclick="openHelp('help-website')" title="Help">?</button></div>
   <div class="pg-sub">Edit public-facing page titles, descriptions, and H1 headers — changes go live instantly</div>
 
   <!-- SEO KEYWORDS (moved from Marketing) -->
   <div class="card" style="margin-bottom:16px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-      <div class="ct" style="margin-bottom:0">&#128270; SEO Keywords</div>
+      <div class="ct" style="margin-bottom:0">&#128270; SEO Keywords <button class="help-btn" onclick="openHelp('help-website')" title="Help">?</button></div>
       <button onclick="toggleSeoEditor()" id="seo-toggle-btn" style="background:var(--sur2);border:1px solid var(--bdr);border-radius:8px;padding:5px 12px;font-size:12px;color:var(--txt2);cursor:pointer;font-family:'IBM Plex Sans',sans-serif">&#9998; Edit</button>
     </div>
     <div style="font-size:12px;color:var(--txt3);margin-bottom:10px">Fed to the AI newsletter generator — it weaves 2–3 naturally into every draft. Edit to match your current focus.</div>
@@ -274,7 +305,7 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
 
   <!-- PAGE META / H1 EDITORS -->
   <div class="card">
-    <div class="ct" style="margin-bottom:14px">&#128196; Page Titles, Descriptions &amp; H1 Headers</div>
+    <div class="ct" style="margin-bottom:14px">&#128196; Page Titles, Descriptions &amp; H1 Headers <button class="help-btn" onclick="openHelp('help-website')" title="Help">?</button></div>
     <div style="font-size:12px;color:var(--txt3);margin-bottom:16px">Changes save instantly and go live on the public site. Title tag appears in Google search results and browser tabs. Meta description appears as the snippet under your listing. H1 is the main visible header on each page.</div>
     <div id="site-pages-editor" style="display:flex;flex-direction:column;gap:16px"></div>
     <div style="margin-top:16px">
@@ -285,7 +316,7 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
   <!-- NEWS CATEGORIES -->
   <div class="card" style="margin-top:16px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-      <div class="ct" style="margin-bottom:0">&#127991; News Categories</div>
+      <div class="ct" style="margin-bottom:0">&#127991; News Categories <button class="help-btn" onclick="openHelp('help-website')" title="Help">?</button></div>
     </div>
     <div style="font-size:12px;color:var(--txt3);margin-bottom:12px">These appear as filter buttons on the public News page and as options in the Newsletter generator.</div>
     <div id="ncat-list" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px"></div>
@@ -298,7 +329,7 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
   <!-- HOME GALLERY -->
   <div class="card" style="margin-top:16px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-      <div class="ct" style="margin-bottom:0">&#127968; Home Page Gallery</div>
+      <div class="ct" style="margin-bottom:0">&#127968; Home Page Gallery <button class="help-btn" onclick="openHelp('help-website')" title="Help">?</button></div>
       <button onclick="openPickerFor('home-gallery')" style="background:var(--blue);border:none;border-radius:7px;color:#fff;font-family:'IBM Plex Sans',sans-serif;font-size:12px;font-weight:600;padding:7px 14px;cursor:pointer">&#128444; Pick from Library</button>
     </div>
     <div style="font-size:12px;color:var(--txt3);margin-bottom:14px">Up to 8 photos shown as a slideshow on the home page. Click &times; to remove. Order matches selection order.</div>
@@ -310,7 +341,7 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
   <!-- SITE AMENITIES -->
   <div class="card" style="margin-top:16px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-      <div class="ct" style="margin-bottom:0">&#10003; Your Amenities <span style="font-size:12px;font-weight:400;color:var(--txt3)">(shown on home page — included with every office)</span></div>
+      <div class="ct" style="margin-bottom:0">&#10003; Your Amenities <button class="help-btn" onclick="openHelp('help-website')" title="Help">?</button> <span style="font-size:12px;font-weight:400;color:var(--txt3)">(shown on home page — included with every office)</span></div>
     </div>
     <div style="font-size:12px;color:var(--txt3);margin-bottom:14px">These are what every member gets regardless of which office. Separate from per-office amenities set in the Offices tab.</div>
     <div id="sa-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px"></div>
@@ -328,7 +359,7 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
 <!-- MARKETING -->
 <div class="page" id="page-marketing">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
-    <div class="pg-title" style="margin-bottom:0">&#128200; Marketing</div>
+    <div class="pg-title" style="margin-bottom:0">&#128200; Marketing <button class="help-btn" onclick="openHelp('help-marketing')" title="Help">?</button></div>
     <button onclick="toggleLeadSourceEditor()" id="ls-gear-btn" title="Manage lead source options" style="background:var(--sur2);border:1px solid var(--bdr);border-radius:8px;padding:7px 14px;font-size:13px;color:var(--txt2);cursor:pointer;display:flex;align-items:center;gap:6px;font-family:'IBM Plex Sans',sans-serif">&#9881;&#65039; Lead Sources</button>
   </div>
   <div class="pg-sub">Lead sources, website traffic &amp; growth tracking</div>
@@ -340,7 +371,7 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
   <div class="card" id="contact-messages-card" style="margin-bottom:16px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
       <div style="display:flex;align-items:center;gap:10px">
-        <div class="ct" style="margin-bottom:0">&#128386; Contact Messages</div>
+        <div class="ct" style="margin-bottom:0">&#128386; Contact Messages <button class="help-btn" onclick="openHelp('help-marketing')" title="Help">?</button></div>
         <span id="contact-unread-badge" style="display:none;background:var(--red);color:#fff;border-radius:10px;font-size:11px;font-weight:700;padding:2px 8px"></span>
       </div>
       <button onclick="loadContactMessages(true)" style="background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt2);padding:4px 10px;font-size:13px;cursor:pointer;line-height:1" title="Refresh">&#8635;</button>
@@ -351,7 +382,7 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
   </div>
   <div class="card" id="gbp-health-card" style="margin-bottom:16px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-      <div class="ct" style="margin-bottom:0">&#128205; Google Business Profile Health</div>
+      <div class="ct" style="margin-bottom:0">&#128205; Google Business Profile Health <button class="help-btn" onclick="openHelp('help-marketing')" title="Help">?</button></div>
       <button onclick="toggleGbpEdit()" id="gbp-edit-btn" style="background:var(--sur2);border:1px solid var(--bdr);border-radius:8px;padding:5px 12px;font-size:12px;color:var(--txt2);cursor:pointer;font-family:'IBM Plex Sans',sans-serif">&#9998; Edit</button>
     </div>
     <!-- Read view -->
@@ -667,7 +698,7 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
 
 <!-- MEDIA LIBRARY -->
 <div class="page" id="page-media">
-  <div class="pg-title">&#128444; Media Library</div>
+  <div class="pg-title">&#128444; Media Library <button class="help-btn" onclick="openHelp('help-media')" title="Help">?</button></div>
   <div class="pg-sub">All photos stored in Cloudinary — WebP format, CDN-delivered. Upload once, use everywhere.</div>
 
   <!-- Action bar -->
@@ -810,7 +841,7 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
 
 <!-- OFFICES -->
 <div class="page" id="page-offices">
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:3px"><div class="pg-title">Offices</div><button onclick="loadData()" style="background:var(--sur2);border:1px solid var(--acc);border-radius:6px;color:var(--acc);padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;font-family:'IBM Plex Sans',sans-serif">&#8635; Refresh</button></div><div class="pg-sub">Click any tile to view or edit</div>
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:3px"><div class="pg-title">Offices <button class="help-btn" onclick="openHelp('help-offices')" title="Help">?</button></div><button onclick="loadData()" style="background:var(--sur2);border:1px solid var(--acc);border-radius:6px;color:var(--acc);padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;font-family:'IBM Plex Sans',sans-serif">&#8635; Refresh</button></div><div class="pg-sub">Click any tile to view or edit</div>
   <div class="tb">
     <input class="sb" type="text" placeholder="Search office or member..." oninput="filterOffices(this.value)">
     <button class="fb on" id="fa" onclick="setOF('all',this)">All</button>
@@ -847,7 +878,7 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
 
 <!-- MEMBERS -->
 <div class="page" id="page-members">
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:3px"><div class="pg-title">Members</div><button onclick="loadData()" style="background:var(--sur2);border:1px solid var(--acc);border-radius:6px;color:var(--acc);padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;font-family:'IBM Plex Sans',sans-serif">&#8635; Refresh</button></div><div class="pg-sub">Click any row to view or edit</div>
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:3px"><div class="pg-title">Members <button class="help-btn" onclick="openHelp('help-members')" title="Help">?</button></div><button onclick="loadData()" style="background:var(--sur2);border:1px solid var(--acc);border-radius:6px;color:var(--acc);padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;font-family:'IBM Plex Sans',sans-serif">&#8635; Refresh</button></div><div class="pg-sub">Click any row to view or edit</div>
   <div class="tb">
     <input class="sb" type="text" placeholder="Search member..." oninput="filterMembers(this.value)">
     <button class="fb on" id="mf-active" onclick="setMF('Active',this)">Active</button>
@@ -866,7 +897,7 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
 
 <!-- OCCUPANTS -->
 <div class="page" id="page-occupants">
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:3px"><div class="pg-title">Occupants</div><button onclick="loadData()" style="background:var(--sur2);border:1px solid var(--acc);border-radius:6px;color:var(--acc);padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;font-family:'IBM Plex Sans',sans-serif">&#8635; Refresh</button></div><div class="pg-sub">Click any row to view or edit</div>
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:3px"><div class="pg-title">Occupants <button class="help-btn" onclick="openHelp('help-occupants')" title="Help">?</button></div><button onclick="loadData()" style="background:var(--sur2);border:1px solid var(--acc);border-radius:6px;color:var(--acc);padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;font-family:'IBM Plex Sans',sans-serif">&#8635; Refresh</button></div><div class="pg-sub">Click any row to view or edit</div>
   <div class="tb">
     <input class="sb" type="text" placeholder="Search name, company, office..." oninput="filterOccupants(this.value)">
     <button class="fb on" id="of-active" onclick="setOccF('Active',this)">Active</button>
@@ -884,14 +915,14 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
 
 <!-- WAITLIST -->
 <div class="page" id="page-waitlist">
-  <div class="pg-title">Waiting List</div><div class="pg-sub">Prospective tenants</div>
+  <div class="pg-title">Waiting List <button class="help-btn" onclick="openHelp('help-waitlist')" title="Help">?</button></div><div class="pg-sub">Prospective tenants</div>
   <div class="tb"><button class="btn-add" onclick="openWaitForm(null)">+ Add to List</button></div>
   <div id="wl-container"></div>
 </div>
 
 <!-- NOTIFY -->
 <div class="page" id="page-notify">
-  <div class="pg-title">&#128226; Notify</div><div class="pg-sub">Send emails or texts to members and occupants</div>
+  <div class="pg-title">&#128226; Notify <button class="help-btn" onclick="openHelp('help-notify')" title="Help">?</button></div><div class="pg-sub">Send emails or texts to members and occupants</div>
   <div class="notify-layout">
     <div>
       <div class="notify-panel">
@@ -940,7 +971,7 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
 
 <!-- NEWSLETTER -->
 <div class="page" id="page-newsletter">
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:3px"><div class="pg-title">&#128240; Newsletter</div><button onclick="loadData()" style="background:var(--sur2);border:1px solid var(--acc);border-radius:6px;color:var(--acc);padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;font-family:'IBM Plex Sans',sans-serif">&#8635; Refresh</button></div><div class="pg-sub">AI-assisted monthly newsletter &mdash; ~3 cents per draft</div>
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:3px"><div class="pg-title">&#128240; Newsletter <button class="help-btn" onclick="openHelp('help-newsletter')" title="Help">?</button></div><button onclick="loadData()" style="background:var(--sur2);border:1px solid var(--acc);border-radius:6px;color:var(--acc);padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;font-family:'IBM Plex Sans',sans-serif">&#8635; Refresh</button></div><div class="pg-sub">AI-assisted monthly newsletter &mdash; ~3 cents per draft</div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start">
     <div class="card">
       <div class="ct">Generate Draft</div>
@@ -1092,7 +1123,7 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
 
 <!-- BOOKINGS -->
 <div class="page" id="page-bookings">
-  <div class="pg-title">&#128197; Conference Room Bookings</div><div class="pg-sub">All upcoming bookings</div>
+  <div class="pg-title">&#128197; Conference Room Bookings <button class="help-btn" onclick="openHelp('help-bookings')" title="Help">?</button></div><div class="pg-sub">All upcoming bookings</div>
   <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center">
     <button class="btn-add" onclick="sendMonthlyUsage()" style="background:var(--purple)">&#128231; Send Monthly Usage Emails</button>
   </div>
@@ -4443,6 +4474,301 @@ function loadNlPhotos(post){
 }
 
 
+</script>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- HELP DRAWER                                             -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div id="help-overlay" onclick="closeHelp()"></div>
+<div id="help-drawer">
+  <div id="help-drawer-header">
+    <div id="help-drawer-title">&#10067; Admin Help</div>
+    <button id="help-drawer-close" onclick="closeHelp()">&times;</button>
+  </div>
+  <div id="help-toc">
+    <div id="help-toc-title">Jump to section</div>
+    <div id="help-toc-links">
+      <a href="#help-website" onclick="scrollHelp('help-website')">Website</a>
+      <a href="#help-marketing" onclick="scrollHelp('help-marketing')">Marketing</a>
+      <a href="#help-media" onclick="scrollHelp('help-media')">Media</a>
+      <a href="#help-offices" onclick="scrollHelp('help-offices')">Offices</a>
+      <a href="#help-members" onclick="scrollHelp('help-members')">Members</a>
+      <a href="#help-occupants" onclick="scrollHelp('help-occupants')">Occupants</a>
+      <a href="#help-waitlist" onclick="scrollHelp('help-waitlist')">Waiting List</a>
+      <a href="#help-notify" onclick="scrollHelp('help-notify')">Notify</a>
+      <a href="#help-newsletter" onclick="scrollHelp('help-newsletter')">Newsletter</a>
+      <a href="#help-bookings" onclick="scrollHelp('help-bookings')">Bookings</a>
+      <a href="#help-deploy" onclick="scrollHelp('help-deploy')">Deploying</a>
+    </div>
+  </div>
+  <div id="help-body">
+
+    <!-- WEBSITE -->
+    <h2 id="help-website">&#127758; Website Tab</h2>
+    <p>Controls everything visible on the public-facing website that doesn't require code changes. Changes here go live immediately after saving.</p>
+
+    <h3>SEO Keywords</h3>
+    <p>A list of phrases fed into the AI newsletter generator so it naturally weaves them into every draft. These don't affect your page titles or meta descriptions directly — they're specifically for the AI writing assistant.</p>
+    <ul>
+      <li>Click <strong>Edit</strong> to add or remove keywords</li>
+      <li>Keep the list focused on 6–10 phrases you actually want to rank for</li>
+      <li>Examples: "north Macon office space", "Northside Crossing", "private office Macon GA"</li>
+    </ul>
+
+    <h3>Page Titles, Descriptions &amp; H1 Headers</h3>
+    <p>Controls what Google shows in search results and what appears as the main heading on each public page. The title appears in browser tabs and Google results. The description is the snippet under your listing. The H1 is the big visible heading on the page.</p>
+    <ul>
+      <li>Title: aim for 50–60 characters, include "Macon GA" or "north Macon"</li>
+      <li>Description: aim for 150–160 characters, make it a mini sales pitch</li>
+      <li>Click <strong>Save All Pages</strong> when done — saves all five pages at once</li>
+    </ul>
+    <div class="help-tip"><strong>Tip:</strong> If you leave a field blank it falls back to the coded default, so you can always recover.</div>
+
+    <h3>News Categories</h3>
+    <p>The filter buttons shown on the public News page and the category dropdown in the Newsletter tab. Add or remove as your content evolves. At least one category must exist at all times.</p>
+
+    <h3>Home Page Gallery</h3>
+    <p>The auto-advancing slideshow on the home page. Up to 8 photos pulled from your Cloudinary library.</p>
+    <ul class="help-workflow">
+      <li>Click <strong>Pick from Library</strong> to open the photo browser</li>
+      <li>Select up to 8 photos (click to toggle — gold border = selected)</li>
+      <li>Click <strong>Add Selected</strong> — thumbnails appear in the card</li>
+      <li>Click <strong>X</strong> on any thumbnail to remove it</li>
+      <li>Click <strong>Save Gallery</strong> — goes live immediately</li>
+    </ul>
+    <div class="help-tip"><strong>Tip:</strong> Pick your best, brightest office photos. The slideshow advances every 7 seconds and visitors can click any photo to see it full size.</div>
+
+    <h3>Your Amenities</h3>
+    <p>The "what's included with every membership" list shown on the home page. These are site-wide amenities — what every member gets regardless of which office they're in.</p>
+    <p><strong>Important distinction:</strong> These are different from the per-office amenities set in the Offices tab (things like "Corner Office" or "Glass Whiteboard" that are specific to one room).</p>
+    <ul>
+      <li>Type a new amenity and click <strong>+ Add</strong> or press Enter</li>
+      <li>Click <strong>&times;</strong> to remove one</li>
+      <li>Click <strong>Save Amenities</strong> when done</li>
+    </ul>
+
+    <!-- MARKETING -->
+    <h2 id="help-marketing">&#128200; Marketing Tab</h2>
+    <p>Tracks your marketing health, incoming leads, and website performance. This is your dashboard for growth — check it weekly.</p>
+
+    <h3>Contact Messages</h3>
+    <p>Every form submission from the public Contact page lands here. A red badge on the Marketing tab button tells you when there are unread messages — visible from any tab so you won't miss one.</p>
+    <ul>
+      <li>Gold border = unread message</li>
+      <li>Click <strong>Mark Read</strong> once you've followed up — clears the badge count</li>
+      <li>Click <strong>Delete</strong> to remove after you've handled it</li>
+      <li>Phone numbers are tap-to-call links</li>
+    </ul>
+    <div class="help-tip"><strong>Note:</strong> SMS to your phone also fires on submission once Twilio toll-free verification is complete (~April 21–25). The inbox is your backup if you miss the text.</div>
+
+    <h3>Google Business Profile Health</h3>
+    <p>A manual tracker for your GBP status — review count, rating, last post date, last review reply. The card color-codes staleness so you know when the profile is going cold.</p>
+    <ul>
+      <li>Click <strong>Edit</strong> to update after you've posted or replied on GBP</li>
+      <li>Use the direct links to jump to GBP Dashboard, Add Post, or Reply to Reviews</li>
+    </ul>
+    <div class="help-tip"><strong>Why this matters:</strong> You're currently ranked 6th of 8 in Macon Maps. GBP activity (fresh posts, replied reviews, correct hours) is the fastest way to climb. Setting hours to 24/7 and posting anything new are the quickest wins.</div>
+
+    <h3>Lead Sources</h3>
+    <p>Tracks how members and waitlist prospects found Qbix. The pie chart drills down — click any slice to see the names. Use this to know which marketing channels are working.</p>
+    <ul>
+      <li>Lead source is captured when adding a Member or Waitlist entry</li>
+      <li>Click the ⚙ Lead Sources button to add or remove source options</li>
+      <li>Backfill existing members by editing their record and setting a source</li>
+    </ul>
+
+    <h3>Website Traffic (GA4) &amp; Search Queries</h3>
+    <p>Pulls live data from Google Analytics and Search Console. Both are lazy-loaded — click the refresh button (↻) to fetch current data. GA4 shows sessions, users, and top pages. Search Console shows what people typed into Google to find you.</p>
+    <div class="help-tip"><strong>Tip:</strong> Search Console data that shows "conference room" queries is why a dedicated Conference Room page is on the build queue — it's free traffic you're not fully capturing yet.</div>
+
+    <h3>Review, Facebook &amp; Nextdoor Trackers</h3>
+    <p>Manual logs for tracking your social presence over time. Update after you check each platform. The history view shows trends so you can see if your efforts are moving the needle.</p>
+
+    <!-- MEDIA -->
+    <h2 id="help-media">&#128444; Media Tab</h2>
+    <p>Your Cloudinary photo library — all photos used anywhere on the site live here. Photos are served as WebP via CDN so they load fast on any connection.</p>
+
+    <h3>Uploading Photos</h3>
+    <ul class="help-workflow">
+      <li>Select a folder first (Offices, News, or General) using the dropdown</li>
+      <li>Click <strong>Upload Photos</strong> or drag files onto the grid</li>
+      <li>Photos auto-convert to WebP and upload to Cloudinary</li>
+      <li>An AI alt text suggestion appears for each photo — review and approve before saving</li>
+    </ul>
+    <div class="help-tip"><strong>Alt text matters:</strong> It's what screen readers say and what Google indexes for image search. The AI suggestion is usually good — just check it reads naturally and mentions "Qbix Centre" and "north Macon" where appropriate.</div>
+
+    <h3>Editing Alt Text &amp; Captions</h3>
+    <p>Click any photo to open the edit panel. Alt text is for accessibility and SEO. Caption is optional — currently not displayed publicly but stored for future use.</p>
+
+    <h3>Clean Up Orphans</h3>
+    <p>Scans Cloudinary and compares against every photo reference in the database (office photos, news post photos, home gallery). Anything not referenced anywhere is shown as an "orphan."</p>
+    <ul class="help-workflow">
+      <li>Click <strong>Clean Up Orphans</strong> in the toolbar</li>
+      <li>Review the thumbnails — these are photos not linked to anything</li>
+      <li>Check the ones you want to delete (or Select All)</li>
+      <li>Click <strong>Delete Selected</strong> — permanently removes from Cloudinary</li>
+    </ul>
+    <div class="help-tip"><strong>When to run this:</strong> After you've removed or replaced office photos, or after uploading test photos. It keeps your storage clean and your Cloudinary free tier healthy.</div>
+
+    <!-- OFFICES -->
+    <h2 id="help-offices">Offices Tab</h2>
+    <p>All 27 offices in tile form. Green border = Occupied, blue = Vacant. Click any tile to view details or edit.</p>
+
+    <h3>Adding or Editing an Office</h3>
+    <ul class="help-workflow">
+      <li>Click a tile to view, then <strong>Edit</strong> — or click <strong>+ Add Office</strong> for a new one</li>
+      <li>Fill in number, status, sq ft, listed rate, and description</li>
+      <li>Check the <strong>Amenities</strong> specific to this office (Corner Office, Whiteboard, etc.)</li>
+      <li>Add photos via drag-and-drop or <strong>Pick from Library</strong></li>
+      <li>Drag photos to reorder — first photo is the hero shown on the website</li>
+      <li>Click <strong>Save</strong></li>
+    </ul>
+    <div class="help-tip"><strong>Status matters:</strong> Only "Vacant" offices appear on the public website. Set status to "Occupied" when a member moves in and the office disappears from the public listing automatically.</div>
+
+    <h3>Per-Office Amenities (⚙ gear button)</h3>
+    <p>The gear icon in the toolbar opens the amenities list manager — add or remove the features that can be assigned to individual offices (things like "Corner Office", "Glass Whiteboard", "Outside Window"). These are the checkboxes that appear when you edit any office.</p>
+    <p>These are <strong>different</strong> from Your Amenities in the Website tab — those are site-wide (every member gets them). These are room-specific features.</p>
+
+    <h3>Photo Order &amp; Hero Shot</h3>
+    <p>The first photo in the list is the "hero" — it shows on the public offices listing and at the top of the detail page. Drag thumbnails left/right to reorder. The gold border + HERO badge marks which one is first.</p>
+
+    <!-- MEMBERS -->
+    <h2 id="help-members">Members Tab</h2>
+    <p>Active, Pending, and Archived members. Click any row to view the full record.</p>
+
+    <h3>Member Status Workflow</h3>
+    <ul>
+      <li><strong>Pending</strong> — inquiry or onboarding in progress, not yet active</li>
+      <li><strong>Active</strong> — paying member with an office</li>
+      <li><strong>Archive</strong> — former member; kept for records, excluded from billing views</li>
+    </ul>
+    <p>Status changes automatically when you mark an agreement as signed (Pending → Active).</p>
+
+    <h3>Adding a Member</h3>
+    <ul class="help-workflow">
+      <li>Click <strong>+ Add Member</strong></li>
+      <li>Enter name, start date, billing email, phone, deposit, and how they found Qbix</li>
+      <li>Set status to Pending initially</li>
+      <li>Attach any agreements or documents via the file drop zone</li>
+      <li>Click <strong>Save</strong></li>
+    </ul>
+
+    <h3>Agreement Workflow</h3>
+    <ul class="help-workflow">
+      <li>Open the member record → click <strong>Generate Agreement</strong></li>
+      <li>Agreement opens as formatted HTML in a new tab</li>
+      <li>Use browser Print → Save as PDF → send to member</li>
+      <li>When member signs, open record → click <strong>Mark Signed</strong> — status auto-sets to Active</li>
+    </ul>
+
+    <h3>Conference Room Hours</h3>
+    <p>Each office has a monthly conference room hours allocation (default 6 hrs). The Members table shows the total hours for members who have multiple offices. Set per-office hours in the Office edit form.</p>
+
+    <!-- OCCUPANTS -->
+    <h2 id="help-occupants">Occupants Tab</h2>
+    <p>Individual people who physically occupy offices — separate from the member/company billing record. A member company might have multiple occupants in one office.</p>
+    <ul>
+      <li>Each occupant has a name, company, office, phone, email, and optional face photo and driver's license scan</li>
+      <li>Face photos are for internal identification only — not shown publicly</li>
+      <li>Status: Active or Archive</li>
+      <li>End Date field for tracking when an occupant's access should expire</li>
+    </ul>
+
+    <!-- WAITING LIST -->
+    <h2 id="help-waitlist">&#128203; Waiting List Tab</h2>
+    <p>Prospective tenants who've expressed interest but don't have a space yet. When an office opens up, check here first.</p>
+    <ul>
+      <li>Click <strong>+ Add to List</strong> to log a new inquiry manually</li>
+      <li>Record name, phone, date requested, how they found Qbix, and any notes</li>
+      <li>When you're ready to convert them to a member, add them in the Members tab and delete from here</li>
+    </ul>
+    <div class="help-tip"><strong>Tip:</strong> Log every inquiry here even if you think they won't convert — it builds your lead source data over time and gives you a call-back list when space opens.</div>
+
+    <!-- NOTIFY -->
+    <h2 id="help-notify">&#128226; Notify Tab</h2>
+    <p>Send a one-off SMS or email to members, occupants, or specific individuals — for announcements, reminders, or urgent notices.</p>
+    <ul>
+      <li><strong>Group send</strong> — choose All Members, Active Members, or All Occupants</li>
+      <li><strong>Individual send</strong> — type a name or phone number for a targeted message</li>
+      <li>Templates — save frequently used messages so you're not retyping them each time</li>
+    </ul>
+    <div class="help-tip"><strong>Note:</strong> SMS sends via Twilio. Until toll-free verification is complete (~April 21–25) messages won't deliver. Email sends are available in the meantime.</div>
+
+    <!-- NEWSLETTER -->
+    <h2 id="help-newsletter">&#128240; Newsletter Tab</h2>
+    <p>AI-assisted newsletter drafting, social post generation, and publication history. Each draft costs roughly 3 cents via the Anthropic API.</p>
+
+    <h3>Generating a Draft</h3>
+    <ul class="help-workflow">
+      <li>Select a <strong>Newsletter Type</strong> (Monthly Update, Member Spotlight, Community, Availability)</li>
+      <li>For Member Spotlight: fill in the spotlight intake form (name, profession, tenure, personal note)</li>
+      <li>Optionally add a hero photo and gallery photos</li>
+      <li>Click <strong>Generate Draft</strong> — AI writes the full newsletter using your SEO keywords</li>
+      <li>Edit the draft in the rich text editor as needed</li>
+      <li>Click <strong>Generate Social Posts</strong> to get ready-made copy for Google Business, Facebook, and Nextdoor</li>
+      <li>Click <strong>Save to Website</strong> to publish — appears on the public News page immediately</li>
+    </ul>
+
+    <h3>Sending the Newsletter</h3>
+    <p>The newsletter draft is for your <strong>Outlook BCC send</strong> — copy the content, paste into Outlook, BCC your member list, and send manually. The system doesn't send email directly (no SMTP configured). Social post copy is ready to paste into each platform.</p>
+
+    <h3>Past Newsletters</h3>
+    <p>All published posts appear at the bottom of the tab and on the public News page. You can view, edit, or unpublish any post from here.</p>
+
+    <!-- BOOKINGS -->
+    <h2 id="help-bookings">&#128197; Bookings Tab</h2>
+    <p>Conference room reservations made by members through the public booking system at <strong>/book</strong>.</p>
+    <ul>
+      <li>Shows all upcoming and past bookings with date, time, member name, and meeting title</li>
+      <li>Click <strong>Cancel</strong> to cancel a booking — member receives an SMS confirmation</li>
+      <li>Bookings deduct from the member's monthly conference room hour allocation</li>
+    </ul>
+    <div class="help-tip"><strong>Member booking flow:</strong> Member goes to /book → enters their phone number → receives a Twilio SMS code → verifies → sees available slots → picks a time → booking confirmed by SMS. This requires Twilio to be verified.</div>
+
+    <!-- DEPLOY -->
+    <h2 id="help-deploy">&#128640; Deploying Changes</h2>
+    <p>The site runs on Railway and auto-deploys from GitHub whenever you push code. You never touch the server directly.</p>
+
+    <h3>Standard Deploy Workflow</h3>
+    <ul class="help-workflow">
+      <li>Claude makes changes and provides download links for the updated files</li>
+      <li>Download files and replace them in <code style="background:var(--sur2);padding:1px 5px;border-radius:4px;font-size:12px">Documents/GitHub/NewQbix/</code> — match the folder structure exactly</li>
+      <li>Open <strong>GitHub Desktop</strong> — it shows the changed files automatically</li>
+      <li>Write a short commit message (e.g. "Add help drawer") and click <strong>Commit to main</strong></li>
+      <li>Click <strong>Push origin</strong></li>
+      <li>Railway auto-deploys in ~2 minutes — watch Railway logs if something seems wrong</li>
+    </ul>
+
+    <h3>If Something Breaks After Deploy</h3>
+    <ul>
+      <li><strong>All pages blank / white screen</strong> — open browser F12 → Console tab → look for red JS syntax errors. A missing bracket or quote in dashboard.html is the usual culprit</li>
+      <li><strong>Admin works but public site broken</strong> — likely a Jinja2 template error in a .html file. Check Railway logs for the Python traceback</li>
+      <li><strong>Database looks empty</strong> — use Restore from Backup in the save bar at the top</li>
+    </ul>
+    <div class="help-tip"><strong>Safe changes (no deploy needed):</strong> Anything you edit inside the admin — office records, members, SEO text, gallery, amenities, news posts. These save directly to the database and go live instantly.</div>
+
+  </div><!-- end help-body -->
+</div><!-- end help-drawer -->
+
+<script>
+function openHelp(sectionId){
+  document.getElementById('help-overlay').classList.add('open');
+  document.getElementById('help-drawer').classList.add('open');
+  if(sectionId){
+    setTimeout(()=>scrollHelp(sectionId), 300);
+  }
+}
+function closeHelp(){
+  document.getElementById('help-overlay').classList.remove('open');
+  document.getElementById('help-drawer').classList.remove('open');
+}
+function scrollHelp(id){
+  const el = document.getElementById(id);
+  if(el){
+    el.scrollIntoView({behavior:'smooth', block:'start'});
+  }
+}
+document.addEventListener('keydown', e => { if(e.key==='Escape') closeHelp(); });
 </script>
 </body>
 </html>
