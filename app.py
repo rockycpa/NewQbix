@@ -415,21 +415,26 @@ def home():
     track_pageview('/')
     data = get_db()
     vacant        = [o for o in data['offices'] if o['status'] == 'Vacant']
-    amenity_list  = data.get('amenityList') or [
-        'High-Speed WiFi', 'Dedicated Desk', 'Filing Cabinet', 'Whiteboard',
-        'Standing Desk Option', 'Extra Storage', 'Private Entry', 'Corner Office',
-        'Window View', 'Kitchenette Access', 'Printer/Copier Access',
-        'Mail & Package Handling', 'Conference Room Access', '24/7 Access',
-        'Parking Included', 'Natural Light', 'Ground Floor', 'Second Floor'
-    ]
     home_gallery  = data.get('homeGallery', [])
+    site_amenities = data.get('siteAmenities') or [
+        'Fully Furnished Offices',
+        '24/7 Access',
+        'Wired & Wireless Internet',
+        'Sit/Stand Ergonomic Desks',
+        '6 Hours Conference Room/Month per Office',
+        'Unlimited Water & Coffee',
+        'Free Document Scanning & Printing',
+        'Free Janitorial Services & Document Destruction',
+        'Mail Handling',
+        'Free Parking',
+    ]
     posts = sorted(
         [p for p in data.get('posts', []) if not p.get('draft', False)],
         key=lambda p: p.get('date', ''), reverse=True
     )[:3]
     return render_template('public/home.html',
         **get_site_settings('home'),
-        vacant=vacant, amenity_list=amenity_list,
+        vacant=vacant, site_amenities=site_amenities,
         home_gallery=home_gallery, posts=posts,
         ga_id=GA_MEASUREMENT_ID)
 
@@ -521,6 +526,17 @@ def api_home_gallery():
         return jsonify({'ok': True, 'photos': db.get('homeGallery', [])})
     data = request.get_json(force=True)
     db['homeGallery'] = data.get('photos', [])
+    save_data(db)
+    return jsonify({'ok': True})
+
+@app.route('/admin/api/site-amenities', methods=['GET', 'POST'])
+@login_required
+def api_site_amenities():
+    db = get_db()
+    if request.method == 'GET':
+        return jsonify({'ok': True, 'amenities': db.get('siteAmenities', [])})
+    data = request.get_json(force=True)
+    db['siteAmenities'] = data.get('amenities', [])
     save_data(db)
     return jsonify({'ok': True})
 

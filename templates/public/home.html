@@ -14,8 +14,8 @@
 /* ── AVAILABLE OFFICES ─────────────────────────────────── */
 .offices-section{padding:64px 5%;background:var(--light)}
 .offices-section .sect-hd{text-align:center;margin-bottom:40px}
-.office-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:20px}
-.office-card{background:#fff;border:1px solid var(--border);border-radius:var(--r);overflow:hidden;transition:all .2s;display:flex;flex-direction:column}
+.office-cards{display:flex;flex-wrap:wrap;gap:20px;justify-content:center}
+.office-card{background:#fff;border:1px solid var(--border);border-radius:var(--r);overflow:hidden;transition:all .2s;display:flex;flex-direction:column;width:280px;flex-shrink:0}
 .office-card:hover{box-shadow:0 8px 30px rgba(0,0,0,.1);transform:translateY(-2px)}
 .office-card-photo{height:190px;background:var(--border);overflow:hidden}
 .office-card-photo img{width:100%;height:100%;object-fit:cover;display:block}
@@ -29,17 +29,24 @@
 .no-vacancies{text-align:center;padding:48px 20px;color:var(--txt2)}
 .no-vacancies h3{font-family:'Playfair Display',serif;color:var(--navy);margin-bottom:8px}
 
-/* ── PHOTO GALLERY ─────────────────────────────────────── */
-.gallery-section{padding:56px 5%;background:#fff}
-.gallery-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;margin-top:36px}
-.gallery-grid img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:8px;display:block;transition:transform .2s;cursor:pointer}
-.gallery-grid img:hover{transform:scale(1.02)}
+/* ── PHOTO SLIDESHOW ───────────────────────────────────── */
+.slideshow-section{padding:56px 5%;background:#fff}
+.slideshow-wrap{position:relative;max-width:860px;margin:36px auto 0;border-radius:12px;overflow:hidden;background:#111;aspect-ratio:16/9}
+.slide{position:absolute;inset:0;opacity:0;transition:opacity .8s ease;display:flex;align-items:center;justify-content:center}
+.slide.active{opacity:1}
+.slide img{width:100%;height:100%;object-fit:cover;display:block}
+.slide-dots{display:flex;justify-content:center;gap:8px;margin-top:14px;flex-wrap:wrap}
+.slide-dot{width:10px;height:10px;border-radius:50%;background:var(--border);border:none;cursor:pointer;padding:0;transition:background .2s}
+.slide-dot.active{background:var(--gold)}
+.slide-arrows{position:absolute;top:50%;transform:translateY(-50%);width:100%;display:flex;justify-content:space-between;pointer-events:none;padding:0 12px;z-index:2}
+.slide-arrow{background:rgba(0,0,0,.45);border:none;color:#fff;width:36px;height:36px;border-radius:50%;font-size:18px;cursor:pointer;pointer-events:all;display:flex;align-items:center;justify-content:center;transition:background .2s}
+.slide-arrow:hover{background:rgba(0,0,0,.7)}
 
 /* ── AMENITIES ─────────────────────────────────────────── */
 .amenities-section{padding:64px 5%;background:var(--light)}
-.amenities-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-top:36px}
-.amenity-item{background:#fff;border:1px solid var(--border);border-radius:9px;padding:16px 18px;display:flex;align-items:center;gap:12px;font-size:14px;color:var(--txt);font-weight:500}
-.amenity-item::before{content:'✓';color:var(--gold);font-weight:700;font-size:16px;flex-shrink:0}
+.amenities-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-top:36px}
+.amenity-item{background:#fff;border:1px solid var(--border);border-radius:9px;padding:15px 18px;display:flex;align-items:center;gap:12px;font-size:14px;color:var(--txt);font-weight:500}
+.amenity-check{color:var(--gold);font-weight:700;font-size:16px;flex-shrink:0}
 
 /* ── NEWS ──────────────────────────────────────────────── */
 .news-section{padding:64px 5%;background:#fff}
@@ -130,42 +137,51 @@
   {% else %}
   <div class="no-vacancies">
     <h3>All Offices Currently Occupied</h3>
-    <p>We're fully booked right now — but openings happen regularly. <a href="#contact" style="color:var(--gold)">Get in touch</a> to be notified when space becomes available.</p>
+    <p>We're fully booked right now — openings happen regularly. <a href="#contact" style="color:var(--gold)">Get in touch</a> to be notified when space becomes available.</p>
   </div>
   {% endif %}
 </section>
 
-<!-- PHOTO GALLERY -->
+<!-- PHOTO SLIDESHOW -->
 {% if home_gallery %}
-<section class="gallery-section" id="gallery">
+<section class="slideshow-section" id="gallery">
   <div class="text-center">
     <div class="sect-label">Inside Qbix Centre</div>
     <h2 class="sect-title">See the Space</h2>
   </div>
-  <div class="gallery-grid">
+  <div class="slideshow-wrap" id="slideshow">
     {% for photo in home_gallery %}
-      {% if photo.url %}
-      <img src="{{ photo.url.replace('/upload/', '/upload/ar_4:3,c_fill,w_600/') }}"
+    <div class="slide{% if loop.first %} active{% endif %}" data-index="{{ loop.index0 }}">
+      <img src="{{ photo.url.replace('/upload/', '/upload/ar_16:9,c_fill,w_1200/') }}"
            alt="{{ photo.alt or 'Qbix Centre office space in north Macon, GA' }}"
-           loading="lazy"
+           loading="{% if loop.first %}eager{% else %}lazy{% endif %}"
            onclick="openLightbox('{{ photo.url }}')">
-      {% endif %}
+    </div>
+    {% endfor %}
+    <div class="slide-arrows">
+      <button class="slide-arrow" onclick="slidePrev()" aria-label="Previous">&#8249;</button>
+      <button class="slide-arrow" onclick="slideNext()" aria-label="Next">&#8250;</button>
+    </div>
+  </div>
+  <div class="slide-dots" id="slide-dots">
+    {% for photo in home_gallery %}
+    <button class="slide-dot{% if loop.first %} active{% endif %}" onclick="goToSlide({{ loop.index0 }})" aria-label="Slide {{ loop.index }}"></button>
     {% endfor %}
   </div>
 </section>
 {% endif %}
 
-<!-- AMENITIES -->
+<!-- YOUR AMENITIES -->
 <section class="amenities-section" id="amenities">
   <div class="text-center">
     <div class="sect-label">What's Included</div>
-    <h2 class="sect-title">Everything in Your Membership</h2>
+    <h2 class="sect-title">Your Amenities</h2>
     <p class="sect-sub" style="margin:0 auto">Every office at Qbix Centre includes all of the following — no hidden fees, no add-ons.</p>
   </div>
-  {% if amenity_list %}
+  {% if site_amenities %}
   <div class="amenities-grid">
-    {% for amenity in amenity_list %}
-    <div class="amenity-item">{{ amenity }}</div>
+    {% for amenity in site_amenities %}
+    <div class="amenity-item"><span class="amenity-check">✓</span>{{ amenity }}</div>
     {% endfor %}
   </div>
   {% endif %}
@@ -212,7 +228,7 @@
   <h2>Come See Qbix Centre</h2>
   <p>No pressure — just come take a look and see if it's the right fit for your business. We're happy to show you around.</p>
   <div class="contact-info">
-    <a href="tel:4787379107">📞 (478) 737-9107</a>
+    <a href="tel:4782162876">📞 (478) 216-2876</a>
     <a href="mailto:qbixcentre@outlook.com">✉️ qbixcentre@outlook.com</a>
     <span style="color:rgba(255,255,255,.6)">📍 500A Northside Crossing, Macon, GA 31210</span>
   </div>
@@ -229,6 +245,29 @@
 
 {% block extra_js %}
 <script>
+// ── SLIDESHOW ─────────────────────────────────────────────
+const slides = document.querySelectorAll('.slide');
+const dots   = document.querySelectorAll('.slide-dot');
+let current  = 0;
+let timer    = null;
+
+function goToSlide(n){
+  slides[current].classList.remove('active');
+  dots[current].classList.remove('active');
+  current = (n + slides.length) % slides.length;
+  slides[current].classList.add('active');
+  dots[current].classList.add('active');
+  resetTimer();
+}
+function slideNext(){ goToSlide(current + 1); }
+function slidePrev(){ goToSlide(current - 1); }
+function resetTimer(){
+  clearInterval(timer);
+  if(slides.length > 1) timer = setInterval(slideNext, 7000);
+}
+if(slides.length > 1) resetTimer();
+
+// ── LIGHTBOX ──────────────────────────────────────────────
 function openLightbox(url){
   document.getElementById('lightbox-img').src = url;
   document.getElementById('lightbox').classList.add('open');
@@ -239,17 +278,18 @@ function closeLightbox(){
   document.getElementById('lightbox-img').src = '';
   document.body.style.overflow = '';
 }
-document.addEventListener('keydown', e => { if(e.key === 'Escape') closeLightbox(); });
+document.addEventListener('keydown', e => {
+  if(e.key === 'Escape') closeLightbox();
+  if(e.key === 'ArrowRight') slideNext();
+  if(e.key === 'ArrowLeft')  slidePrev();
+});
 
-// Smooth scroll for in-page anchor links
+// ── SMOOTH SCROLL ─────────────────────────────────────────
 document.querySelectorAll('a[href^="#"]').forEach(a => {
   a.addEventListener('click', e => {
     const id = a.getAttribute('href').slice(1);
     const target = document.getElementById(id);
-    if(target){
-      e.preventDefault();
-      target.scrollIntoView({behavior:'smooth', block:'start'});
-    }
+    if(target){ e.preventDefault(); target.scrollIntoView({behavior:'smooth', block:'start'}); }
   });
 });
 </script>

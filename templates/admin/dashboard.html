@@ -301,10 +301,24 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
       <div class="ct" style="margin-bottom:0">&#127968; Home Page Gallery</div>
       <button onclick="openPickerFor('home-gallery')" style="background:var(--blue);border:none;border-radius:7px;color:#fff;font-family:'IBM Plex Sans',sans-serif;font-size:12px;font-weight:600;padding:7px 14px;cursor:pointer">&#128444; Pick from Library</button>
     </div>
-    <div style="font-size:12px;color:var(--txt3);margin-bottom:14px">Up to 8 photos shown in the gallery strip on the home page. Drag to reorder — first photo appears first. Click &times; to remove.</div>
-    <div id="hg-thumbs" style="display:flex;flex-wrap:wrap;gap:8px;min-height:40px;margin-bottom:12px"></div>
-    <div id="hg-empty" style="font-size:13px;color:var(--txt3);font-style:italic;display:none">No photos selected yet — click "Pick from Library" to add some.</div>
+    <div style="font-size:12px;color:var(--txt3);margin-bottom:14px">Up to 8 photos shown as a slideshow on the home page. Click &times; to remove. Order matches selection order.</div>
+    <div id="hg-thumbs" style="display:flex;flex-wrap:wrap;gap:8px;min-height:40px;margin-bottom:10px"></div>
+    <div id="hg-empty" style="font-size:13px;color:var(--txt3);font-style:italic;margin-bottom:10px;display:none">No photos selected — click "Pick from Library" to add some.</div>
     <button onclick="saveHomeGallery()" style="background:var(--grn);border:none;border-radius:7px;color:#fff;font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:600;padding:8px 22px;cursor:pointer">&#128190; Save Gallery</button>
+  </div>
+
+  <!-- SITE AMENITIES -->
+  <div class="card" style="margin-top:16px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+      <div class="ct" style="margin-bottom:0">&#10003; Your Amenities <span style="font-size:12px;font-weight:400;color:var(--txt3)">(shown on home page — included with every office)</span></div>
+    </div>
+    <div style="font-size:12px;color:var(--txt3);margin-bottom:14px">These are what every member gets regardless of which office. Separate from per-office amenities set in the Offices tab.</div>
+    <div id="sa-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px"></div>
+    <div style="display:flex;gap:8px;max-width:480px;margin-bottom:12px">
+      <input id="sa-new-input" type="text" placeholder="Add amenity..." style="flex:1;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;padding:8px 10px;color:var(--txt);font-size:14px;font-family:'IBM Plex Sans',sans-serif" onkeydown="if(event.key==='Enter')addSiteAmenity()">
+      <button onclick="addSiteAmenity()" style="background:var(--acc);color:#000;border:none;border-radius:6px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer">+ Add</button>
+    </div>
+    <button onclick="saveSiteAmenities()" style="background:var(--grn);border:none;border-radius:7px;color:#fff;font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:600;padding:8px 22px;cursor:pointer">&#128190; Save Amenities</button>
   </div>
 
 </div>
@@ -1281,6 +1295,7 @@ function buildWebsite(){
   renderNewsCategories();
   renderSitePages();
   renderHomeGallery();
+  renderSiteAmenities();
 }
 
 function buildBookingsTab(){
@@ -3556,7 +3571,7 @@ async function removeNewsCategory(idx){
 
 function renderHomeGallery(){
   const photos = DB.homeGallery || [];
-  const wrap = document.getElementById('hg-thumbs');
+  const wrap  = document.getElementById('hg-thumbs');
   const empty = document.getElementById('hg-empty');
   if(!wrap) return;
   if(!photos.length){
@@ -3588,6 +3603,64 @@ async function saveHomeGallery(){
     });
     const d = await r.json();
     if(d.ok) toast('Home gallery saved ✓');
+    else toast('Save failed: '+d.error,'var(--red)');
+  } catch(e){ toast('Save failed','var(--red)'); }
+}
+
+// ═══════════════════════════════════════════════════════
+// SITE AMENITIES
+// ═══════════════════════════════════════════════════════
+
+const _DEFAULT_SITE_AMENITIES = [
+  'Fully Furnished Offices','24/7 Access','Wired & Wireless Internet',
+  'Sit/Stand Ergonomic Desks','6 Hours Conference Room/Month per Office',
+  'Unlimited Water & Coffee','Free Document Scanning & Printing',
+  'Free Janitorial Services & Document Destruction','Mail Handling','Free Parking'
+];
+
+function getSiteAmenities(){
+  return (DB.siteAmenities && DB.siteAmenities.length) ? DB.siteAmenities : _DEFAULT_SITE_AMENITIES;
+}
+
+function renderSiteAmenities(){
+  const list = document.getElementById('sa-list');
+  if(!list) return;
+  const amenities = getSiteAmenities();
+  list.innerHTML = amenities.map((a,i) =>
+    `<div style="display:flex;align-items:center;gap:8px;background:var(--sur2);border:1px solid var(--bdr);border-radius:7px;padding:7px 10px;">
+      <span style="flex:1;font-size:14px;color:var(--txt);">✓ ${a}</span>
+      <button onclick="removeSiteAmenity(${i})" style="background:none;border:none;color:var(--red);font-size:16px;cursor:pointer;line-height:1;padding:0 2px;">&times;</button>
+    </div>`
+  ).join('');
+}
+
+function removeSiteAmenity(i){
+  const amenities = getSiteAmenities();
+  amenities.splice(i,1);
+  DB.siteAmenities = amenities;
+  renderSiteAmenities();
+}
+
+function addSiteAmenity(){
+  const inp = document.getElementById('sa-new-input');
+  const val = inp.value.trim();
+  if(!val) return;
+  if(!DB.siteAmenities) DB.siteAmenities = [..._DEFAULT_SITE_AMENITIES];
+  if(DB.siteAmenities.includes(val)){ toast('Already in the list','var(--acc)'); return; }
+  DB.siteAmenities.push(val);
+  inp.value = '';
+  renderSiteAmenities();
+}
+
+async function saveSiteAmenities(){
+  if(!DB.siteAmenities) DB.siteAmenities = [..._DEFAULT_SITE_AMENITIES];
+  try{
+    const r = await fetch('/admin/api/site-amenities',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({amenities: DB.siteAmenities})
+    });
+    const d = await r.json();
+    if(d.ok) toast('Amenities saved ✓');
     else toast('Save failed: '+d.error,'var(--red)');
   } catch(e){ toast('Save failed','var(--red)'); }
 }
@@ -4017,7 +4090,6 @@ async function confirmPickerSelection(){
     if(!DB.homeGallery) DB.homeGallery = [];
     for(const asset of selected){
       if(DB.homeGallery.length >= 8){ toast('Maximum 8 photos in home gallery','var(--red)'); break; }
-      // Don't add duplicates
       if(!DB.homeGallery.find(p => p.public_id === asset.public_id)){
         DB.homeGallery.push({url: asset.url, public_id: asset.public_id, alt: asset.alt||''});
       }
