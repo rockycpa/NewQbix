@@ -15,7 +15,7 @@
       <div class="card" style="cursor:pointer;padding:0;overflow:hidden" onclick="window.location='/news/{{ post.id }}'">
         {% if post.heroPhoto %}
         <div style="width:100%;height:220px;overflow:hidden">
-          <img src="{{ post.heroPhoto.data }}" alt="{{ post.subject }}"
+          <img src="{{ post.heroPhoto.url }}" alt="{{ post.subject }}"
                style="width:100%;height:100%;object-fit:cover;display:block;transition:transform .3s"
                onmouseover="this.style.transform='scale(1.03)'"
                onmouseout="this.style.transform='scale(1)'">

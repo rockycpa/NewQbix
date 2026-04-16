@@ -202,17 +202,17 @@
     {% if photos %}
     <div class="od-gallery">
       <div>
-        <img class="main-photo" src="{{ photos[0].data }}" alt="Office {{ office.num }} main photo" onclick="openLb(this.src)">
+        <img class="main-photo" src="{{ photos[0].url }}" alt="Office {{ office.num }} main photo" onclick="openLb(this.src)">
       </div>
       {% if photos|length > 1 %}
       <div class="thumb-col">
         {% for photo in photos[1:3] %}
-          <img src="{{ photo.data }}" alt="Office {{ office.num }} photo {{ loop.index+1 }}" onclick="openLb(this.src)">
+          <img src="{{ photo.url }}" alt="Office {{ office.num }} photo {{ loop.index+1 }}" onclick="openLb(this.src)">
         {% endfor %}
         {% if photos|length > 3 %}
           <div style="position:relative">
-            <img src="{{ photos[3].data }}" alt="More photos" onclick="openLb(this.src)" style="width:100%;height:200px;object-fit:cover;border-radius:10px;filter:brightness(.5);cursor:pointer;">
-            <div onclick="openLb('{{ photos[3].data }}')" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.3rem;font-weight:700;cursor:pointer;">
+            <img src="{{ photos[3].url }}" alt="More photos" onclick="openLb(this.src)" style="width:100%;height:200px;object-fit:cover;border-radius:10px;filter:brightness(.5);cursor:pointer;">
+            <div onclick="openLb('{{ photos[3].url }}')" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.3rem;font-weight:700;cursor:pointer;">
               +{{ photos|length - 3 }} more
             </div>
           </div>
@@ -269,12 +269,44 @@
 {# Lightbox #}
 <div id="lb-overlay" onclick="closeLb()">
   <span id="lb-close" onclick="closeLb()">×</span>
-  <img id="lb-img" src="" alt="Photo">
+  <button id="lb-prev" onclick="lbNav(event,-1)">&#8249;</button>
+  <img id="lb-img" src="" alt="Photo" onclick="event.stopPropagation()">
+  <button id="lb-next" onclick="lbNav(event,1)">&#8250;</button>
 </div>
 
+<style>
+#lb-prev, #lb-next {
+  position:fixed; top:50%; transform:translateY(-50%);
+  background:none; border:none; color:#fff; font-size:3rem;
+  cursor:pointer; padding:0 1.2rem; line-height:1; opacity:.8;
+  z-index:9001;
+}
+#lb-prev { left:0; }
+#lb-next { right:0; }
+#lb-prev:hover, #lb-next:hover { opacity:1; }
+</style>
+
 <script>
-function openLb(src){ document.getElementById('lb-img').src=src; document.getElementById('lb-overlay').classList.add('active'); }
+const _lbPhotos = [{% for p in office.get('photos',[]) %}'{{ p.url }}'{% if not loop.last %},{% endif %}{% endfor %}];
+let _lbIdx = 0;
+function openLb(src){
+  _lbIdx = _lbPhotos.indexOf(src);
+  if(_lbIdx < 0) _lbIdx = 0;
+  document.getElementById('lb-img').src = src;
+  document.getElementById('lb-overlay').classList.add('active');
+  document.getElementById('lb-prev').style.display = _lbPhotos.length > 1 ? 'block' : 'none';
+  document.getElementById('lb-next').style.display = _lbPhotos.length > 1 ? 'block' : 'none';
+}
 function closeLb(){ document.getElementById('lb-overlay').classList.remove('active'); }
-document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeLb(); });
+function lbNav(e, dir){
+  e.stopPropagation();
+  _lbIdx = (_lbIdx + dir + _lbPhotos.length) % _lbPhotos.length;
+  document.getElementById('lb-img').src = _lbPhotos[_lbIdx];
+}
+document.addEventListener('keydown', e=>{
+  if(e.key==='Escape') closeLb();
+  if(e.key==='ArrowLeft') lbNav(e,-1);
+  if(e.key==='ArrowRight') lbNav(e,1);
+});
 </script>
 {% endblock %}
