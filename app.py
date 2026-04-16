@@ -406,6 +406,38 @@ def get_site_settings(page_key):
     }
 
 
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SCHEDULED POST PUBLISHER
+# Runs in a background thread every 60 seconds.
+# Any post with scheduledFor <= now and draft=True gets published automatically.
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _publish_scheduled_posts():
+    """Check for scheduled posts whose publish time has arrived and publish them."""
+    while True:
+        try:
+            now_iso = datetime.now().isoformat()
+            data = get_db()
+            changed = False
+            for post in data.get('newsletter', []):
+                scheduled = post.get('scheduledFor')
+                if scheduled and post.get('draft') and scheduled <= now_iso:
+                    post['draft'] = False
+                    post['date'] = scheduled  # use scheduled time as publish date
+                    post.pop('scheduledFor', None)
+                    changed = True
+            if changed:
+                save_data(data)
+        except Exception:
+            pass  # never crash the thread
+        time.sleep(60)
+
+# Start the scheduler thread once (not in debug reloader child process)
+if not os.environ.get('WERKZEUG_RUN_MAIN'):
+    _sched_thread = threading.Thread(target=_publish_scheduled_posts, daemon=True)
+    _sched_thread.start()
+
 # ══════════════════════════════════════════════════════════════════════════════
 # PUBLIC WEBSITE ROUTES
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1736,13 +1768,35 @@ Do not invent facts not in the newsletter. Return ONLY the JSON object."""
 @login_required
 def publish_newsletter():
     """Save newsletter and optionally email to all active members."""
-    data    = get_db()
-    subject  = request.json.get('subject', f'Qbix Centre Newsletter — {datetime.now().strftime("%B %Y")}')
-    body     = request.json.get('body', '')
-    send     = request.json.get('send', False)
-    category = request.json.get('category', 'Monthly Update')
+    data       = get_db()
+    subject    = request.json.get('subject', f'Qbix Centre Newsletter — {datetime.now().strftime("%B %Y")}')
+    body       = request.json.get('body', '')
+    send       = request.json.get('send', False)
+    category   = request.json.get('category', 'Monthly Update')
+    scheduled  = request.json.get('scheduledFor', None)  # ISO datetime string or None
+    hero_photo      = request.json.get('heroPhoto', None)
+    gallery_photos  = request.json.get('galleryPhotos', [])
 
     post_id = '_' + secrets.token_hex(4)
+
+    if scheduled:
+        # Save as a scheduled draft — will auto-publish when time arrives
+        post = {
+            'id':          post_id,
+            'subject':     subject,
+            'body':        body,
+            'category':    category,
+            'date':        datetime.now().isoformat(),
+            'scheduledFor': scheduled,
+            'draft':       True,
+            'sent':        False,
+        }
+        if hero_photo:    post['heroPhoto']     = hero_photo
+        if gallery_photos: post['galleryPhotos'] = gallery_photos
+        data.setdefault('newsletter', []).append(post)
+        save_data(data)
+        return jsonify({'ok': True, 'sent': 0, 'postId': post_id, 'scheduled': True})
+
     post = {
         'id':       post_id,
         'subject':  subject,
@@ -1750,13 +1804,15 @@ def publish_newsletter():
         'category': category,
         'date':     datetime.now().isoformat(),
         'sent':     send,
+        'draft':    False,
     }
+    if hero_photo:    post['heroPhoto']     = hero_photo
+    if gallery_photos: post['galleryPhotos'] = gallery_photos
     data.setdefault('newsletter', []).append(post)
 
     # Add marketing action alert: newsletter published → pending GBP post
     ms = data.setdefault('marketingSettings', {})
     alerts = ms.setdefault('marketingAlerts', [])
-    # Remove any prior pending gbp_post_pending alert so we don't pile up duplicates
     alerts = [a for a in alerts if a.get('type') != 'gbp_post_pending']
     alerts.append({
         'id': 'gbp_' + secrets.token_hex(3),
@@ -1765,7 +1821,6 @@ def publish_newsletter():
         'dismissed': False
     })
     ms['marketingAlerts'] = alerts
-
     save_data(data)
 
     if send:
@@ -1779,6 +1834,25 @@ def publish_newsletter():
         return jsonify({'ok': True, 'sent': sent_count, 'postId': post_id})
 
     return jsonify({'ok': True, 'sent': 0, 'postId': post_id})
+
+@app.route('/admin/api/reschedule-post', methods=['POST'])
+@login_required
+def reschedule_post():
+    """Update or remove the scheduled publish time on an existing draft post."""
+    data        = get_db()
+    post_id     = request.json.get('postId')
+    scheduled   = request.json.get('scheduledFor')  # ISO string or None to unschedule
+    post = next((p for p in data.get('newsletter', []) if p['id'] == post_id), None)
+    if not post:
+        return jsonify({'ok': False, 'error': 'Post not found'}), 404
+    if scheduled:
+        post['scheduledFor'] = scheduled
+        post['draft'] = True
+    else:
+        # Cancel schedule — revert to plain draft
+        post.pop('scheduledFor', None)
+    save_data(data)
+    return jsonify({'ok': True})
 
 # ── Booking management (admin view) ──────────────────────────────────────────
 

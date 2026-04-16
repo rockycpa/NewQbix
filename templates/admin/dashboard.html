@@ -1071,6 +1071,7 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
 
         <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
           <button onclick="saveDraft()" class="n-btn n-copy" style="border:1px solid var(--bdr)">&#128204; Save as Draft</button>
+          <button onclick="openSchedulePicker()" class="n-btn" style="background:var(--blue);color:#fff">&#128337; Schedule</button>
           <button onclick="publishNewsletter(false)" class="n-btn" style="background:var(--purple);color:#fff">&#128190; Save to Website</button>
           <button onclick="publishNewsletter(true)" class="n-btn n-email">&#128231; Save &amp; Email Members</button>
         </div>
@@ -1117,6 +1118,29 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
     <div class="card">
       <div class="ct">Past Newsletters</div>
       <div id="nl-history" style="color:var(--txt3);font-size:13px">Loading...</div>
+    </div>
+  </div>
+</div>
+
+<!-- SCHEDULE PICKER MODAL -->
+<div class="mo" id="schedule-modal" onclick="closeMo(event,'schedule-modal')" style="z-index:310">
+  <div class="mi" style="max-width:420px">
+    <button class="mx" onclick="document.getElementById('schedule-modal').classList.remove('open')">&#x2715;</button>
+    <div class="mt">&#128337; Schedule Post</div>
+    <div style="font-size:13px;color:var(--txt2);margin-bottom:18px">The post will go live automatically on the date and time you choose. It will appear as "Scheduled" in your history until then.</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px">
+      <div>
+        <label style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--txt3);font-weight:700;display:block;margin-bottom:6px">Date</label>
+        <input type="date" id="sched-date" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:7px;color:var(--txt);font-family:'IBM Plex Sans',sans-serif;font-size:14px;padding:9px 11px;outline:none">
+      </div>
+      <div>
+        <label style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--txt3);font-weight:700;display:block;margin-bottom:6px">Time</label>
+        <input type="time" id="sched-time" value="09:00" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:7px;color:var(--txt);font-family:'IBM Plex Sans',sans-serif;font-size:14px;padding:9px 11px;outline:none">
+      </div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;padding-top:14px;border-top:1px solid var(--bdr)">
+      <button onclick="document.getElementById('schedule-modal').classList.remove('open')" style="background:var(--sur2);border:1px solid var(--bdr);border-radius:7px;color:var(--txt2);font-family:'IBM Plex Sans',sans-serif;font-size:13px;padding:8px 18px;cursor:pointer">Cancel</button>
+      <button onclick="confirmSchedule()" style="background:var(--blue);border:none;border-radius:7px;color:#fff;font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:600;padding:8px 22px;cursor:pointer">&#128337; Schedule It</button>
     </div>
   </div>
 </div>
@@ -1363,19 +1387,32 @@ async function sendMonthlyUsage(){
 
 function buildNewsletterHistory(){
   const posts=(DB.newsletter||[]).slice().reverse();
-  document.getElementById('nl-history').innerHTML=posts.length?posts.map(p=>`
-    <div style="padding:16px;border:1px solid var(--bdr);border-radius:8px;margin-bottom:10px;background:var(--sur2)">
+  document.getElementById('nl-history').innerHTML=posts.length?posts.map(p=>{
+    const isScheduled = p.draft && p.scheduledFor;
+    const schedDt = isScheduled ? new Date(p.scheduledFor).toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}) : '';
+    const statusBadge = isScheduled
+      ? `<span style="color:var(--blue);font-weight:600;font-size:12px">&#128337; Scheduled — ${schedDt}</span>`
+      : p.draft&&!p.sent
+        ? '<span style="color:var(--acc);font-weight:600;font-size:12px">&#128204; Draft</span>'
+        : p.sent
+          ? '<span style="color:var(--grn);font-weight:600;font-size:12px">&#10003; Sent</span>'
+          : '<span style="color:var(--blue);font-weight:600;font-size:12px">&#128190; Published</span>';
+    return `
+    <div style="padding:16px;border:1px solid ${isScheduled?'var(--blue)':'var(--bdr)'};border-radius:8px;margin-bottom:10px;background:${isScheduled?'rgba(91,155,213,.06)':'var(--sur2)'}">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
         <span style="font-size:13px;color:var(--txt2)">${p.date?p.date.slice(0,10):''}</span>
         ${p.category?`<span style="font-size:11px;background:var(--sur);border:1px solid var(--bdr);border-radius:4px;padding:2px 7px;color:var(--txt3)">${p.category}</span>`:''}
-        ${p.draft&&!p.sent?'<span style="color:var(--acc);font-weight:600;font-size:12px">&#128204; Draft</span>':p.sent?'<span style="color:var(--grn);font-weight:600;font-size:12px">&#10003; Sent</span>':'<span style="color:var(--blue);font-weight:600;font-size:12px">&#128190; Published</span>'}
+        ${statusBadge}
       </div>
       <div style="font-size:17px;font-weight:600;color:var(--txt);margin-bottom:10px;line-height:1.3">${p.subject}</div>
-      <div style="display:flex;gap:8px">
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn-sm" style="padding:7px 16px;font-size:13px" onclick="editNewsletterPost('${p.id}')">&#9998; Edit</button>
+        ${isScheduled ? `<button class="btn-sm" style="padding:7px 16px;font-size:13px;background:var(--blue);color:#fff;border:none" onclick="reschedulePost('${p.id}')">&#128337; Change Schedule</button>
+        <button class="btn-sm" style="padding:7px 16px;font-size:13px;background:transparent;border:1px solid var(--acc);color:var(--acc)" onclick="cancelSchedule('${p.id}')">&#x2715; Cancel Schedule</button>` : ''}
         <button class="btn-sm del" style="padding:7px 16px;font-size:13px" onclick="deleteNewsletterPost('${p.id}','${p.subject.replace(/'/g,"\\'")}')">&#x2715; Delete</button>
       </div>
-    </div>`).join(''):'<div style="color:var(--txt2);font-size:15px;padding:20px 0">No newsletters yet.</div>';
+    </div>`;
+  }).join(''):'<div style="color:var(--txt2);font-size:15px;padding:20px 0">No newsletters yet.</div>';
 }
 
 function editNewsletterPost(id){
@@ -1383,11 +1420,19 @@ function editNewsletterPost(id){
   if(!p)return;
   document.getElementById('nl-subject').value=p.subject||'';
   document.getElementById('nl-body').value=p.body||'';
-  // Set category picker if it exists
   const catEl=document.getElementById('nl-category');
   if(catEl && p.category) catEl.value=p.category;
+  // Restore scheduled date/time if applicable
+  if(p.scheduledFor){
+    const dt = new Date(p.scheduledFor);
+    const dateStr = dt.toISOString().slice(0,10);
+    const timeStr = dt.toTimeString().slice(0,5);
+    document.getElementById('sched-date').value = dateStr;
+    document.getElementById('sched-time').value = timeStr;
+  }
   document.getElementById('nl-draft-area').style.display='block';
   document.getElementById('nl-draft-area').dataset.editId=id;
+  document.getElementById('nl-draft-area').dataset.scheduledFor=p.scheduledFor||'';
   document.getElementById('nl-draft-area').scrollIntoView({behavior:'smooth'});
   toast('Post loaded for editing — update and save when ready');
 }
@@ -1398,6 +1443,90 @@ function deleteNewsletterPost(id, title){
   saveData();
   buildNewsletterHistory();
   toast('Post deleted','var(--red)');
+}
+
+// ── SCHEDULE FUNCTIONS ────────────────────────────────────────────────────────
+
+function openSchedulePicker(){
+  const subject=document.getElementById('nl-subject').value.trim();
+  const body=document.getElementById('nl-body').value.trim();
+  if(!subject||!body){toast('Subject and body required before scheduling','var(--red)');return;}
+  // Pre-fill date with tomorrow at 9am if not already set
+  if(!document.getElementById('sched-date').value){
+    const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate()+1);
+    document.getElementById('sched-date').value = tomorrow.toISOString().slice(0,10);
+    document.getElementById('sched-time').value = '09:00';
+  }
+  document.getElementById('schedule-modal').classList.add('open');
+}
+
+async function confirmSchedule(){
+  const dateVal = document.getElementById('sched-date').value;
+  const timeVal = document.getElementById('sched-time').value || '09:00';
+  if(!dateVal){toast('Please pick a date','var(--red)');return;}
+
+  const scheduledFor = dateVal+'T'+timeVal+':00';
+  const now = new Date().toISOString();
+  if(scheduledFor <= now){toast('Schedule must be in the future','var(--red)');return;}
+
+  const subject  = document.getElementById('nl-subject').value.trim();
+  const body     = document.getElementById('nl-body').value.trim();
+  const category = (document.getElementById('nl-category')||{}).value||_nlType||'Monthly Update';
+  const editId   = document.getElementById('nl-draft-area').dataset.editId;
+
+  document.getElementById('schedule-modal').classList.remove('open');
+
+  // If editing an existing post, just update its schedule
+  if(editId){
+    const p=(DB.newsletter||[]).find(x=>x.id===editId);
+    if(p){
+      p.subject=subject; p.body=body; p.category=category;
+      p.scheduledFor=scheduledFor; p.draft=true;
+    }
+    await saveData();
+    await fetch('/admin/api/reschedule-post',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({postId:editId,scheduledFor})});
+    buildNewsletterHistory();
+    document.getElementById('nl-draft-area').style.display='none';
+    document.getElementById('nl-draft-area').dataset.editId='';
+    toast('Post scheduled &#128337;','var(--blue)');
+    return;
+  }
+
+  // New scheduled post
+  const r = await fetch('/admin/api/publish-newsletter',{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({subject,body,category,scheduledFor,send:false})
+  });
+  const result = await r.json();
+  if(result.ok){
+    const schedDt = new Date(scheduledFor).toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'});
+    if(!DB.newsletter) DB.newsletter=[];
+    DB.newsletter.push({id:result.postId,subject,body,category,date:new Date().toISOString(),scheduledFor,draft:true,sent:false});
+    buildNewsletterHistory();
+    document.getElementById('nl-draft-area').style.display='none';
+    document.getElementById('nl-draft-area').dataset.editId='';
+    toast('Scheduled for '+schedDt+' &#128337;','var(--blue)',5000);
+  } else {
+    toast('Error: '+result.error,'var(--red)');
+  }
+}
+
+function reschedulePost(id){
+  // Load the post into the editor then open the schedule picker
+  editNewsletterPost(id);
+  setTimeout(()=>{
+    document.getElementById('schedule-modal').classList.add('open');
+  }, 400);
+}
+
+async function cancelSchedule(id){
+  if(!confirm('Cancel the scheduled publish? The post will remain as a draft.')) return;
+  const p=(DB.newsletter||[]).find(x=>x.id===id);
+  if(p){ delete p.scheduledFor; }
+  await saveData();
+  await fetch('/admin/api/reschedule-post',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({postId:id,scheduledFor:null})});
+  buildNewsletterHistory();
+  toast('Schedule cancelled — post saved as draft');
 }
 
 // Current newsletter type selection
@@ -4706,8 +4835,17 @@ function loadNlPhotos(post){
       <li>Click <strong>Generate Draft</strong> — AI writes the full newsletter using your SEO keywords</li>
       <li>Edit the draft in the rich text editor as needed</li>
       <li>Click <strong>Generate Social Posts</strong> to get ready-made copy for Google Business, Facebook, and Nextdoor</li>
-      <li>Click <strong>Save to Website</strong> to publish — appears on the public News page immediately</li>
+      <li>Click <strong>Save to Website</strong> to publish now, <strong>Schedule</strong> to publish later, or <strong>Save as Draft</strong> to keep it private</li>
     </ul>
+
+    <h3>Scheduling a Post</h3>
+    <p>Write your post as normal, then click <strong>&#128337; Schedule</strong> instead of Save to Website. Pick the date and time you want it to go live — the post appears as "Scheduled" in blue in your history and publishes automatically when the time arrives. No action needed from you.</p>
+    <ul>
+      <li><strong>Change Schedule</strong> — reopens the date/time picker for a scheduled post</li>
+      <li><strong>Cancel Schedule</strong> — converts it back to a draft so it stays private</li>
+      <li>The scheduler checks every 60 seconds, so posts go live within a minute of their scheduled time</li>
+    </ul>
+    <div class="help-tip"><strong>Tip:</strong> Write several posts in one sitting and schedule them a week or two apart. It gives the appearance of consistent posting with minimal ongoing effort.</div>
 
     <h3>Sending the Newsletter</h3>
     <p>The newsletter draft is for your <strong>Outlook BCC send</strong> — copy the content, paste into Outlook, BCC your member list, and send manually. The system doesn't send email directly (no SMTP configured). Social post copy is ready to paste into each platform.</p>
