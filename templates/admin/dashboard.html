@@ -750,9 +750,32 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
     <button class="fb" id="fo" onclick="setOF('occ',this)">Occupied</button>
     <button class="fb" id="fv" onclick="setOF('vac',this)">Vacant</button>
     <span class="cl" id="oc-count"></span>
+    <button onclick="openAmenitiesMgr()" title="Edit amenities list" style="background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt2);padding:6px 10px;font-size:15px;cursor:pointer;line-height:1;" title="Manage amenities list">&#9881;</button>
     <button class="btn-add" onclick="openOfficeForm(null)">+ Add Office</button>
   </div>
   <div class="og" id="office-grid"></div>
+</div>
+
+<!-- AMENITIES MANAGER MODAL -->
+<div id="amenities-mgr-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:300;align-items:center;justify-content:center;">
+  <div style="background:var(--sur);border:1px solid var(--bdr);border-radius:12px;width:480px;max-width:94vw;max-height:80vh;display:flex;flex-direction:column;">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 20px 14px;border-bottom:1px solid var(--bdr);">
+      <div style="font-family:'Playfair Display',serif;font-size:18px;">&#9881; Manage Amenities</div>
+      <button onclick="closeAmenitiesMgr()" style="background:none;border:none;color:var(--txt2);font-size:20px;cursor:pointer;line-height:1;">&times;</button>
+    </div>
+    <div style="padding:18px 20px;overflow-y:auto;flex:1;">
+      <div style="font-size:13px;color:var(--txt2);margin-bottom:14px;">These are the checkboxes shown when editing any office. Add or remove as needed.</div>
+      <div id="amen-mgr-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px;"></div>
+      <div style="display:flex;gap:8px;">
+        <input id="amen-mgr-new" type="text" placeholder="New amenity..." style="flex:1;background:var(--sur2);border:1px solid var(--bdr);border-radius:7px;color:var(--txt);font-family:'IBM Plex Sans',sans-serif;font-size:14px;padding:8px 11px;" onkeydown="if(event.key==='Enter')addAmenityItem()">
+        <button onclick="addAmenityItem()" style="background:var(--acc);border:none;border-radius:7px;color:#1a0e00;font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:700;padding:8px 16px;cursor:pointer;">Add</button>
+      </div>
+    </div>
+    <div style="padding:14px 20px;border-top:1px solid var(--bdr);display:flex;justify-content:flex-end;gap:8px;">
+      <button onclick="closeAmenitiesMgr()" style="background:var(--sur2);border:1px solid var(--bdr);border-radius:7px;color:var(--txt2);font-family:'IBM Plex Sans',sans-serif;font-size:14px;padding:8px 18px;cursor:pointer;">Cancel</button>
+      <button onclick="saveAmenitiesMgr()" style="background:var(--grn);border:none;border-radius:7px;color:#fff;font-family:'IBM Plex Sans',sans-serif;font-size:14px;font-weight:600;padding:8px 22px;cursor:pointer;">Save</button>
+    </div>
+  </div>
 </div>
 
 <!-- MEMBERS -->
@@ -2055,10 +2078,10 @@ function openOfficeForm(id){
     +'<div id="office-upload-status" style="font-size:12px;color:var(--txt2);margin-top:6px"></div>'
     +'</div></div></div>';
   updOfficeNet();
-  // Populate amenities checkboxes
+  // Populate amenities checkboxes — pulls from DB.amenityList with hardcoded fallback
   const amenGrid=document.getElementById('f-amenities-grid');
   if(amenGrid){
-    const AMENITIES_LIST=['High-Speed WiFi','Dedicated Desk','Filing Cabinet','Whiteboard','Standing Desk Option','Extra Storage','Private Entry','Corner Office','Window View','Kitchenette Access','Printer/Copier Access','Mail & Package Handling','Conference Room Access','24/7 Access','Parking Included','Natural Light','Ground Floor','Second Floor'];
+    const AMENITIES_LIST=getAmenityList();
     const offAmen=o.amenities||[];
     amenGrid.innerHTML=AMENITIES_LIST.map(a=>'<label style="display:flex;align-items:center;gap:.45rem;font-size:.85rem;color:var(--txt);cursor:pointer;padding:.2rem 0;"><input type="checkbox" name="f-amenity" value="'+a+'" '+(offAmen.includes(a)?'checked':'')+' style="accent-color:var(--acc);width:15px;height:15px;cursor:pointer;flex-shrink:0;">'+a+'</label>').join('');
   }
@@ -2083,6 +2106,43 @@ function openMemberForm(id){
   document.getElementById('form-modal').classList.add('open');
 }
 function updOfficeNet(){const r=Number(document.getElementById('f-ldues')?.value)||0;const disc=Number(document.getElementById('f-odiscount')?.value)||0;const el=document.getElementById('office-net-prev');if(el)el.textContent='$'+Math.max(0,r-disc).toLocaleString();}
+
+const _DEFAULT_AMENITIES=['High-Speed WiFi','Dedicated Desk','Filing Cabinet','Whiteboard','Standing Desk Option','Extra Storage','Private Entry','Corner Office','Window View','Kitchenette Access','Printer/Copier Access','Mail & Package Handling','Conference Room Access','24/7 Access','Parking Included','Natural Light','Ground Floor','Second Floor'];
+function getAmenityList(){return(DB.amenityList&&DB.amenityList.length)?DB.amenityList:_DEFAULT_AMENITIES;}
+
+let _amenMgrWorking=[];
+function openAmenitiesMgr(){
+  _amenMgrWorking=[...getAmenityList()];
+  renderAmenMgrList();
+  document.getElementById('amen-mgr-new').value='';
+  document.getElementById('amenities-mgr-modal').style.display='flex';
+}
+function closeAmenitiesMgr(){document.getElementById('amenities-mgr-modal').style.display='none';}
+function renderAmenMgrList(){
+  document.getElementById('amen-mgr-list').innerHTML=_amenMgrWorking.map((a,i)=>
+    '<div style="display:flex;align-items:center;gap:8px;background:var(--sur2);border:1px solid var(--bdr);border-radius:7px;padding:7px 10px;">'
+    +'<span style="flex:1;font-size:14px;color:var(--txt);">'+a+'</span>'
+    +'<button onclick="removeAmenityItem('+i+')" style="background:none;border:none;color:var(--red);font-size:16px;cursor:pointer;line-height:1;padding:0 2px;">&times;</button>'
+    +'</div>'
+  ).join('');
+}
+function addAmenityItem(){
+  const inp=document.getElementById('amen-mgr-new');
+  const val=inp.value.trim();
+  if(!val)return;
+  if(_amenMgrWorking.includes(val)){toast('Already in the list','var(--acc)');return;}
+  _amenMgrWorking.push(val);
+  inp.value='';
+  renderAmenMgrList();
+}
+function removeAmenityItem(i){_amenMgrWorking.splice(i,1);renderAmenMgrList();}
+async function saveAmenitiesMgr(){
+  if(!_amenMgrWorking.length){toast('Add at least one amenity','var(--red)');return;}
+  DB.amenityList=[..._amenMgrWorking];
+  closeAmenitiesMgr();
+  await saveData();
+  toast('Amenities list saved &#10003;');
+}
 
 function openOccupantForm(id){
   formType='occupant';formId=id;pendingFiles=[];window._pendingFacePhoto=null;const p=id?getOccById(id):{};
