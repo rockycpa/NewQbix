@@ -1611,6 +1611,7 @@ function openOfficeMo(id){
     h+='<div class="di"><label>Listed Rate</label><value style="color:var(--acc);font-family:\'IBM Plex Mono\',monospace">'+(o.listDues?f$(o.listDues)+'/mo':'TBD')+'</value></div>';
   }
   if(occs.length){h+='<div class="divr"></div><div class="di full"><label>Occupants ('+occs.length+')</label><div style="margin-top:5px">'+occs.map(p=>'<div class="occ-tag" onclick="closeMo(null,\'view-modal\');setTimeout(()=>openOccMo(\''+esc(p.id)+'\'),60)"><span class="occ-dot '+(p.status==='Active'?'active':'archive')+'"></span>'+p.name+'</div>').join('')+'</div></div>';}
+  if((o.amenities||[]).length){h+='<div class="divr"></div><div class="di full"><label>Amenities</label><div style="display:flex;flex-wrap:wrap;gap:.35rem;margin-top:6px">'+o.amenities.map(a=>'<span style="background:var(--sur2);border:1px solid var(--bdr);border-radius:5px;font-size:12px;color:var(--txt2);padding:3px 9px;">'+a+'</span>').join('')+'</div></div>';}
   if((o.photos||[]).length){
     h+='<div class="divr"></div><div class="di full"><label>Photos ('+o.photos.length+')</label><div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">';
     h+=o.photos.map((p,i)=>'<div style="position:relative"><img src="'+(p.url||p.data||'')+'" style="height:80px;width:110px;object-fit:cover;border-radius:6px;border:1px solid var(--bdr)"><button onclick="deleteOfficePhoto(\''+esc(o.id)+'\','+i+')" style="position:absolute;top:3px;right:3px;background:var(--red);border:none;border-radius:50%;width:20px;height:20px;color:#fff;cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center;line-height:1">&#x2715;</button></div>').join('');
@@ -2043,6 +2044,8 @@ function openOfficeForm(id){
     +'<div class="fl"><label>Conf Room Hours/mo <span style="font-weight:400;color:var(--txt3);font-size:11px">— default 6</span></label><input id="f-confhours" type="number" min="0" value="'+(o.confHours!=null?o.confHours:6)+'" placeholder="6"></div>'
     +'<div class="fl full" style="background:var(--sur2);border:1px solid var(--bdr);border-radius:7px;padding:9px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--txt3);margin-bottom:3px">Net Rate</div><div id="office-net-prev" style="font-family:\'IBM Plex Mono\',monospace;font-size:17px;color:var(--grn)">-</div></div>'
     +'<div class="fl full"><label>Description (shown on website for vacant offices)</label><textarea id="f-desc" style="min-height:70px">'+(o.description||'')+'</textarea></div>'
+    +'<div class="sect-title">Amenities</div>'
+    +'<div class="fl full"><div id="f-amenities-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:.35rem .75rem;"></div></div>'
     +'<div class="sect-title">Office Photos (shown on website for vacant offices)</div>'
     +'<div class="fl full">'+existingPhotosHtml
     +'<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">'
@@ -2052,6 +2055,13 @@ function openOfficeForm(id){
     +'<div id="office-upload-status" style="font-size:12px;color:var(--txt2);margin-top:6px"></div>'
     +'</div></div></div>';
   updOfficeNet();
+  // Populate amenities checkboxes
+  const amenGrid=document.getElementById('f-amenities-grid');
+  if(amenGrid){
+    const AMENITIES_LIST=['High-Speed WiFi','Dedicated Desk','Filing Cabinet','Whiteboard','Standing Desk Option','Extra Storage','Private Entry','Corner Office','Window View','Kitchenette Access','Printer/Copier Access','Mail & Package Handling','Conference Room Access','24/7 Access','Parking Included','Natural Light','Ground Floor','Second Floor'];
+    const offAmen=o.amenities||[];
+    amenGrid.innerHTML=AMENITIES_LIST.map(a=>'<label style="display:flex;align-items:center;gap:.45rem;font-size:.85rem;color:var(--txt);cursor:pointer;padding:.2rem 0;"><input type="checkbox" name="f-amenity" value="'+a+'" '+(offAmen.includes(a)?'checked':'')+' style="accent-color:var(--acc);width:15px;height:15px;cursor:pointer;flex-shrink:0;">'+a+'</label>').join('');
+  }
   const dz=document.getElementById('office-drop-zone');
   if(dz){dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag');});dz.addEventListener('dragleave',()=>dz.classList.remove('drag'));dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('drag');handleOfficePhotos(e.dataTransfer.files);});}
   const fi=document.getElementById('office-photo-input');
@@ -2122,7 +2132,7 @@ async function submitForm(){
     const remainingExisting = _remainingOfficePhotos || (existing.photos||[]);
     const newPhotos = _pendingCloudinaryPhotos || [];
     const mergedPhotos = [...remainingExisting, ...newPhotos].slice(0,6);
-    const obj={id:formId||uid(),num,status:document.getElementById('f-status').value,member:document.getElementById('f-member').value,tenantStart:document.getElementById('f-tstart').value,sqft:Number(document.getElementById('f-sqft').value)||null,dormer:Number(document.getElementById('f-dormer').value)||null,listDues:Number(document.getElementById('f-ldues').value)||null,discount:Number(document.getElementById('f-odiscount')?.value)||0,confHours:Number(document.getElementById('f-confhours')?.value)??6,description:document.getElementById('f-desc')?.value||'',photos:mergedPhotos};
+    const obj={id:formId||uid(),num,status:document.getElementById('f-status').value,member:document.getElementById('f-member').value,tenantStart:document.getElementById('f-tstart').value,sqft:Number(document.getElementById('f-sqft').value)||null,dormer:Number(document.getElementById('f-dormer').value)||null,listDues:Number(document.getElementById('f-ldues').value)||null,discount:Number(document.getElementById('f-odiscount')?.value)||0,confHours:Number(document.getElementById('f-confhours')?.value)??6,description:document.getElementById('f-desc')?.value||'',amenities:[...document.querySelectorAll('input[name="f-amenity"]:checked')].map(cb=>cb.value),photos:mergedPhotos};
     if(formId){const i=DB.offices.findIndex(x=>x.id===formId);DB.offices[i]=obj;}else DB.offices.push(obj);
   } else if(formType==='member'){
     const name=document.getElementById('f-name').value.trim();if(!name){alert('Member name required.');return;}
