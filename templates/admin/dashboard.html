@@ -644,7 +644,6 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
     <span class="cl" id="media-count"></span>
     <button onclick="document.getElementById('media-upload-input').click()" style="background:var(--grn);border:none;border-radius:7px;color:#fff;font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:600;padding:7px 16px;cursor:pointer;margin-left:auto">&#8679; Upload Photos</button>
     <input type="file" id="media-upload-input" accept="image/*" multiple style="display:none" onchange="mediaUploadFiles(this.files)">
-    <button onclick="openMigrateModal()" style="background:var(--acc);border:none;border-radius:7px;color:#1a0e00;font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:600;padding:7px 16px;cursor:pointer">&#128256; Migrate Existing Photos</button>
   </div>
 
   <!-- Upload progress -->
@@ -694,20 +693,50 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
   </div>
 </div>
 
-<!-- MIGRATE MODAL -->
-<div class="mo" id="migrate-modal" onclick="closeMo(event,'migrate-modal')">
-  <div class="mi" style="max-width:480px">
-    <button class="mx" onclick="document.getElementById('migrate-modal').classList.remove('open')">&#x2715;</button>
-    <div class="mt">&#128256; Migrate Existing Photos</div>
-    <div class="ms">Move all base64 photos from your database to Cloudinary</div>
-    <div style="background:var(--sur2);border:1px solid var(--bdr);border-radius:8px;padding:14px;margin-bottom:16px;font-size:13px;color:var(--txt2);line-height:1.7">
-      This will scan every office and news post for photos stored as base64 in your database, upload each one to Cloudinary as WebP, and replace the database entry with the Cloudinary URL.<br><br>
-      <strong style="color:var(--acc)">Safe to run multiple times</strong> — already-migrated photos are skipped. Your site stays live during migration.
+<!-- MEDIA LIBRARY PICKER MODAL -->
+<div class="mo" id="media-picker-modal" onclick="closeMo(event,'media-picker-modal')">
+  <div class="mi" style="max-width:860px;width:96vw">
+    <button class="mx" onclick="document.getElementById('media-picker-modal').classList.remove('open')">&#x2715;</button>
+    <div class="mt">&#128444; Pick from Media Library</div>
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+      <select id="picker-folder-filter" onchange="filterPickerGrid()" style="background:var(--sur2);border:1px solid var(--bdr);border-radius:7px;color:var(--txt);font-family:'IBM Plex Sans',sans-serif;font-size:13px;padding:6px 11px;outline:none">
+        <option value="offices">Offices</option>
+        <option value="news">News</option>
+        <option value="">All Folders</option>
+        <option value="general">General</option>
+      </select>
+      <input type="text" id="picker-search" placeholder="Search alt text..." oninput="filterPickerGrid()" style="background:var(--sur2);border:1px solid var(--bdr);border-radius:7px;color:var(--txt);font-family:'IBM Plex Sans',sans-serif;font-size:13px;padding:6px 11px;outline:none;flex:1;min-width:150px">
+      <span id="picker-selected-count" style="font-size:12px;color:var(--acc);font-family:'IBM Plex Mono',monospace;white-space:nowrap">0 selected</span>
     </div>
-    <div id="migrate-result" style="display:none;background:var(--sur2);border:1px solid var(--bdr);border-radius:8px;padding:14px;margin-bottom:16px;font-size:13px;line-height:1.8"></div>
+    <div id="picker-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:9px;max-height:55vh;overflow-y:auto;padding-right:4px"></div>
+    <div style="display:flex;gap:9px;justify-content:flex-end;padding-top:14px;margin-top:12px;border-top:1px solid var(--bdr)">
+      <button onclick="document.getElementById('media-picker-modal').classList.remove('open')" style="background:transparent;border:1px solid var(--bdr);border-radius:7px;color:var(--txt2);font-family:'IBM Plex Sans',sans-serif;font-size:13px;padding:7px 16px;cursor:pointer">Cancel</button>
+      <button onclick="confirmPickerSelection()" style="background:var(--grn);border:none;border-radius:7px;color:#fff;font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:600;padding:7px 20px;cursor:pointer">&#10003; Add Selected</button>
+    </div>
+  </div>
+</div>
+
+<!-- AI ALT TEXT APPROVAL MODAL -->
+<div class="mo" id="alt-approval-modal" onclick="closeMo(event,'alt-approval-modal')">
+  <div class="mi" style="max-width:500px">
+    <button class="mx" onclick="skipAltApproval()">&#x2715;</button>
+    <div class="mt">&#129302; Suggested Alt Text</div>
+    <div class="ms" id="alt-approval-sub">Review and confirm before saving</div>
+    <div style="text-align:center;margin-bottom:14px">
+      <img id="alt-approval-img" src="" style="max-height:180px;max-width:100%;border-radius:8px;border:1px solid var(--bdr);object-fit:contain">
+    </div>
+    <div style="margin-bottom:10px">
+      <label style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--txt3);font-weight:600;display:block;margin-bottom:4px">Alt Text <span style="color:var(--txt3);font-weight:400">(edit if needed)</span></label>
+      <input id="alt-approval-text" type="text" style="background:var(--sur2);border:1px solid var(--acc);border-radius:7px;color:var(--txt);font-family:'IBM Plex Sans',sans-serif;font-size:13px;padding:8px 11px;outline:none;width:100%">
+    </div>
+    <div style="margin-bottom:16px">
+      <label style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--txt3);font-weight:600;display:block;margin-bottom:4px">Caption <span style="color:var(--txt3);font-weight:400">(optional)</span></label>
+      <input id="alt-approval-caption" type="text" style="background:var(--sur2);border:1px solid var(--bdr);border-radius:7px;color:var(--txt);font-family:'IBM Plex Sans',sans-serif;font-size:13px;padding:8px 11px;outline:none;width:100%">
+    </div>
+    <div id="alt-approval-progress" style="font-size:12px;color:var(--txt3);margin-bottom:10px;text-align:center"></div>
     <div style="display:flex;gap:9px;justify-content:flex-end;padding-top:12px;border-top:1px solid var(--bdr)">
-      <button onclick="document.getElementById('migrate-modal').classList.remove('open')" style="background:transparent;border:1px solid var(--bdr);border-radius:7px;color:var(--txt2);font-family:'IBM Plex Sans',sans-serif;font-size:13px;padding:7px 16px;cursor:pointer">Close</button>
-      <button id="migrate-run-btn" onclick="runMigration()" style="background:var(--acc);border:none;border-radius:7px;color:#1a0e00;font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:600;padding:7px 20px;cursor:pointer">&#9654; Run Migration</button>
+      <button onclick="skipAltApproval()" style="background:transparent;border:1px solid var(--bdr);border-radius:7px;color:var(--txt2);font-family:'IBM Plex Sans',sans-serif;font-size:13px;padding:7px 16px;cursor:pointer">Skip</button>
+      <button onclick="confirmAltApproval()" style="background:var(--grn);border:none;border-radius:7px;color:#fff;font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:600;padding:7px 20px;cursor:pointer">&#10003; Confirm</button>
     </div>
   </div>
 </div>
@@ -882,9 +911,12 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
         </div>
         <div class="compose-field" style="margin-top:14px">
           <label>Hero Photo (shown at top of post)</label>
-          <div class="file-drop" id="nl-hero-drop">
-            <input type="file" accept="image/*" id="nl-hero-input">
-            <div class="file-drop-txt">&#128247; Drop hero image or <span>click to browse</span><br><small>JPG, PNG — max 5MB</small></div>
+          <div style="display:flex;gap:8px;align-items:stretch">
+            <div class="file-drop" id="nl-hero-drop" style="flex:1">
+              <input type="file" accept="image/*" id="nl-hero-input">
+              <div class="file-drop-txt">&#128247; Drop hero image or <span>click to browse</span><br><small>JPG, PNG — max 10MB</small></div>
+            </div>
+            <button type="button" onclick="openPickerFor('nl-hero')" style="background:var(--blue);border:none;border-radius:7px;color:#fff;font-family:'IBM Plex Sans',sans-serif;font-size:12px;font-weight:600;padding:8px 12px;cursor:pointer;white-space:nowrap">&#128444; Pick from<br>Library</button>
           </div>
           <div id="nl-hero-preview" style="margin-top:7px;display:none">
             <div style="position:relative;display:inline-block">
@@ -895,9 +927,12 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
         </div>
         <div class="compose-field">
           <label>Gallery Photos (shown at bottom, up to 6)</label>
-          <div class="file-drop" id="nl-gallery-drop">
-            <input type="file" accept="image/*" multiple id="nl-gallery-input">
-            <div class="file-drop-txt">&#128444; Drop gallery photos or <span>click to browse</span><br><small>JPG, PNG — up to 6 photos, max 5MB each</small></div>
+          <div style="display:flex;gap:8px;align-items:stretch">
+            <div class="file-drop" id="nl-gallery-drop" style="flex:1">
+              <input type="file" accept="image/*" multiple id="nl-gallery-input">
+              <div class="file-drop-txt">&#128444; Drop gallery photos or <span>click to browse</span><br><small>JPG, PNG — up to 6 photos, max 10MB each</small></div>
+            </div>
+            <button type="button" onclick="openPickerFor('nl-gallery')" style="background:var(--blue);border:none;border-radius:7px;color:#fff;font-family:'IBM Plex Sans',sans-serif;font-size:12px;font-weight:600;padding:8px 12px;cursor:pointer;white-space:nowrap">&#128444; Pick from<br>Library</button>
           </div>
           <div id="nl-gallery-preview" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:7px"></div>
         </div>
@@ -2010,7 +2045,10 @@ function openOfficeForm(id){
     +'<div class="fl full"><label>Description (shown on website for vacant offices)</label><textarea id="f-desc" style="min-height:70px">'+(o.description||'')+'</textarea></div>'
     +'<div class="sect-title">Office Photos (shown on website for vacant offices)</div>'
     +'<div class="fl full">'+existingPhotosHtml
-    +'<div style="margin-top:10px"><div class="file-drop" id="office-drop-zone"><input type="file" multiple accept="image/*" id="office-photo-input"><div class="file-drop-txt">&#128247; Drop photos or <span>click to browse</span> — uploads to Cloudinary as WebP<br><small>JPG, PNG — up to 6 total, max 10MB each</small></div></div>'
+    +'<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">'
+    +'<div class="file-drop" id="office-drop-zone" style="flex:1;min-width:200px"><input type="file" multiple accept="image/*" id="office-photo-input"><div class="file-drop-txt">&#128247; Drop photos or <span>click to browse</span><br><small>Uploads to Cloudinary as WebP</small></div></div>'
+    +'<button type="button" onclick="openPickerFor(\'office\')" style="background:var(--blue);border:none;border-radius:7px;color:#fff;font-family:\'IBM Plex Sans\',sans-serif;font-size:12px;font-weight:600;padding:8px 14px;cursor:pointer;white-space:nowrap;align-self:stretch">&#128444; Pick from<br>Library</button>'
+    +'</div>'
     +'<div id="office-upload-status" style="font-size:12px;color:var(--txt2);margin-top:6px"></div>'
     +'</div></div></div>';
   updOfficeNet();
@@ -2695,80 +2733,6 @@ function initNlPhotoUploads(){
     galleryDrop.addEventListener('dragover', e=>{e.preventDefault();galleryDrop.classList.add('drag');});
     galleryDrop.addEventListener('dragleave', ()=>galleryDrop.classList.remove('drag'));
     galleryDrop.addEventListener('drop', e=>{e.preventDefault();galleryDrop.classList.remove('drag');handleNlGallery(e.dataTransfer.files);});
-  }
-}
-
-async function handleNlHero(file){
-  if(!file) return;
-  if(file.size > 10*1024*1024){ toast('File too large (max 10MB)','var(--red)'); return; }
-  toast('Uploading hero photo...');
-  const fd = new FormData(); fd.append('file',file); fd.append('folder','news'); fd.append('alt','');
-  try{
-    const r = await fetch('/admin/api/media/upload',{method:'POST',body:fd});
-    const d = await r.json();
-    if(!d.ok) throw new Error(d.error);
-    nlHeroPhoto = {url:d.url, public_id:d.public_id, alt:d.alt||''};
-    document.getElementById('nl-hero-img').src = d.url;
-    document.getElementById('nl-hero-preview').style.display = 'block';
-    toast('Hero photo uploaded ✓');
-  }catch(e){ toast('Upload failed: '+e.message,'var(--red)'); }
-}
-
-function removeNlHero(){
-  nlHeroPhoto = null;
-  document.getElementById('nl-hero-preview').style.display = 'none';
-  document.getElementById('nl-hero-input').value = '';
-}
-
-async function handleNlGallery(files){
-  for(const file of files){
-    if(nlGalleryPhotos.length >= 6){ toast('Maximum 6 gallery photos','var(--red)'); break; }
-    if(file.size > 10*1024*1024){ toast('File too large (max 10MB)','var(--red)'); continue; }
-    toast('Uploading photo '+(nlGalleryPhotos.length+1)+'...');
-    const fd = new FormData(); fd.append('file',file); fd.append('folder','news'); fd.append('alt','');
-    try{
-      const r = await fetch('/admin/api/media/upload',{method:'POST',body:fd});
-      const d = await r.json();
-      if(!d.ok) throw new Error(d.error);
-      nlGalleryPhotos.push({url:d.url, public_id:d.public_id, alt:d.alt||''});
-      renderNlGalleryPreview();
-    }catch(e){ toast('Upload failed: '+e.message,'var(--red)'); }
-  }
-}
-
-function renderNlGalleryPreview(){
-  document.getElementById('nl-gallery-preview').innerHTML = nlGalleryPhotos.map((p,i) =>
-    `<div style="position:relative">
-      <img src="${p.url||p.data||''}" style="height:70px;width:100px;object-fit:cover;border-radius:6px;border:1px solid var(--bdr)">
-      <button onclick="removeNlGalleryPhoto(${i})" style="position:absolute;top:3px;right:3px;background:var(--red);border:none;border-radius:50%;width:18px;height:18px;color:#fff;cursor:pointer;font-size:10px">&#x2715;</button>
-    </div>`
-  ).join('');
-}
-
-function removeNlGalleryPhoto(idx){
-  nlGalleryPhotos.splice(idx,1);
-  renderNlGalleryPreview();
-}
-
-function resetNlPhotos(){
-  nlHeroPhoto = null;
-  nlGalleryPhotos = [];
-  document.getElementById('nl-hero-preview').style.display = 'none';
-  document.getElementById('nl-hero-input').value = '';
-  document.getElementById('nl-gallery-preview').innerHTML = '';
-  document.getElementById('nl-gallery-input').value = '';
-}
-
-function loadNlPhotos(post){
-  resetNlPhotos();
-  if(post.heroPhoto){
-    nlHeroPhoto = post.heroPhoto;
-    document.getElementById('nl-hero-img').src = post.heroPhoto.url || post.heroPhoto.data || '';
-    document.getElementById('nl-hero-preview').style.display = 'block';
-  }
-  if(post.galleryPhotos && post.galleryPhotos.length){
-    nlGalleryPhotos = [...post.galleryPhotos];
-    renderNlGalleryPreview();
   }
 }
 
@@ -3497,9 +3461,11 @@ function renderMediaGrid(assets){
     const kb = a.bytes ? Math.round(a.bytes/1024)+'KB' : '';
     const folder = a.folder || 'general';
     const folderColor = folder==='offices'?'var(--grn)':folder==='news'?'var(--blue)':'var(--txt3)';
+    // Apply 4:3 crop for display
+    const displayUrl = cloudinaryUrl(a.url, {ar:'4:3', c:'fill', w:360});
     return `<div onclick="openMediaEdit('${esc2(a.public_id)}')" style="background:var(--sur);border:1px solid var(--bdr);border-radius:10px;overflow:hidden;cursor:pointer;transition:all .15s" onmouseover="this.style.borderColor='var(--acc)';this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='var(--bdr)';this.style.transform='none'">
       <div style="height:130px;background:var(--sur2);overflow:hidden">
-        <img src="${a.url}" alt="${a.alt||''}" style="width:100%;height:100%;object-fit:cover" loading="lazy">
+        <img src="${displayUrl}" alt="${a.alt||''}" style="width:100%;height:100%;object-fit:cover" loading="lazy">
       </div>
       <div style="padding:8px 10px">
         <div style="font-size:12px;color:var(--txt);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:3px">${a.alt || '<span style="color:var(--txt3);font-style:italic">No alt text</span>'}</div>
@@ -3510,6 +3476,22 @@ function renderMediaGrid(assets){
       </div>
     </div>`;
   }).join('');
+}
+
+// ── Cloudinary URL builder — adds transformation params ───────────────────────
+function cloudinaryUrl(url, opts={}){
+  if(!url || !url.includes('res.cloudinary.com')) return url;
+  // Insert transformation string before /upload/
+  const parts = url.split('/upload/');
+  if(parts.length !== 2) return url;
+  const transforms = [];
+  if(opts.ar)  transforms.push(`ar_${opts.ar}`);
+  if(opts.c)   transforms.push(`c_${opts.c}`);
+  if(opts.w)   transforms.push(`w_${opts.w}`);
+  if(opts.h)   transforms.push(`h_${opts.h}`);
+  if(opts.q)   transforms.push(`q_${opts.q}`);
+  if(!transforms.length) return url;
+  return parts[0] + '/upload/' + transforms.join(',') + '/' + parts[1];
 }
 
 function esc2(s){ return String(s).replace(/'/g,"\\'"); }
@@ -3599,77 +3581,382 @@ async function mediaUploadFiles(files){
   toast(done+' photo'+(done===1?'':'s')+' uploaded ✓');
 }
 
-function openMigrateModal(){
-  document.getElementById('migrate-result').style.display = 'none';
-  document.getElementById('migrate-run-btn').disabled = false;
-  document.getElementById('migrate-run-btn').textContent = '▶ Run Migration';
-  document.getElementById('migrate-modal').classList.add('open');
+// ═══════════════════════════════════════════════════════
+// MEDIA LIBRARY PICKER
+// ═══════════════════════════════════════════════════════
+
+let _pickerTarget = null;   // 'office' | 'nl-hero' | 'nl-gallery'
+let _pickerSelected = new Set(); // Set of public_ids
+
+async function openPickerFor(target){
+  _pickerTarget = target;
+  _pickerSelected = new Set();
+
+  // Default folder based on context
+  const folderEl = document.getElementById('picker-folder-filter');
+  if(folderEl){
+    folderEl.value = (target === 'nl-hero' || target === 'nl-gallery') ? 'news' : 'offices';
+  }
+
+  // Ensure media is loaded
+  if(!_mediaLoaded){
+    document.getElementById('picker-grid').innerHTML = '<div style="color:var(--txt3);font-size:13px;padding:20px">Loading library...</div>';
+    document.getElementById('media-picker-modal').classList.add('open');
+    await loadMedia();
+  } else {
+    document.getElementById('media-picker-modal').classList.add('open');
+  }
+  filterPickerGrid();
 }
 
-async function runMigration(){
-  const btn = document.getElementById('migrate-run-btn');
-  const res = document.getElementById('migrate-result');
-  btn.disabled = true;
-  btn.textContent = '⏳ Migrating...';
-  res.style.display = 'block';
-  res.innerHTML = '<span style="color:var(--txt2)">Uploading photos to Cloudinary — this may take 30–60 seconds...</span>';
-  try{
-    const r = await fetch('/admin/api/media/migrate',{method:'POST'});
-    const d = await r.json();
-    if(d.ok){
-      res.innerHTML = `
-        <div style="color:var(--grn);font-weight:600;font-size:15px;margin-bottom:8px">✓ ${d.message}</div>
-        <div style="color:var(--txt2)">📁 Office photos migrated: <strong style="color:var(--txt)">${d.offices}</strong></div>
-        <div style="color:var(--txt2)">📰 News photos migrated: <strong style="color:var(--txt)">${d.news}</strong></div>
-        <div style="color:var(--txt2)">⏭ Already migrated (skipped): <strong style="color:var(--txt)">${d.skipped}</strong></div>
-        ${d.errors.length ? '<div style="color:var(--red);margin-top:8px">⚠ Errors ('+d.errors.length+'):<br>'+d.errors.map(e=>'<small>'+e+'</small>').join('<br>')+'</div>' : ''}
-        <div style="color:var(--txt3);font-size:12px;margin-top:10px">Reload the Media tab to see your migrated photos.</div>`;
-      _mediaLoaded = false; // Force reload next time
-      btn.textContent = '✓ Done';
-    } else {
-      res.innerHTML = '<div style="color:var(--red)">Error: '+d.error+'</div>';
-      btn.disabled = false;
-      btn.textContent = '▶ Run Migration';
+function filterPickerGrid(){
+  const folder = document.getElementById('picker-folder-filter')?.value || '';
+  const q = (document.getElementById('picker-search')?.value || '').toLowerCase();
+  let assets = _allMediaAssets;
+  if(folder) assets = assets.filter(a => a.folder === folder);
+  if(q) assets = assets.filter(a => (a.alt||'').toLowerCase().includes(q) || a.public_id.toLowerCase().includes(q));
+  renderPickerGrid(assets);
+}
+
+function renderPickerGrid(assets){
+  const grid = document.getElementById('picker-grid');
+  if(!grid) return;
+  if(!assets.length){
+    grid.innerHTML = '<div style="color:var(--txt3);font-size:13px;padding:20px;grid-column:1/-1">No photos found.</div>';
+    return;
+  }
+  grid.innerHTML = assets.map(a => {
+    const sel = _pickerSelected.has(a.public_id);
+    const displayUrl = cloudinaryUrl(a.url, {ar:'4:3', c:'fill', w:280});
+    return `<div id="picker-cell-${esc2(a.public_id)}" onclick="togglePickerCell('${esc2(a.public_id)}')" style="border-radius:8px;overflow:hidden;cursor:pointer;border:2px solid ${sel?'var(--acc)':'var(--bdr)'};transition:all .15s;position:relative">
+      <div style="height:100px;background:var(--sur2)">
+        <img src="${displayUrl}" alt="${a.alt||''}" style="width:100%;height:100%;object-fit:cover" loading="lazy">
+      </div>
+      <div style="padding:5px 7px;font-size:11px;color:var(--txt2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${a.alt||'<em style="color:var(--txt3)">No alt</em>'}</div>
+      ${sel ? `<div style="position:absolute;top:5px;right:5px;background:var(--acc);border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:12px;color:#1a0e00;font-weight:700">&#10003;</div>` : ''}
+    </div>`;
+  }).join('');
+  updatePickerCount();
+}
+
+function togglePickerCell(public_id){
+  const isSingle = (_pickerTarget === 'nl-hero');
+  if(isSingle){
+    // Single select for hero
+    _pickerSelected.clear();
+    _pickerSelected.add(public_id);
+  } else {
+    if(_pickerSelected.has(public_id)) _pickerSelected.delete(public_id);
+    else _pickerSelected.add(public_id);
+  }
+  filterPickerGrid();
+}
+
+function updatePickerCount(){
+  const el = document.getElementById('picker-selected-count');
+  if(el) el.textContent = _pickerSelected.size + ' selected';
+}
+
+async function confirmPickerSelection(){
+  if(_pickerSelected.size === 0){ toast('Select at least one photo','var(--red)'); return; }
+  const selected = _allMediaAssets.filter(a => _pickerSelected.has(a.public_id));
+  document.getElementById('media-picker-modal').classList.remove('open');
+
+  if(_pickerTarget === 'office'){
+    for(const asset of selected){
+      const remaining = _remainingOfficePhotos ? _remainingOfficePhotos.length : (DB.offices.find(x=>x.id===formId)?.photos||[]).length;
+      if((remaining + _pendingCloudinaryPhotos.length) >= 6){ toast('Maximum 6 photos per office','var(--red)'); break; }
+      _pendingCloudinaryPhotos.push({url: asset.url, public_id: asset.public_id, alt: asset.alt||'', width: asset.width, height: asset.height});
+      // Add thumbnail to preview
+      const preview = document.getElementById('existing-photos-preview') || (() => {
+        // Create preview area if doesn't exist yet
+        const dz = document.getElementById('office-drop-zone');
+        if(dz && dz.parentNode){
+          const div = document.createElement('div');
+          div.id = 'existing-photos-preview';
+          div.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px';
+          dz.parentNode.insertBefore(div, dz.parentNode.firstChild);
+          return div;
+        }
+      })();
+      if(preview){
+        const thumb = document.createElement('div');
+        thumb.style.cssText = 'position:relative';
+        const displayUrl = cloudinaryUrl(asset.url, {ar:'4:3', c:'fill', w:200});
+        thumb.innerHTML = `<img src="${displayUrl}" style="height:70px;width:100px;object-fit:cover;border-radius:6px;border:2px solid var(--blue)"><div style="position:absolute;top:3px;left:3px;background:var(--blue);border-radius:4px;padding:1px 5px;font-size:10px;color:#fff">Library</div>`;
+        preview.appendChild(thumb);
+      }
     }
-  }catch(e){
-    res.innerHTML = '<div style="color:var(--red)">Request failed: '+e.message+'</div>';
-    btn.disabled = false;
-    btn.textContent = '▶ Run Migration';
+    toast(selected.length+' photo'+(selected.length===1?'':'s')+' added from library');
+
+  } else if(_pickerTarget === 'nl-hero'){
+    const asset = selected[0];
+    nlHeroPhoto = {url: asset.url, public_id: asset.public_id, alt: asset.alt||''};
+    const heroUrl = cloudinaryUrl(asset.url, {ar:'16:9', c:'fill', w:800});
+    document.getElementById('nl-hero-img').src = heroUrl;
+    document.getElementById('nl-hero-preview').style.display = 'block';
+    toast('Hero photo set from library ✓');
+
+  } else if(_pickerTarget === 'nl-gallery'){
+    for(const asset of selected){
+      if(nlGalleryPhotos.length >= 6){ toast('Maximum 6 gallery photos','var(--red)'); break; }
+      nlGalleryPhotos.push({url: asset.url, public_id: asset.public_id, alt: asset.alt||''});
+    }
+    renderNlGalleryPreview();
+    toast(selected.length+' photo'+(selected.length===1?'':'s')+' added from library ✓');
   }
 }
 
-// ── Cloudinary upload for office photos (replaces base64 handleFiles) ────────
+// ═══════════════════════════════════════════════════════
+// AI ALT TEXT APPROVAL QUEUE
+// ═══════════════════════════════════════════════════════
+
+let _altApprovalQueue = [];   // [{photo_obj, resolve}]
+let _altApprovalContext = {}; // office_info or news context
+
+function _getSeoKeywords(){
+  return (DB.marketingSettings?.seoKeywords || []).slice(0,5);
+}
+
+// Called after uploading office photos — queues AI suggestions for each
+async function queueAltApprovals(photos, officeInfo){
+  for(const photo of photos){
+    await new Promise(resolve => {
+      _altApprovalQueue.push({photo, resolve, context: 'office', officeInfo});
+    });
+  }
+}
+
+async function requestAltSuggestion(photo, contextType, officeInfo, subject, draftBody){
+  try{
+    const body = {
+      url: photo.url,
+      public_id: photo.public_id,
+      context_type: contextType,
+      office_info: officeInfo || {},
+      draft_subject: subject || '',
+      draft_body: draftBody || '',
+      seo_keywords: _getSeoKeywords()
+    };
+    const r = await fetch('/admin/api/media/suggest-alt', {
+      method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
+    });
+    const d = await r.json();
+    if(d.ok) return {alt: d.suggested_alt, caption: d.suggested_caption};
+  }catch(e){}
+  return {alt:'', caption:''};
+}
+
+let _currentAltResolve = null;
+let _currentAltPhoto = null;
+
+async function showAltApproval(photo, suggestion, contextLabel, progress){
+  return new Promise(resolve => {
+    _currentAltResolve = resolve;
+    _currentAltPhoto = photo;
+    const displayUrl = cloudinaryUrl(photo.url, {ar:'4:3', c:'fill', w:400});
+    document.getElementById('alt-approval-img').src = displayUrl;
+    document.getElementById('alt-approval-text').value = suggestion.alt || '';
+    document.getElementById('alt-approval-caption').value = suggestion.caption || '';
+    document.getElementById('alt-approval-sub').textContent = contextLabel;
+    document.getElementById('alt-approval-progress').textContent = progress || '';
+    document.getElementById('alt-approval-modal').classList.add('open');
+  });
+}
+
+async function confirmAltApproval(){
+  const alt     = document.getElementById('alt-approval-text').value.trim();
+  const caption = document.getElementById('alt-approval-caption').value.trim();
+  document.getElementById('alt-approval-modal').classList.remove('open');
+
+  if(_currentAltPhoto && _currentAltPhoto.public_id){
+    // Save to Cloudinary
+    try{
+      await fetch('/admin/api/media/update', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({public_id: _currentAltPhoto.public_id, alt, caption})
+      });
+      _currentAltPhoto.alt     = alt;
+      _currentAltPhoto.caption = caption;
+      // Update in allMediaAssets cache
+      const cached = _allMediaAssets.find(x=>x.public_id===_currentAltPhoto.public_id);
+      if(cached){ cached.alt=alt; cached.caption=caption; }
+    }catch(e){}
+  }
+  if(_currentAltResolve){ _currentAltResolve({alt, caption}); _currentAltResolve=null; }
+}
+
+function skipAltApproval(){
+  document.getElementById('alt-approval-modal').classList.remove('open');
+  if(_currentAltResolve){ _currentAltResolve(null); _currentAltResolve=null; }
+}
+
+// ── Cloudinary upload for office photos — with AI alt approval ────────────────
 async function handleOfficePhotos(files){
   const statusEl = document.getElementById('office-upload-status');
-  const num = document.getElementById('f-num')?.value || 'office';
-  let done = 0;
-  for(const file of files){
+  const num = document.getElementById('f-num')?.value || '';
+  const sqft = document.getElementById('f-sqft')?.value || '';
+  const dormer = document.getElementById('f-dormer')?.value || '';
+  const desc = document.getElementById('f-desc')?.value || '';
+  const status = document.getElementById('f-status')?.value || 'Vacant';
+  const officeInfo = {num, sqft, dormer, description: desc, status};
+  const totalFiles = files.length;
+
+  for(let i=0; i<files.length; i++){
+    const file = files[i];
     const remaining = _remainingOfficePhotos ? _remainingOfficePhotos.length : (DB.offices.find(x=>x.id===formId)?.photos||[]).length;
     if((remaining + _pendingCloudinaryPhotos.length) >= 6){ toast('Maximum 6 photos per office','var(--red)'); break; }
-    if(statusEl) statusEl.textContent = 'Uploading photo '+(done+1)+' of '+files.length+'...';
+    if(statusEl) statusEl.textContent = `Uploading photo ${i+1} of ${totalFiles}...`;
+
     const fd = new FormData();
     fd.append('file', file);
     fd.append('folder', 'offices');
-    fd.append('alt', 'Office '+num);
+    fd.append('alt', '');
     try{
       const r = await fetch('/admin/api/media/upload',{method:'POST',body:fd});
       const d = await r.json();
       if(!d.ok) throw new Error(d.error);
-      _pendingCloudinaryPhotos.push({url:d.url, public_id:d.public_id, alt:d.alt||'Office '+num, width:d.width, height:d.height});
-      // Add thumbnail preview
-      const preview = document.getElementById('existing-photos-preview');
-      const dz = document.getElementById('office-drop-zone');
-      if(dz){
+
+      const photo = {url:d.url, public_id:d.public_id, alt:'', width:d.width, height:d.height};
+
+      // Get AI suggestion
+      if(statusEl) statusEl.textContent = `Getting AI alt text suggestion for photo ${i+1}...`;
+      const suggestion = await requestAltSuggestion(photo, 'office', officeInfo, '', '');
+
+      // Show approval modal
+      const approved = await showAltApproval(
+        photo, suggestion,
+        `Office ${num} — photo ${i+1} of ${totalFiles}`,
+        totalFiles > 1 ? `Photo ${i+1} of ${totalFiles}` : ''
+      );
+
+      if(approved){
+        photo.alt     = approved.alt;
+        photo.caption = approved.caption;
+      }
+
+      _pendingCloudinaryPhotos.push(photo);
+
+      // Add thumbnail to preview
+      let preview = document.getElementById('existing-photos-preview');
+      if(!preview){
+        preview = document.createElement('div');
+        preview.id = 'existing-photos-preview';
+        preview.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px';
+        const dz = document.getElementById('office-drop-zone');
+        if(dz && dz.parentNode) dz.parentNode.insertBefore(preview, dz.parentNode.firstChild);
+      }
+      if(preview){
+        const displayUrl = cloudinaryUrl(d.url, {ar:'4:3', c:'fill', w:200});
         const thumb = document.createElement('div');
         thumb.style.cssText = 'position:relative';
-        thumb.innerHTML = `<img src="${d.url}" style="height:70px;width:100px;object-fit:cover;border-radius:6px;border:2px solid var(--grn)"><div style="position:absolute;top:3px;left:3px;background:var(--grn);border-radius:4px;padding:1px 5px;font-size:10px;color:#fff">New</div>`;
-        if(preview) preview.appendChild(thumb);
+        thumb.innerHTML = `<img src="${displayUrl}" style="height:70px;width:100px;object-fit:cover;border-radius:6px;border:2px solid var(--grn)"><div style="position:absolute;top:3px;left:3px;background:var(--grn);border-radius:4px;padding:1px 5px;font-size:10px;color:#fff">New</div>`;
+        preview.appendChild(thumb);
       }
-      done++;
     }catch(e){ toast('Upload failed: '+e.message,'var(--red)'); }
   }
-  if(statusEl) statusEl.textContent = done ? done+' photo'+(done===1?'':'s')+' uploaded ✓ — click Save to keep.' : '';
+  if(statusEl) statusEl.textContent = _pendingCloudinaryPhotos.length ? _pendingCloudinaryPhotos.length+' photo(s) ready — click Save to keep.' : '';
 }
+
+// ── Newsletter photo handlers — with AI alt approval ─────────────────────────
+async function handleNlHero(file){
+  if(!file) return;
+  if(file.size > 10*1024*1024){ toast('File too large (max 10MB)','var(--red)'); return; }
+  toast('Uploading hero photo...');
+  const fd = new FormData(); fd.append('file',file); fd.append('folder','news'); fd.append('alt','');
+  try{
+    const r = await fetch('/admin/api/media/upload',{method:'POST',body:fd});
+    const d = await r.json();
+    if(!d.ok) throw new Error(d.error);
+    const photo = {url:d.url, public_id:d.public_id, alt:'', caption:''};
+
+    // Get AI suggestion using current draft content
+    const subject  = document.getElementById('nl-subject')?.value || '';
+    const bodyHTML = document.getElementById('nl-body')?.value || '';
+    const suggestion = await requestAltSuggestion(photo, 'news', {}, subject, bodyHTML);
+    const approved = await showAltApproval(photo, suggestion, 'Newsletter hero photo', '');
+
+    if(approved){ photo.alt=approved.alt; photo.caption=approved.caption; }
+    nlHeroPhoto = photo;
+    const heroUrl = cloudinaryUrl(d.url, {ar:'16:9', c:'fill', w:800});
+    document.getElementById('nl-hero-img').src = heroUrl;
+    document.getElementById('nl-hero-preview').style.display = 'block';
+    toast('Hero photo uploaded ✓');
+  }catch(e){ toast('Upload failed: '+e.message,'var(--red)'); }
+}
+
+function removeNlHero(){
+  nlHeroPhoto = null;
+  document.getElementById('nl-hero-preview').style.display = 'none';
+  document.getElementById('nl-hero-input').value = '';
+}
+
+async function handleNlGallery(files){
+  const subject  = document.getElementById('nl-subject')?.value || '';
+  const bodyHTML = document.getElementById('nl-body')?.value   || '';
+  for(let i=0; i<files.length; i++){
+    const file = files[i];
+    if(nlGalleryPhotos.length >= 6){ toast('Maximum 6 gallery photos','var(--red)'); break; }
+    if(file.size > 10*1024*1024){ toast('File too large (max 10MB)','var(--red)'); continue; }
+    toast(`Uploading gallery photo ${i+1}...`);
+    const fd = new FormData(); fd.append('file',file); fd.append('folder','news'); fd.append('alt','');
+    try{
+      const r = await fetch('/admin/api/media/upload',{method:'POST',body:fd});
+      const d = await r.json();
+      if(!d.ok) throw new Error(d.error);
+      const photo = {url:d.url, public_id:d.public_id, alt:'', caption:''};
+      const suggestion = await requestAltSuggestion(photo, 'news', {}, subject, bodyHTML);
+      const approved = await showAltApproval(
+        photo, suggestion,
+        `Gallery photo ${nlGalleryPhotos.length+1}`,
+        files.length > 1 ? `Photo ${i+1} of ${files.length}` : ''
+      );
+      if(approved){ photo.alt=approved.alt; photo.caption=approved.caption; }
+      nlGalleryPhotos.push(photo);
+      renderNlGalleryPreview();
+    }catch(e){ toast('Upload failed: '+e.message,'var(--red)'); }
+  }
+}
+
+function renderNlGalleryPreview(){
+  document.getElementById('nl-gallery-preview').innerHTML = nlGalleryPhotos.map((p,i) => {
+    const displayUrl = cloudinaryUrl(p.url||p.data||'', {ar:'4:3', c:'fill', w:200});
+    return `<div style="position:relative">
+      <img src="${displayUrl||p.url||p.data||''}" style="height:70px;width:100px;object-fit:cover;border-radius:6px;border:1px solid var(--bdr)" title="${p.alt||''}">
+      <button onclick="removeNlGalleryPhoto(${i})" style="position:absolute;top:3px;right:3px;background:var(--red);border:none;border-radius:50%;width:18px;height:18px;color:#fff;cursor:pointer;font-size:10px">&#x2715;</button>
+    </div>`;
+  }).join('');
+}
+
+function removeNlGalleryPhoto(idx){
+  nlGalleryPhotos.splice(idx,1);
+  renderNlGalleryPreview();
+}
+
+function resetNlPhotos(){
+  nlHeroPhoto = null;
+  nlGalleryPhotos = [];
+  document.getElementById('nl-hero-preview').style.display = 'none';
+  document.getElementById('nl-hero-input').value = '';
+  document.getElementById('nl-gallery-preview').innerHTML = '';
+  document.getElementById('nl-gallery-input').value = '';
+}
+
+function loadNlPhotos(post){
+  resetNlPhotos();
+  if(post.heroPhoto){
+    nlHeroPhoto = post.heroPhoto;
+    const heroUrl = cloudinaryUrl(post.heroPhoto.url||post.heroPhoto.data||'', {ar:'16:9', c:'fill', w:800});
+    document.getElementById('nl-hero-img').src = heroUrl || post.heroPhoto.url || post.heroPhoto.data || '';
+    document.getElementById('nl-hero-preview').style.display = 'block';
+  }
+  if(post.galleryPhotos && post.galleryPhotos.length){
+    // Strip any orphaned base64-only photos (no public_id and no http url)
+    nlGalleryPhotos = post.galleryPhotos.filter(p => p.url?.startsWith('http') || p.public_id);
+    renderNlGalleryPreview();
+  }
+}
+
 
 </script>
 </body>

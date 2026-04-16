@@ -2037,6 +2037,84 @@ def media_delete():
         return jsonify({'ok': False, 'error': str(e)}), 500
 
 
+@app.route('/admin/api/media/suggest-alt', methods=['POST'])
+@login_required
+def media_suggest_alt():
+    """
+    Use Claude to suggest alt text for a newly uploaded photo.
+    Accepts: { url, public_id, context_type ('office'|'news'), office_info{}, draft_subject, draft_body, seo_keywords[] }
+    Returns: { ok, suggested_alt, suggested_caption }
+    """
+    if not ANTHROPIC_API_KEY:
+        return jsonify({'ok': False, 'error': 'Anthropic API key not configured'}), 400
+    try:
+        import urllib.request as _ureq
+        import json as _json
+        import re as _re
+
+        body        = request.json or {}
+        ctx_type    = body.get('context_type', 'office')   # 'office' or 'news'
+        office_info = body.get('office_info', {})           # {num, sqft, dormer, description, status}
+        subject     = body.get('draft_subject', '')
+        draft_body  = body.get('draft_body', '')
+        seo_kws     = body.get('seo_keywords', [])
+
+        kw_str = ', '.join(seo_kws[:5]) if seo_kws else 'north Macon office space, Northside Crossing, private office Macon GA'
+
+        if ctx_type == 'office':
+            num   = office_info.get('num', '')
+            sqft  = office_info.get('sqft', '')
+            dormer = office_info.get('dormer', '')
+            desc  = office_info.get('description', '')
+            status = office_info.get('status', 'Vacant')
+            size_str = f'{sqft} sq ft' if sqft else ''
+            if dormer: size_str += f' + {dormer} sq ft dormer'
+            prompt = (
+                f'Write a concise, SEO-optimised alt text (max 125 characters) for a photo of Office {num} '
+                f'at Qbix Centre, a professional coworking space at 500A Northside Crossing in north Macon, GA. '
+                + (f'Office size: {size_str}. ' if size_str else '')
+                + (f'Description: {desc}. ' if desc else '')
+                + f'Status: {status}. '
+                f'Naturally include 1-2 of these SEO keywords where they fit: {kw_str}. '
+                f'Also write a short caption (max 80 characters) for use under the photo. '
+                f'Return ONLY valid JSON: {{"alt": "...", "caption": "..."}} — no markdown, no extra text.'
+            )
+        else:  # news
+            clean = _re.sub(r'<[^>]+>', ' ', draft_body)
+            clean = _re.sub(r'\s+', ' ', clean).strip()[:800]
+            prompt = (
+                f'Write a concise, SEO-optimised alt text (max 125 characters) for a photo used in a '
+                f'Qbix Centre newsletter post. '
+                f'Post subject: "{subject}". '
+                + (f'Post content summary: {clean[:400]}. ' if clean else '')
+                + f'Qbix Centre is a professional coworking space in north Macon GA at Northside Crossing. '
+                f'Naturally include 1-2 of these SEO keywords: {kw_str}. '
+                f'Also write a short caption (max 80 characters). '
+                f'Return ONLY valid JSON: {{"alt": "...", "caption": "..."}} — no markdown, no extra text.'
+            )
+
+        payload = {
+            'model': 'claude-haiku-4-5-20251001',
+            'max_tokens': 200,
+            'messages': [{'role': 'user', 'content': prompt}]
+        }
+        req = _ureq.Request(
+            'https://api.anthropic.com/v1/messages',
+            data=_json.dumps(payload).encode(),
+            headers={'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01'}
+        )
+        with _ureq.urlopen(req, timeout=20) as resp:
+            result = _json.loads(resp.read())
+            raw = result['content'][0]['text'].strip()
+            raw = raw.replace('```json','').replace('```','').strip()
+            parsed = _json.loads(raw)
+            return jsonify({'ok': True, 'suggested_alt': parsed.get('alt',''), 'suggested_caption': parsed.get('caption','')})
+
+    except Exception as e:
+        import traceback
+        return jsonify({'ok': False, 'error': str(e), 'detail': traceback.format_exc()[-300:]}), 500
+
+
 @app.route('/admin/api/media/update-news-alt', methods=['POST'])
 @login_required
 def update_news_alt():
@@ -2101,159 +2179,6 @@ def update_news_alt():
     except Exception as e:
         import traceback
         return jsonify({'ok': False, 'error': str(e), 'detail': traceback.format_exc()[-400:]}), 500
-
-
-@app.route('/admin/api/media/migrate', methods=['POST'])
-@login_required
-def media_migrate():
-    """
-    One-time migration: reads all base64 photos from offices and newsletter posts,
-    uploads them to Cloudinary as WebP, updates the DB with new URLs.
-    Safe to run multiple times — skips anything already a URL.
-    """
-    if not _cloudinary_available:
-        return jsonify({'ok': False, 'error': 'Cloudinary not installed'}), 500
-    try:
-        data   = get_db()
-        report = {'offices': 0, 'news': 0, 'skipped': 0, 'errors': []}
-
-        # ── Offices ───────────────────────────────────────────────────────────
-        for office in data.get('offices', []):
-            photos     = office.get('photos', [])
-            new_photos = []
-            changed    = False
-
-            for i, photo in enumerate(photos):
-                # Already migrated
-                if isinstance(photo, dict) and photo.get('url', '').startswith('http'):
-                    new_photos.append(photo)
-                    report['skipped'] += 1
-                    continue
-
-                data_uri    = photo.get('data', '') if isinstance(photo, dict) else (photo if isinstance(photo, str) else '')
-                existing_alt = photo.get('name', '') or photo.get('alt', '') if isinstance(photo, dict) else ''
-
-                if not (data_uri and data_uri.startswith('data:')):
-                    new_photos.append(photo)
-                    report['skipped'] += 1
-                    continue
-
-                try:
-                    result = cloudinary.uploader.upload(
-                        data_uri,
-                        folder='qbix/offices',
-                        unique_filename=True,
-                        resource_type='image',
-                        format='webp',
-                        transformation=[{'quality': 'auto', 'fetch_format': 'webp'}],
-                        context=f'alt=Office {office.get("num","")}'
-                    )
-                    new_photos.append({
-                        'url':       result['secure_url'],
-                        'public_id': result['public_id'],
-                        'alt':       existing_alt or f'Office {office.get("num","")}',
-                        'width':     result.get('width', 0),
-                        'height':    result.get('height', 0),
-                    })
-                    report['offices'] += 1
-                    changed = True
-                except Exception as e:
-                    report['errors'].append(f'Office {office.get("num","?")} photo {i}: {str(e)[:120]}')
-                    new_photos.append(photo)
-
-            if changed:
-                office['photos'] = new_photos
-
-            # heroPhoto
-            hero = office.get('heroPhoto')
-            if hero and isinstance(hero, dict) and hero.get('data', '').startswith('data:'):
-                try:
-                    result = cloudinary.uploader.upload(
-                        hero['data'],
-                        folder='qbix/offices',
-                        unique_filename=True,
-                        resource_type='image',
-                        format='webp',
-                        transformation=[{'quality': 'auto', 'fetch_format': 'webp'}],
-                        context=f'alt=Office {office.get("num","")} hero'
-                    )
-                    office['heroPhoto'] = {
-                        'url':       result['secure_url'],
-                        'public_id': result['public_id'],
-                        'alt':       f'Office {office.get("num","")}',
-                    }
-                    report['offices'] += 1
-                except Exception as e:
-                    report['errors'].append(f'Office {office.get("num","?")} hero: {str(e)[:120]}')
-
-        # ── Newsletter posts ──────────────────────────────────────────────────
-        for post in data.get('newsletter', []):
-            hero = post.get('heroPhoto')
-            if hero and isinstance(hero, dict) and hero.get('data', '').startswith('data:'):
-                try:
-                    result = cloudinary.uploader.upload(
-                        hero['data'],
-                        folder='qbix/news',
-                        unique_filename=True,
-                        resource_type='image',
-                        format='webp',
-                        transformation=[{'quality': 'auto', 'fetch_format': 'webp'}],
-                        context=f'alt={post.get("subject","")[:80]}'
-                    )
-                    post['heroPhoto'] = {
-                        'url':       result['secure_url'],
-                        'public_id': result['public_id'],
-                        'alt':       post.get('subject', '')[:80],
-                    }
-                    report['news'] += 1
-                except Exception as e:
-                    report['errors'].append(f'Post {post.get("id","?")} hero: {str(e)[:120]}')
-
-            gallery     = post.get('galleryPhotos', [])
-            new_gallery = []
-            for i, photo in enumerate(gallery):
-                if isinstance(photo, dict) and photo.get('url', '').startswith('http'):
-                    new_gallery.append(photo)
-                    report['skipped'] += 1
-                    continue
-                data_uri = photo.get('data', '') if isinstance(photo, dict) else (photo if isinstance(photo, str) else '')
-                if data_uri and data_uri.startswith('data:'):
-                    try:
-                        result = cloudinary.uploader.upload(
-                            data_uri,
-                            folder='qbix/news',
-                            unique_filename=True,
-                            resource_type='image',
-                            format='webp',
-                            transformation=[{'quality': 'auto', 'fetch_format': 'webp'}],
-                        )
-                        new_gallery.append({
-                            'url':       result['secure_url'],
-                            'public_id': result['public_id'],
-                            'alt':       '',
-                        })
-                        report['news'] += 1
-                    except Exception as e:
-                        report['errors'].append(f'Post {post.get("id","?")} gallery {i}: {str(e)[:120]}')
-                        new_gallery.append(photo)
-                else:
-                    new_gallery.append(photo)
-            post['galleryPhotos'] = new_gallery
-
-        save_data(data)
-        total = report['offices'] + report['news']
-        return jsonify({
-            'ok':            True,
-            'total_migrated': total,
-            'offices':       report['offices'],
-            'news':          report['news'],
-            'skipped':       report['skipped'],
-            'errors':        report['errors'],
-            'message':       f'Done! {total} photos → Cloudinary WebP. {report["skipped"]} already migrated. {len(report["errors"])} errors.'
-        })
-    except Exception as e:
-        import traceback
-        return jsonify({'ok': False, 'error': str(e), 'detail': traceback.format_exc()[-600:]}), 500
 
 
 if __name__ == '__main__':
