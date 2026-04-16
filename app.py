@@ -14,7 +14,7 @@ import hmac
 import threading
 import time
 import pyotp
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date as datetime_date
 from functools import wraps
 from pathlib import Path
 import psycopg2
@@ -410,6 +410,64 @@ def get_site_settings(page_key):
 # PUBLIC WEBSITE ROUTES
 # ══════════════════════════════════════════════════════════════════════════════
 
+@app.route('/robots.txt')
+def robots_txt():
+    lines = [
+        'User-agent: *',
+        'Allow: /',
+        'Disallow: /admin',
+        'Disallow: /admin/',
+        '',
+        f'Sitemap: {APP_URL}/sitemap.xml',
+    ]
+    return '\n'.join(lines), 200, {'Content-Type': 'text/plain'}
+
+@app.route('/sitemap.xml')
+def sitemap():
+    data = get_db()
+    today = datetime_date.today().isoformat()
+
+    # Static pages
+    urls = [
+        {'loc': APP_URL + '/',        'priority': '1.0', 'changefreq': 'weekly',  'lastmod': today},
+        {'loc': APP_URL + '/news',    'priority': '0.7', 'changefreq': 'weekly',  'lastmod': today},
+        {'loc': APP_URL + '/contact', 'priority': '0.8', 'changefreq': 'monthly', 'lastmod': today},
+        {'loc': APP_URL + '/book',    'priority': '0.6', 'changefreq': 'monthly', 'lastmod': today},
+    ]
+
+    # Vacant office detail pages
+    for o in data.get('offices', []):
+        if o.get('status') == 'Vacant':
+            urls.append({
+                'loc': APP_URL + f'/offices/{o["id"]}',
+                'priority': '0.9',
+                'changefreq': 'weekly',
+                'lastmod': today,
+            })
+
+    # Published news posts
+    for p in data.get('newsletter', []):
+        if not p.get('draft') and p.get('id'):
+            lastmod = p.get('date', today)[:10] if p.get('date') else today
+            urls.append({
+                'loc': APP_URL + f'/news/{p["id"]}',
+                'priority': '0.6',
+                'changefreq': 'never',
+                'lastmod': lastmod,
+            })
+
+    xml = ['<?xml version="1.0" encoding="UTF-8"?>']
+    xml.append('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">')
+    for u in urls:
+        xml.append('  <url>')
+        xml.append(f'    <loc>{u["loc"]}</loc>')
+        xml.append(f'    <lastmod>{u["lastmod"]}</lastmod>')
+        xml.append(f'    <changefreq>{u["changefreq"]}</changefreq>')
+        xml.append(f'    <priority>{u["priority"]}</priority>')
+        xml.append('  </url>')
+    xml.append('</urlset>')
+    return '\n'.join(xml), 200, {'Content-Type': 'application/xml'}
+
 @app.route('/')
 def home():
     track_pageview('/')
@@ -432,10 +490,18 @@ def home():
         [p for p in data.get('posts', []) if not p.get('draft', False)],
         key=lambda p: p.get('date', ''), reverse=True
     )[:3]
+    # OG image — use first home gallery photo, else first vacant office photo
+    og_image = ''
+    if home_gallery:
+        og_image = home_gallery[0].get('url','')
+    elif vacant and vacant[0].get('photos'):
+        og_image = vacant[0]['photos'][0].get('url','')
     return render_template('public/home.html',
         **get_site_settings('home'),
         vacant=vacant, site_amenities=site_amenities,
         home_gallery=home_gallery, posts=posts,
+        canonical_url=APP_URL+'/',
+        og_image=og_image,
         ga_id=GA_MEASUREMENT_ID)
 
 @app.route('/offices')
@@ -457,8 +523,13 @@ def office_detail(office_id):
     idx = next((i for i, o in enumerate(vacant) if o['id'] == office_id), 0)
     prev_office = vacant[idx - 1] if idx > 0 else None
     next_office = vacant[idx + 1] if idx + 1 < len(vacant) else None
+    og_image = office['photos'][0]['url'] if office.get('photos') else ''
+    og_title = f'Office {office["num"]} — {office.get("sqft","")} sq ft | Qbix Centre Macon GA'
+    og_desc  = office.get('description') or f'Private furnished office {office["num"]} at Qbix Centre, north Macon GA. {office.get("sqft","")} sq ft, ${office.get("listDues","")}/mo.'
     return render_template('public/office_detail.html', office=office,
                            prev_office=prev_office, next_office=next_office,
+                           canonical_url=APP_URL+f'/offices/{office_id}',
+                           og_image=og_image, og_title=og_title, og_desc=og_desc,
                            ga_id=GA_MEASUREMENT_ID)
 
 @app.route('/amenities')
@@ -468,7 +539,8 @@ def amenities():
 @app.route('/contact')
 def contact():
     track_pageview('/contact')
-    return render_template('public/contact.html', **get_site_settings('contact'), ga_id=GA_MEASUREMENT_ID)
+    return render_template('public/contact.html', **get_site_settings('contact'),
+                           canonical_url=APP_URL+'/contact', ga_id=GA_MEASUREMENT_ID)
 
 @app.route('/privacy')
 def privacy():
@@ -578,7 +650,9 @@ def news():
         posts = [p for p in posts if p.get('category') == cat_filter]
     return render_template('public/news.html', **get_site_settings('news'),
                            posts=posts, categories=categories,
-                           cat_filter=cat_filter, ga_id=GA_MEASUREMENT_ID)
+                           cat_filter=cat_filter,
+                           canonical_url=APP_URL+'/news',
+                           ga_id=GA_MEASUREMENT_ID)
 
 @app.route('/news/<post_id>')
 def news_post(post_id):
@@ -590,8 +664,13 @@ def news_post(post_id):
     idx = posts.index(post)
     prev_post = posts[idx + 1] if idx + 1 < len(posts) else None
     next_post = posts[idx - 1] if idx > 0 else None
+    og_image = post.get('heroPhoto',{}).get('url','') if post.get('heroPhoto') else ''
+    og_desc  = post.get('body','')[:160].replace('<','').replace('>','') if post.get('body') else ''
     return render_template('public/news_post.html', post=post,
                            prev_post=prev_post, next_post=next_post,
+                           canonical_url=APP_URL+f'/news/{post_id}',
+                           og_image=og_image, og_title=post.get('subject',''),
+                           og_desc=og_desc,
                            ga_id=GA_MEASUREMENT_ID)
 
 
