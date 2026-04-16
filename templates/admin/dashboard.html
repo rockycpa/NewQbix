@@ -694,7 +694,7 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
 </div>
 
 <!-- MEDIA LIBRARY PICKER MODAL -->
-<div class="mo" id="media-picker-modal" onclick="closeMo(event,'media-picker-modal')">
+<div class="mo" id="media-picker-modal" onclick="closeMo(event,'media-picker-modal')" style="z-index:350">
   <div class="mi" style="max-width:860px;width:96vw">
     <button class="mx" onclick="document.getElementById('media-picker-modal').classList.remove('open')">&#x2715;</button>
     <div class="mt">&#128444; Pick from Media Library</div>
@@ -717,7 +717,7 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
 </div>
 
 <!-- AI ALT TEXT APPROVAL MODAL -->
-<div class="mo" id="alt-approval-modal" onclick="closeMo(event,'alt-approval-modal')">
+<div class="mo" id="alt-approval-modal" onclick="closeMo(event,'alt-approval-modal')" style="z-index:400">
   <div class="mi" style="max-width:500px">
     <button class="mx" onclick="skipAltApproval()">&#x2715;</button>
     <div class="mt">&#129302; Suggested Alt Text</div>
