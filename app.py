@@ -2037,6 +2037,72 @@ def media_delete():
         return jsonify({'ok': False, 'error': str(e)}), 500
 
 
+@app.route('/admin/api/media/update-news-alt', methods=['POST'])
+@login_required
+def update_news_alt():
+    """
+    One-shot: update alt text + caption on all news post photos in Cloudinary.
+    Reads posts from DB, matches to the provided alt_map, updates Cloudinary metadata.
+    """
+    if not _cloudinary_available:
+        return jsonify({'ok': False, 'error': 'Cloudinary not installed'}), 500
+    try:
+        alt_map = request.json.get('alt_map', {})
+        data    = get_db()
+        updated = 0
+        errors  = []
+
+        for post in data.get('newsletter', []):
+            subject = post.get('subject', '')
+            mapping = alt_map.get(subject)
+            if not mapping:
+                continue
+
+            hero_alt   = mapping.get('heroAlt', '')
+            caption    = mapping.get('caption', '')
+            gallery_alts = mapping.get('galleryAlts', [])
+
+            # Hero photo
+            hero = post.get('heroPhoto')
+            if hero and isinstance(hero, dict) and hero.get('public_id'):
+                try:
+                    ctx = f'alt={hero_alt}'
+                    if caption:
+                        ctx += f'|caption={caption}'
+                    cloudinary.uploader.explicit(hero['public_id'], type='upload', context=ctx)
+                    hero['alt'] = hero_alt
+                    updated += 1
+                except Exception as e:
+                    errors.append(f'{subject} hero: {str(e)[:100]}')
+
+            # Gallery photos
+            gallery = post.get('galleryPhotos', [])
+            for i, photo in enumerate(gallery):
+                if not (isinstance(photo, dict) and photo.get('public_id')):
+                    continue
+                alt = gallery_alts[i] if i < len(gallery_alts) else hero_alt
+                try:
+                    ctx = f'alt={alt}'
+                    if caption:
+                        ctx += f'|caption={caption}'
+                    cloudinary.uploader.explicit(photo['public_id'], type='upload', context=ctx)
+                    photo['alt'] = alt
+                    updated += 1
+                except Exception as e:
+                    errors.append(f'{subject} gallery[{i}]: {str(e)[:100]}')
+
+        save_data(data)
+        return jsonify({
+            'ok': True,
+            'updated': updated,
+            'errors': errors,
+            'message': f'{updated} news photos updated in Cloudinary. {len(errors)} errors.'
+        })
+    except Exception as e:
+        import traceback
+        return jsonify({'ok': False, 'error': str(e), 'detail': traceback.format_exc()[-400:]}), 500
+
+
 @app.route('/admin/api/media/migrate', methods=['POST'])
 @login_required
 def media_migrate():
