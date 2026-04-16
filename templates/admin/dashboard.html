@@ -226,7 +226,7 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
   <div class="logo">Qbix Centre <em>Management Portal</em></div>
   <nav>
     <button class="nb on" onclick="showPage('website',this)">&#127758; Website</button>
-    <button class="nb" onclick="showPage('marketing',this)">&#128200; Marketing</button>
+    <button class="nb" id="nav-marketing-btn" onclick="showPage('marketing',this)">&#128200; Marketing <span id="contact-badge" style="display:none;background:var(--red);color:#fff;border-radius:10px;font-size:11px;font-weight:700;padding:1px 6px;margin-left:4px;vertical-align:middle">0</span></button>
     <button class="nb" onclick="showPage('media',this);loadMedia()">&#128444; Media</button>
     <button class="nb" onclick="showPage('offices',this)">Offices</button>
     <button class="nb" onclick="showPage('members',this)">Members</button>
@@ -336,7 +336,19 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
   <!-- MARKETING ACTION QUEUE -->
   <div id="mkt-alerts-wrap" style="display:none;margin-bottom:14px"></div>
 
-  <!-- GBP HEALTH CARD -->
+  <!-- CONTACT MESSAGES -->
+  <div class="card" id="contact-messages-card" style="margin-bottom:16px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="ct" style="margin-bottom:0">&#128386; Contact Messages</div>
+        <span id="contact-unread-badge" style="display:none;background:var(--red);color:#fff;border-radius:10px;font-size:11px;font-weight:700;padding:2px 8px"></span>
+      </div>
+      <button onclick="loadContactMessages(true)" style="background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt2);padding:4px 10px;font-size:13px;cursor:pointer;line-height:1" title="Refresh">&#8635;</button>
+    </div>
+    <div id="contact-messages-list">
+      <div style="color:var(--txt3);font-size:13px;padding:8px 0">Loading...</div>
+    </div>
+  </div>
   <div class="card" id="gbp-health-card" style="margin-bottom:16px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
       <div class="ct" style="margin-bottom:0">&#128205; Google Business Profile Health</div>
@@ -1624,7 +1636,7 @@ function drillBack(){
   loadAnalytics(true);
 }
 
-function refreshAll(){ buildWebsite(); buildMarketing(); renderOffices(); renderMembers(); renderOccupants(); renderWaitlist(); buildNotify(); buildBookingsTab(); buildNewsletterHistory(); }
+function refreshAll(){ buildWebsite(); buildMarketing(); renderOffices(); renderMembers(); renderOccupants(); renderWaitlist(); buildNotify(); buildBookingsTab(); buildNewsletterHistory(); loadContactMessages(); }
 
 // === OFFICES ===
 let ofFilter='all',ofSearch='';
@@ -2443,8 +2455,89 @@ function toggleLeadSourceEditor(){
 // === MARKETING ===
 let _mktSlices = []; // [{label, count, members:[]}] for drilldown
 
+// ═══════════════════════════════════════════════════════
+// CONTACT MESSAGES
+// ═══════════════════════════════════════════════════════
+
+let _contactMessages = [];
+
+async function loadContactMessages(force){
+  try{
+    const r = await fetch('/admin/api/contact-messages');
+    const d = await r.json();
+    if(!d.ok) throw new Error(d.error||'Failed');
+    _contactMessages = d.messages || [];
+    renderContactMessages();
+    updateContactBadge();
+  } catch(e){
+    const el = document.getElementById('contact-messages-list');
+    if(el) el.innerHTML = '<div style="color:var(--red);font-size:13px;padding:8px 0">Could not load messages: '+e.message+'</div>';
+  }
+}
+
+function updateContactBadge(){
+  const unread = _contactMessages.filter(m => !m.read).length;
+  // Nav badge
+  const navBadge = document.getElementById('contact-badge');
+  if(navBadge){ navBadge.textContent = unread; navBadge.style.display = unread ? 'inline' : 'none'; }
+  // Card badge
+  const cardBadge = document.getElementById('contact-unread-badge');
+  if(cardBadge){ cardBadge.textContent = unread+' unread'; cardBadge.style.display = unread ? 'inline' : 'none'; }
+}
+
+function renderContactMessages(){
+  const el = document.getElementById('contact-messages-list');
+  if(!el) return;
+  if(!_contactMessages.length){
+    el.innerHTML = '<div style="color:var(--txt3);font-size:13px;padding:8px 0;font-style:italic">No messages yet.</div>';
+    return;
+  }
+  el.innerHTML = _contactMessages.map(m => {
+    const dt = m.timestamp ? new Date(m.timestamp).toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}) : '';
+    const isUnread = !m.read;
+    return `<div id="cmsg-${m.id}" style="border:1px solid ${isUnread?'var(--acc)':'var(--bdr)'};border-radius:9px;padding:14px 16px;margin-bottom:10px;background:${isUnread?'rgba(212,168,67,.06)':'var(--sur2)'};transition:all .3s">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:8px">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <span style="font-weight:700;font-size:15px;color:var(--txt)">${esc(m.name||'Unknown')}</span>
+          ${isUnread ? '<span style="background:var(--acc);color:#1a0e00;border-radius:8px;font-size:10px;font-weight:700;padding:2px 7px;text-transform:uppercase;letter-spacing:.05em">New</span>' : ''}
+          ${m.phone ? `<a href="tel:${m.phone.replace(/\D/g,'')}" style="font-size:13px;color:var(--blue);text-decoration:none">📞 ${esc(m.phone)}</a>` : ''}
+          ${m.email ? `<a href="mailto:${m.email}" style="font-size:13px;color:var(--blue);text-decoration:none">✉️ ${esc(m.email)}</a>` : ''}
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+          <span style="font-size:12px;color:var(--txt3)">${dt}</span>
+          ${isUnread ? `<button onclick="markContactRead('${m.id}')" style="background:var(--sur);border:1px solid var(--bdr);border-radius:6px;color:var(--txt2);font-family:'IBM Plex Sans',sans-serif;font-size:11px;padding:4px 10px;cursor:pointer;white-space:nowrap">Mark Read</button>` : ''}
+          <button onclick="deleteContactMessage('${m.id}')" style="background:transparent;border:1px solid var(--red);border-radius:6px;color:var(--red);font-family:'IBM Plex Sans',sans-serif;font-size:11px;padding:4px 10px;cursor:pointer">Delete</button>
+        </div>
+      </div>
+      <div style="font-size:14px;color:var(--txt);line-height:1.6;white-space:pre-wrap;background:var(--sur);border:1px solid var(--bdr);border-radius:7px;padding:10px 12px">${esc(m.message||'')}</div>
+    </div>`;
+  }).join('');
+}
+
+async function markContactRead(id){
+  try{
+    await fetch('/admin/api/contact-messages/'+id+'/read', {method:'POST'});
+    const m = _contactMessages.find(x => x.id === id);
+    if(m) m.read = true;
+    renderContactMessages();
+    updateContactBadge();
+  } catch(e){ toast('Could not mark as read','var(--red)'); }
+}
+
+async function deleteContactMessage(id){
+  if(!confirm('Delete this message? This cannot be undone.')) return;
+  try{
+    await fetch('/admin/api/contact-messages/'+id+'/delete', {method:'POST'});
+    _contactMessages = _contactMessages.filter(x => x.id !== id);
+    renderContactMessages();
+    updateContactBadge();
+    toast('Message deleted');
+  } catch(e){ toast('Could not delete','var(--red)'); }
+}
+
 function buildMarketing(){
   if(!document.getElementById('page-marketing')) return;
+  loadContactMessages();
 
   // ── Marketing action queue & GBP health ───────────────────────────────────
   renderMarketingAlerts();
