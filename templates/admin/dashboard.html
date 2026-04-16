@@ -642,7 +642,8 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
     </select>
     <input class="sb" type="text" id="media-search" placeholder="Search alt text..." oninput="filterMedia()" style="min-width:200px">
     <span class="cl" id="media-count"></span>
-    <button onclick="document.getElementById('media-upload-input').click()" style="background:var(--grn);border:none;border-radius:7px;color:#fff;font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:600;padding:7px 16px;cursor:pointer;margin-left:auto">&#8679; Upload Photos</button>
+    <button onclick="runOrphanScan()" style="background:transparent;border:1px solid var(--red);border-radius:7px;color:var(--red);font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:600;padding:7px 16px;cursor:pointer;margin-left:auto">&#128465; Clean Up Orphans</button>
+    <button onclick="document.getElementById('media-upload-input').click()" style="background:var(--grn);border:none;border-radius:7px;color:#fff;font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:600;padding:7px 16px;cursor:pointer">&#8679; Upload Photos</button>
     <input type="file" id="media-upload-input" accept="image/*" multiple style="display:none" onchange="mediaUploadFiles(this.files)">
   </div>
 
@@ -688,6 +689,34 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
       <div style="display:flex;gap:9px">
         <button onclick="document.getElementById('media-edit-modal').classList.remove('open')" style="background:transparent;border:1px solid var(--bdr);border-radius:7px;color:var(--txt2);font-family:'IBM Plex Sans',sans-serif;font-size:13px;padding:7px 16px;cursor:pointer">Cancel</button>
         <button onclick="saveMediaEdit()" style="background:var(--grn);border:none;border-radius:7px;color:#fff;font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:600;padding:7px 20px;cursor:pointer">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ORPHAN SCANNER MODAL -->
+<div class="mo" id="orphan-modal" onclick="closeMo(event,'orphan-modal')" style="z-index:310">
+  <div class="mi" style="max-width:780px;width:96vw;max-height:88vh;display:flex;flex-direction:column;">
+    <button class="mx" onclick="document.getElementById('orphan-modal').classList.remove('open')">&#x2715;</button>
+    <div class="mt">&#128465; Clean Up Orphaned Photos</div>
+    <div id="orphan-scanning-msg" style="color:var(--txt2);font-size:13px;padding:10px 0 6px;">Scanning...</div>
+    <div id="orphan-summary" style="display:none;font-size:13px;color:var(--txt2);margin-bottom:12px;"></div>
+    <!-- Select all bar -->
+    <div id="orphan-selectbar" style="display:none;display:flex;align-items:center;gap:10px;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--bdr)">
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--txt);cursor:pointer;">
+        <input type="checkbox" id="orphan-select-all" onchange="toggleAllOrphans(this.checked)" style="accent-color:var(--acc);width:15px;height:15px;">
+        Select all
+      </label>
+      <span id="orphan-sel-count" style="font-size:12px;color:var(--txt3);">0 selected</span>
+    </div>
+    <!-- Photo grid -->
+    <div id="orphan-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;overflow-y:auto;flex:1;padding-right:4px;"></div>
+    <!-- Footer -->
+    <div id="orphan-footer" style="display:none;padding-top:14px;border-top:1px solid var(--bdr);margin-top:12px;display:flex;justify-content:space-between;align-items:center;">
+      <span id="orphan-footer-count" style="font-size:13px;color:var(--txt2);"></span>
+      <div style="display:flex;gap:8px;">
+        <button onclick="document.getElementById('orphan-modal').classList.remove('open')" style="background:var(--sur2);border:1px solid var(--bdr);border-radius:7px;color:var(--txt2);font-family:'IBM Plex Sans',sans-serif;font-size:13px;padding:7px 16px;cursor:pointer;">Cancel</button>
+        <button id="orphan-delete-btn" onclick="deleteSelectedOrphans()" style="background:var(--red);border:none;border-radius:7px;color:#fff;font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:600;padding:7px 20px;cursor:pointer;">&#128465; Delete Selected</button>
       </div>
     </div>
   </div>
@@ -3642,6 +3671,133 @@ async function confirmDeleteMedia(){
     toast('Photo deleted','var(--red)');
   }catch(e){ toast('Delete failed: '+e.message,'var(--red)'); }
 }
+
+// ═══════════════════════════════════════════════════════
+// ORPHAN PHOTO SCANNER
+// ═══════════════════════════════════════════════════════
+
+function getUsedPublicIds(){
+  const used = new Set();
+  // Collect from all office photos
+  (DB.offices||[]).forEach(o=>{
+    (o.photos||[]).forEach(p=>{ if(p.public_id) used.add(p.public_id); });
+  });
+  // Collect from all news/newsletter posts
+  (DB.posts||[]).forEach(post=>{
+    if(post.heroPhoto?.public_id)   used.add(post.heroPhoto.public_id);
+    (post.galleryPhotos||[]).forEach(p=>{ if(p.public_id) used.add(p.public_id); });
+  });
+  return used;
+}
+
+async function runOrphanScan(){
+  const modal = document.getElementById('orphan-modal');
+  const scanMsg = document.getElementById('orphan-scanning-msg');
+  const summary = document.getElementById('orphan-summary');
+  const selectbar = document.getElementById('orphan-selectbar');
+  const grid = document.getElementById('orphan-grid');
+  const footer = document.getElementById('orphan-footer');
+  // Reset state
+  scanMsg.style.display='block'; scanMsg.textContent='Scanning Cloudinary for orphaned photos...';
+  summary.style.display='none'; selectbar.style.display='none';
+  grid.innerHTML=''; footer.style.display='none';
+  document.getElementById('orphan-select-all').checked=false;
+  modal.classList.add('open');
+  // Ensure media is loaded
+  try{
+    if(!_mediaLoaded){
+      const r = await fetch('/admin/api/media');
+      const d = await r.json();
+      if(!d.ok) throw new Error(d.error);
+      _allMediaAssets = d.assets;
+      _mediaLoaded = true;
+    }
+    const used = getUsedPublicIds();
+    const orphans = _allMediaAssets.filter(a => !used.has(a.public_id));
+    scanMsg.style.display='none';
+    if(!orphans.length){
+      summary.style.display='block';
+      summary.innerHTML='<span style="color:var(--grn)">&#10003; No orphaned photos found — everything in Cloudinary is linked to an office or news post.</span>';
+      footer.style.display='flex';
+      document.getElementById('orphan-delete-btn').style.display='none';
+      document.getElementById('orphan-footer-count').textContent='';
+      return;
+    }
+    document.getElementById('orphan-delete-btn').style.display='';
+    const totalKb = orphans.reduce((s,a)=>s+(a.bytes||0),0);
+    summary.style.display='block';
+    summary.innerHTML='Found <strong style="color:var(--acc)">'+orphans.length+' orphaned photo'+(orphans.length===1?'':'s')+'</strong> not linked to any office or news post — <span style="color:var(--txt3)">'+Math.round(totalKb/1024)+'KB total</span>. Check boxes to select, then delete.';
+    selectbar.style.display='flex';
+    grid.innerHTML = orphans.map(a=>{
+      const displayUrl = cloudinaryUrl(a.url,{ar:'4:3',c:'fill',w:300});
+      const kb = a.bytes ? Math.round(a.bytes/1024)+'KB' : '';
+      const folder = a.folder||'general';
+      const folderColor = folder==='offices'?'var(--grn)':folder==='news'?'var(--blue)':'var(--txt3)';
+      return `<label style="cursor:pointer;display:block;">
+        <div class="orphan-card" data-pid="${esc2(a.public_id)}" style="background:var(--sur);border:2px solid var(--bdr);border-radius:9px;overflow:hidden;transition:border-color .15s;">
+          <div style="position:relative;height:110px;background:var(--sur2);">
+            <img src="${displayUrl}" alt="${a.alt||''}" style="width:100%;height:100%;object-fit:cover;" loading="lazy">
+            <div style="position:absolute;top:6px;left:6px;"><input type="checkbox" class="orphan-cb" value="${esc2(a.public_id)}" onchange="updateOrphanSelection()" style="accent-color:var(--acc);width:16px;height:16px;cursor:pointer;"></div>
+          </div>
+          <div style="padding:6px 8px;">
+            <div style="font-size:11px;color:var(--txt2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${a.alt||'<span style="color:var(--txt3);font-style:italic">No alt text</span>'}</div>
+            <div style="display:flex;justify-content:space-between;margin-top:2px;">
+              <span style="font-size:10px;color:${folderColor};text-transform:uppercase;">${folder}</span>
+              <span style="font-size:10px;color:var(--txt3);font-family:'IBM Plex Mono',monospace;">${kb}</span>
+            </div>
+          </div>
+        </div>
+      </label>`;
+    }).join('');
+    footer.style.display='flex';
+    updateOrphanSelection();
+  }catch(e){
+    scanMsg.style.display='block';
+    scanMsg.innerHTML='<span style="color:var(--red)">Scan failed: '+e.message+'</span>';
+  }
+}
+
+function updateOrphanSelection(){
+  const cbs = [...document.querySelectorAll('.orphan-cb')];
+  const checked = cbs.filter(c=>c.checked);
+  // Highlight selected cards
+  cbs.forEach(cb=>{
+    const card = cb.closest('.orphan-card');
+    if(card) card.style.borderColor = cb.checked ? 'var(--red)' : 'var(--bdr)';
+  });
+  document.getElementById('orphan-sel-count').textContent = checked.length+' of '+cbs.length+' selected';
+  document.getElementById('orphan-footer-count').textContent = checked.length ? checked.length+' photo'+(checked.length===1?'':'s')+' will be permanently deleted from Cloudinary' : 'Select photos to delete';
+  document.getElementById('orphan-select-all').checked = cbs.length > 0 && checked.length === cbs.length;
+  document.getElementById('orphan-delete-btn').disabled = checked.length === 0;
+}
+
+function toggleAllOrphans(checked){
+  document.querySelectorAll('.orphan-cb').forEach(cb=>{ cb.checked=checked; });
+  updateOrphanSelection();
+}
+
+async function deleteSelectedOrphans(){
+  const selected = [...document.querySelectorAll('.orphan-cb:checked')].map(cb=>cb.value);
+  if(!selected.length){ toast('Select at least one photo','var(--acc)'); return; }
+  if(!confirm('Permanently delete '+selected.length+' photo'+(selected.length===1?'':'s')+' from Cloudinary? This cannot be undone.')) return;
+  const btn = document.getElementById('orphan-delete-btn');
+  btn.disabled=true; btn.textContent='Deleting...';
+  let deleted=0, failed=0;
+  for(const public_id of selected){
+    try{
+      const r = await fetch('/admin/api/media/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({public_id})});
+      const d = await r.json();
+      if(d.ok){ deleted++; _allMediaAssets=_allMediaAssets.filter(x=>x.public_id!==public_id); }
+      else failed++;
+    }catch(e){ failed++; }
+  }
+  document.getElementById('orphan-modal').classList.remove('open');
+  filterMedia();
+  const msg = 'Deleted '+deleted+' photo'+(deleted===1?'':'s')+(failed?' — '+failed+' failed':'');
+  toast(msg, deleted ? 'var(--red)' : 'var(--acc)', 4000);
+}
+
+
 
 async function mediaUploadFiles(files){
   if(!files || !files.length) return;
