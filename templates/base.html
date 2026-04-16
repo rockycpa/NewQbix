@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{% block title %}Qbix Centre &mdash; Professional Coworking in Macon, GA{% endblock %}</title>
-<meta name="description" content="{% block description %}Qbix Centre offers private and coworking office spaces in Macon, Georgia. Flexible memberships starting at $425/month.{% endblock %}">
+<title>{% block title %}{{ page_title if page_title else 'Qbix Centre &mdash; Professional Coworking in Macon, GA' }}{% endblock %}</title>
+<meta name="description" content="{% block description %}{{ page_desc if page_desc else 'Qbix Centre offers private and coworking office spaces in Macon, Georgia. Flexible memberships starting at $425/month.' }}{% endblock %}">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 {% if ga_id %}
