@@ -534,7 +534,8 @@ def home():
         home_gallery=home_gallery, posts=posts,
         canonical_url=APP_URL+'/',
         og_image=og_image,
-        ga_id=GA_MEASUREMENT_ID)
+        ga_id=GA_MEASUREMENT_ID,
+        page_content=data.get('pageContent', {}))
 
 @app.route('/offices')
 def offices_page():

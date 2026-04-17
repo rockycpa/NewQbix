@@ -42,6 +42,27 @@
 .slide-arrow{background:rgba(0,0,0,.45);border:none;color:#fff;width:36px;height:36px;border-radius:50%;font-size:18px;cursor:pointer;pointer-events:all;display:flex;align-items:center;justify-content:center;transition:background .2s}
 .slide-arrow:hover{background:rgba(0,0,0,.7)}
 
+/* ── NORTH MACON ATTRACTIONS ───────────────────────────── */
+.attractions-section{padding:64px 5%;background:var(--light)}
+.attr-photos{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:36px 0 40px}
+.attr-photo-card{position:relative;height:200px;border-radius:12px;overflow:hidden;background:#c8d0dc}
+.attr-photo-card img{width:100%;height:100%;object-fit:cover;display:block}
+.attr-photo-placeholder{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:#888;font-size:12px;font-family:sans-serif;background:#ddd}
+.attr-photo-caption{position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(15,27,45,.82));color:#fff;padding:28px 14px 12px;font-size:13px;font-weight:600;font-family:'Playfair Display',serif}
+.attr-tiles-row1{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:14px}
+.attr-tiles-row2{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;max-width:75%;margin:0 auto}
+.attr-tile{background:#fff;border:1px solid var(--border);border-radius:10px;padding:1.25rem 1rem;text-align:center}
+.attr-tile-icon{width:50px;height:50px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto .75rem;font-size:22px}
+.attr-tile-label{font-size:14px;font-weight:700;color:var(--navy);margin-bottom:.5rem;font-family:'Playfair Display',serif}
+.attr-tile-items{list-style:none;padding:0;margin:0}
+.attr-tile-items li{font-size:12px;color:var(--txt2);padding:2px 0;line-height:1.4}
+.attr-tile-items li .dist{color:var(--gold);font-size:11px;font-weight:600}
+@media(max-width:768px){
+  .attr-photos{grid-template-columns:1fr}
+  .attr-tiles-row1{grid-template-columns:repeat(2,1fr)}
+  .attr-tiles-row2{grid-template-columns:repeat(2,1fr);max-width:100%}
+}
+
 /* ── AMENITIES ─────────────────────────────────────────── */
 .amenities-section{padding:64px 5%;background:var(--light)}
 .amenities-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-top:36px}
@@ -89,8 +110,8 @@
 
 <!-- HERO -->
 <div class="hero">
-  <h1>{% if page_h1 %}{{ page_h1 }}{% else %}Your Professional Home<br>in <span>North Macon, Georgia</span>{% endif %}</h1>
-  <p>Private offices and coworking space at Northside Crossing. No long-term leases. 24/7 access. A community built for professionals.</p>
+  <h1>{% if page_h1 %}{{ page_h1 }}{% elif page_content and page_content['hero-h1'] %}{{ page_content['hero-h1'] }}{% else %}Your Professional Home<br>in <span>North Macon, Georgia</span>{% endif %}</h1>
+  <p>{{ page_content['hero-sub'] if page_content and page_content.get('hero-sub') else 'Private offices and coworking space at Northside Crossing. No long-term leases. 24/7 access. A community built for professionals.' }}</p>
   <div class="hero-btns">
     <a href="#contact" class="btn btn-gold">Schedule a Tour</a>
     <a href="#offices" class="btn btn-outline">View Available Offices</a>
@@ -100,9 +121,9 @@
 <!-- AVAILABLE OFFICES -->
 <section class="offices-section" id="offices">
   <div class="sect-hd">
-    <div class="sect-label">Available Now</div>
-    <h2 class="sect-title">Open Offices</h2>
-    <p class="sect-sub" style="margin:0 auto">These offices are ready for immediate occupancy. Call us or schedule a tour to take a look.</p>
+    <div class="sect-label">{{ page_content['offices-label'] if page_content and page_content.get('offices-label') else 'Available Now' }}</div>
+    <h2 class="sect-title">{{ page_content['offices-heading'] if page_content and page_content.get('offices-heading') else 'Open Offices' }}</h2>
+    <p class="sect-sub" style="margin:0 auto">{{ page_content['offices-sub'] if page_content and page_content.get('offices-sub') else 'These offices are ready for immediate occupancy. Call us or schedule a tour to take a look.' }}</p>
   </div>
 
   {% if vacant %}
@@ -125,6 +146,16 @@
         {% if o.description %}
           <p style="font-size:13px;color:var(--txt2);line-height:1.6;margin-top:6px">{{ o.description[:120] }}{% if o.description|length > 120 %}…{% endif %}</p>
         {% endif %}
+        {% if o.amenities %}
+        <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:8px">
+          {% for a in o.amenities[:4] %}
+            <span style="font-size:11px;background:#f0f4ff;border:1px solid #c5d0f0;border-radius:20px;padding:3px 9px;color:#1a2744;font-weight:500">{{ a }}</span>
+          {% endfor %}
+          {% if o.amenities|length > 4 %}
+            <span style="font-size:11px;color:var(--txt2);padding:3px 4px">+{{ o.amenities|length - 4 }} more</span>
+          {% endif %}
+        </div>
+        {% endif %}
         <div class="office-card-price">
           {% if o.listDues %}${{ "{:,}".format(o.listDues) }}/mo{% else %}Contact for pricing{% endif %}
         </div>
@@ -146,8 +177,8 @@
 {% if home_gallery %}
 <section class="slideshow-section" id="gallery">
   <div class="text-center">
-    <div class="sect-label">Inside Qbix Centre</div>
-    <h2 class="sect-title">See the Space</h2>
+    <div class="sect-label">{{ page_content['gallery-label'] if page_content and page_content.get('gallery-label') else 'Inside Qbix Centre' }}</div>
+    <h2 class="sect-title">{{ page_content['gallery-heading'] if page_content and page_content.get('gallery-heading') else 'See the Space' }}</h2>
   </div>
   <div class="slideshow-wrap" id="slideshow">
     {% for photo in home_gallery %}
@@ -171,12 +202,134 @@
 </section>
 {% endif %}
 
+<!-- NORTH MACON ATTRACTIONS -->
+<section class="attractions-section" id="location">
+  <div class="text-center">
+    <div class="sect-label">{{ page_content['location-label'] if page_content and page_content.get('location-label') else 'Location Advantage' }}</div>
+    <h2 class="sect-title">{{ page_content['location-heading'] if page_content and page_content.get('location-heading') else 'Why North Macon?' }}</h2>
+    <p class="sect-sub" style="margin:0 auto">{{ page_content['location-sub'] if page_content and page_content.get('location-sub') else 'Everything you need is minutes from your office door. Qbix Centre sits at the heart of Macon\'s most vibrant commercial corridor — far from downtown congestion.' }}</p>
+  </div>
+
+  <!-- Landmark photos -->
+  <div class="attr-photos">
+    <div class="attr-photo-card">
+      <div class="attr-photo-placeholder">
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#bbb" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+        <span>Add photo via Media tab</span>
+      </div>
+      <div class="attr-photo-caption">Shoppes at Riverside Crossing · 0.4 mi</div>
+    </div>
+    <div class="attr-photo-card">
+      <div class="attr-photo-placeholder">
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#bbb" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+        <span>Add photo via Media tab</span>
+      </div>
+      <div class="attr-photo-caption">Northside Drive Corridor · 0.2 mi</div>
+    </div>
+    <div class="attr-photo-card">
+      <div class="attr-photo-placeholder">
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#bbb" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+        <span>Add photo via Media tab</span>
+      </div>
+      <div class="attr-photo-caption">Idle Hour Country Club · 3 mi</div>
+    </div>
+  </div>
+
+  <!-- Category tiles — row 1 (4 tiles) -->
+  <div class="attr-tiles-row1">
+    <div class="attr-tile">
+      <div class="attr-tile-icon" style="background:#faeeda">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ba7517" stroke-width="1.8"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
+      </div>
+      <div class="attr-tile-label">Dining</div>
+      <ul class="attr-tile-items">
+        <li>Circa Restaurant <span class="dist">· 0.5 mi</span></li>
+        <li>First Watch <span class="dist">· 0.3 mi</span></li>
+        <li>Panera Bread <span class="dist">· 0.4 mi</span></li>
+        <li>Chick-fil-A <span class="dist">· 0.6 mi</span></li>
+      </ul>
+    </div>
+    <div class="attr-tile">
+      <div class="attr-tile-icon" style="background:#e1f5ee">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0f6e56" stroke-width="1.8"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+      </div>
+      <div class="attr-tile-label">Shopping</div>
+      <ul class="attr-tile-items">
+        <li>Shoppes at Riverside <span class="dist">· 0.4 mi</span></li>
+        <li>Target <span class="dist">· 1.2 mi</span></li>
+        <li>Kroger <span class="dist">· 0.8 mi</span></li>
+        <li>Belk <span class="dist">· 0.5 mi</span></li>
+      </ul>
+    </div>
+    <div class="attr-tile">
+      <div class="attr-tile-icon" style="background:#e6f1fb">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#185fa5" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+      </div>
+      <div class="attr-tile-label">Coffee</div>
+      <ul class="attr-tile-items">
+        <li>Starbucks <span class="dist">· 0.3 mi</span></li>
+        <li>Dunkin' <span class="dist">· 0.6 mi</span></li>
+        <li>Bad Bear Coffee <span class="dist">· 1.2 mi</span></li>
+      </ul>
+    </div>
+    <div class="attr-tile">
+      <div class="attr-tile-icon" style="background:#eeedfe">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#534ab7" stroke-width="1.8"><rect x="3" y="8" width="18" height="13" rx="2"/><path d="M19 8V6a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="17"/><line x1="9.5" y1="14.5" x2="14.5" y2="14.5"/></svg>
+      </div>
+      <div class="attr-tile-label">Banking</div>
+      <ul class="attr-tile-items">
+        <li>Wells Fargo <span class="dist">· 0.3 mi</span></li>
+        <li>Bank of America <span class="dist">· 0.5 mi</span></li>
+        <li>Renasant Bank <span class="dist">· 0.4 mi</span></li>
+        <li>Synovus Bank <span class="dist">· 0.6 mi</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Category tiles — row 2 (3 tiles, centered) -->
+  <div class="attr-tiles-row2">
+    <div class="attr-tile">
+      <div class="attr-tile-icon" style="background:#eaf3de">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3b6d11" stroke-width="1.8"><circle cx="12" cy="5" r="3"/><path d="M6.5 8a2 2 0 0 0-2 2l-.5 9h16l-.5-9a2 2 0 0 0-2-2"/><path d="M12 8v13"/></svg>
+      </div>
+      <div class="attr-tile-label">Fitness</div>
+      <ul class="attr-tile-items">
+        <li>Planet Fitness <span class="dist">· 0.8 mi</span></li>
+        <li>Orangetheory <span class="dist">· 1.1 mi</span></li>
+        <li>Anytime Fitness <span class="dist">· 1.4 mi</span></li>
+      </ul>
+    </div>
+    <div class="attr-tile">
+      <div class="attr-tile-icon" style="background:#faece7">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#993c1d" stroke-width="1.8"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      </div>
+      <div class="attr-tile-label">Hotels</div>
+      <ul class="attr-tile-items">
+        <li>Hilton Garden Inn <span class="dist">· 1.0 mi</span></li>
+        <li>Courtyard Marriott <span class="dist">· 1.3 mi</span></li>
+        <li>Hampton Inn <span class="dist">· 1.5 mi</span></li>
+      </ul>
+    </div>
+    <div class="attr-tile">
+      <div class="attr-tile-icon" style="background:#faeeda">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ba7517" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path d="M12 8c-1.7 0-3 1.1-3 2.5s1.3 2.5 3 2.5 3 1.1 3 2.5-1.3 2.5-3 2.5"/><line x1="12" y1="6" x2="12" y2="8"/><line x1="12" y1="17" x2="12" y2="19"/></svg>
+      </div>
+      <div class="attr-tile-label">Golf</div>
+      <ul class="attr-tile-items">
+        <li>Idle Hour C.C. <span class="dist">· 3 mi</span></li>
+        <li>Bowden Golf Course <span class="dist">· 4 mi</span></li>
+        <li>Grey Rock Golf <span class="dist">· 8 mi</span></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <!-- YOUR AMENITIES -->
 <section class="amenities-section" id="amenities">
   <div class="text-center">
-    <div class="sect-label">What's Included</div>
-    <h2 class="sect-title">Your Amenities</h2>
-    <p class="sect-sub" style="margin:0 auto">Every office at Qbix Centre includes all of the following — no hidden fees, no add-ons.</p>
+    <div class="sect-label">{{ page_content['amenities-label'] if page_content and page_content.get('amenities-label') else "What's Included" }}</div>
+    <h2 class="sect-title">{{ page_content['amenities-heading'] if page_content and page_content.get('amenities-heading') else 'Your Amenities' }}</h2>
+    <p class="sect-sub" style="margin:0 auto">{{ page_content['amenities-sub'] if page_content and page_content.get('amenities-sub') else 'Every office at Qbix Centre includes all of the following — no hidden fees, no add-ons.' }}</p>
   </div>
   {% if site_amenities %}
   <div class="amenities-grid">
@@ -224,9 +377,9 @@
 
 <!-- CONTACT / CTA -->
 <section class="contact-section" id="contact">
-  <div class="sect-label" style="color:var(--gold2)">Ready to Get Started?</div>
-  <h2>Come See Qbix Centre</h2>
-  <p>No pressure — just come take a look and see if it's the right fit for your business. We're happy to show you around.</p>
+  <div class="sect-label" style="color:var(--gold2)">{{ page_content['contact-label'] if page_content and page_content.get('contact-label') else 'Ready to Get Started?' }}</div>
+  <h2>{{ page_content['contact-heading'] if page_content and page_content.get('contact-heading') else 'Come See Qbix Centre' }}</h2>
+  <p>{{ page_content['contact-sub'] if page_content and page_content.get('contact-sub') else "No pressure — just come take a look and see if it's the right fit for your business. We're happy to show you around." }}</p>
   <div class="contact-info">
     <a href="tel:4782162876">📞 (478) 216-2876</a>
     <a href="mailto:qbixcentre@outlook.com">✉️ qbixcentre@outlook.com</a>

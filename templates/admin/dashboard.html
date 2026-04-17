@@ -256,7 +256,7 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
 <header>
   <div class="logo">Qbix Centre <em>Management Portal</em></div>
   <nav>
-    <button class="nb on" onclick="showPage('website',this)">&#127758; Website</button>
+    <button class="nb on" onclick="showPage('website',this)">&#9998; Content</button>
     <button class="nb" id="nav-marketing-btn" onclick="showPage('marketing',this)">&#128200; Marketing <span id="contact-badge" style="display:none;background:var(--red);color:#fff;border-radius:10px;font-size:11px;font-weight:700;padding:1px 6px;margin-left:4px;vertical-align:middle">0</span></button>
     <button class="nb" onclick="showPage('media',this);loadMedia()">&#128444; Media</button>
     <button class="nb" onclick="showPage('offices',this)">Offices</button>
@@ -281,8 +281,8 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
 
 <!-- DASHBOARD -->
 <div class="page on" id="page-website">
-  <div class="pg-title">&#127758; Website <button class="help-btn" onclick="openHelp('help-website')" title="Help">?</button></div>
-  <div class="pg-sub">Edit public-facing page titles, descriptions, and H1 headers — changes go live instantly</div>
+  <div class="pg-title">&#9998; Content <button class="help-btn" onclick="openHelp('help-website')" title="Help">?</button></div>
+  <div class="pg-sub">Edit all public-facing text, page titles, descriptions, and H1 headers — changes go live instantly</div>
 
   <!-- SEO KEYWORDS (moved from Marketing) -->
   <div class="card" style="margin-bottom:16px">
@@ -310,6 +310,81 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
     <div id="site-pages-editor" style="display:flex;flex-direction:column;gap:16px"></div>
     <div style="margin-top:16px">
       <button onclick="saveSiteSettings()" id="site-save-btn" style="background:var(--acc);color:#000;border:none;border-radius:7px;padding:9px 28px;font-size:14px;font-weight:700;cursor:pointer">&#128190; Save All Pages</button>
+    </div>
+  </div>
+
+  <!-- PAGE CONTENT EDITOR -->
+  <div class="card" style="margin-top:16px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+      <div class="ct" style="margin-bottom:0">&#128396; Page Content <button class="help-btn" onclick="openHelp('help-website')" title="Help">?</button></div>
+      <button onclick="savePageContent()" style="background:var(--grn);border:none;border-radius:7px;color:#fff;font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:600;padding:8px 22px;cursor:pointer">&#128190; Save Content</button>
+    </div>
+    <div style="font-size:12px;color:var(--txt3);margin-bottom:16px">Edit the visible text on the home page — in page order. Changes go live instantly.</div>
+
+    <div style="display:flex;flex-direction:column;gap:18px">
+
+      <!-- HERO -->
+      <div style="border-left:3px solid var(--acc);padding-left:12px">
+        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--acc);margin-bottom:8px">Hero Section</div>
+        <label style="font-size:12px;color:var(--txt2);display:block;margin-bottom:4px">Main Headline</label>
+        <input id="pc-hero-h1" type="text" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;padding:8px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box" placeholder="Your Professional Home in North Macon, Georgia">
+        <label style="font-size:12px;color:var(--txt2);display:block;margin:8px 0 4px">Subtext</label>
+        <textarea id="pc-hero-sub" rows="2" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;padding:8px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box;resize:vertical" placeholder="Private offices and coworking space at Northside Crossing..."></textarea>
+      </div>
+
+      <!-- OFFICES SECTION -->
+      <div style="border-left:3px solid var(--blue);padding-left:12px">
+        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--blue);margin-bottom:8px">Open Offices Section</div>
+        <label style="font-size:12px;color:var(--txt2);display:block;margin-bottom:4px">Section Label (small text above heading)</label>
+        <input id="pc-offices-label" type="text" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;padding:8px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box" placeholder="Available Now">
+        <label style="font-size:12px;color:var(--txt2);display:block;margin:8px 0 4px">Heading</label>
+        <input id="pc-offices-heading" type="text" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;padding:8px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box" placeholder="Open Offices">
+        <label style="font-size:12px;color:var(--txt2);display:block;margin:8px 0 4px">Subtext</label>
+        <textarea id="pc-offices-sub" rows="2" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;padding:8px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box;resize:vertical" placeholder="These offices are ready for immediate occupancy..."></textarea>
+      </div>
+
+      <!-- GALLERY SECTION -->
+      <div style="border-left:3px solid var(--purple);padding-left:12px">
+        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--purple);margin-bottom:8px">Photo Gallery Section</div>
+        <label style="font-size:12px;color:var(--txt2);display:block;margin-bottom:4px">Section Label</label>
+        <input id="pc-gallery-label" type="text" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;padding:8px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box" placeholder="Inside Qbix Centre">
+        <label style="font-size:12px;color:var(--txt2);display:block;margin:8px 0 4px">Heading</label>
+        <input id="pc-gallery-heading" type="text" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;padding:8px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box" placeholder="See the Space">
+      </div>
+
+      <!-- NORTH MACON SECTION -->
+      <div style="border-left:3px solid var(--grn);padding-left:12px">
+        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--grn);margin-bottom:8px">Why North Macon Section</div>
+        <label style="font-size:12px;color:var(--txt2);display:block;margin-bottom:4px">Section Label</label>
+        <input id="pc-location-label" type="text" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;padding:8px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box" placeholder="Location Advantage">
+        <label style="font-size:12px;color:var(--txt2);display:block;margin:8px 0 4px">Heading</label>
+        <input id="pc-location-heading" type="text" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;padding:8px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box" placeholder="Why North Macon?">
+        <label style="font-size:12px;color:var(--txt2);display:block;margin:8px 0 4px">Subtext</label>
+        <textarea id="pc-location-sub" rows="2" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;padding:8px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box;resize:vertical" placeholder="Everything you need is minutes from your office door..."></textarea>
+      </div>
+
+      <!-- AMENITIES SECTION -->
+      <div style="border-left:3px solid var(--acc);padding-left:12px">
+        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--acc);margin-bottom:8px">Amenities Section</div>
+        <label style="font-size:12px;color:var(--txt2);display:block;margin-bottom:4px">Section Label</label>
+        <input id="pc-amenities-label" type="text" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;padding:8px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box" placeholder="What's Included">
+        <label style="font-size:12px;color:var(--txt2);display:block;margin:8px 0 4px">Heading</label>
+        <input id="pc-amenities-heading" type="text" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;padding:8px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box" placeholder="Your Amenities">
+        <label style="font-size:12px;color:var(--txt2);display:block;margin:8px 0 4px">Subtext</label>
+        <textarea id="pc-amenities-sub" rows="2" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;padding:8px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box;resize:vertical" placeholder="Every office at Qbix Centre includes all of the following..."></textarea>
+      </div>
+
+      <!-- CONTACT CTA SECTION -->
+      <div style="border-left:3px solid var(--red);padding-left:12px">
+        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--red);margin-bottom:8px">Contact CTA Section</div>
+        <label style="font-size:12px;color:var(--txt2);display:block;margin-bottom:4px">Section Label</label>
+        <input id="pc-contact-label" type="text" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;padding:8px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box" placeholder="Ready to Get Started?">
+        <label style="font-size:12px;color:var(--txt2);display:block;margin:8px 0 4px">Heading</label>
+        <input id="pc-contact-heading" type="text" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;padding:8px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box" placeholder="Come See Qbix Centre">
+        <label style="font-size:12px;color:var(--txt2);display:block;margin:8px 0 4px">Subtext</label>
+        <textarea id="pc-contact-sub" rows="2" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;padding:8px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box;resize:vertical" placeholder="No pressure — just come take a look..."></textarea>
+      </div>
+
     </div>
   </div>
 
@@ -1363,6 +1438,7 @@ function buildWebsite(){
   renderSitePages();
   renderHomeGallery();
   renderSiteAmenities();
+  loadPageContent();
 }
 
 function buildBookingsTab(){
@@ -3917,6 +3993,50 @@ async function saveSiteAmenities(){
     else toast('Save failed: '+d.error,'var(--red)');
   } catch(e){ toast('Save failed','var(--red)'); }
 }
+
+function loadPageContent(){
+  const pc = DB.pageContent || {};
+  const fields = [
+    'hero-h1','hero-sub',
+    'offices-label','offices-heading','offices-sub',
+    'gallery-label','gallery-heading',
+    'location-label','location-heading','location-sub',
+    'amenities-label','amenities-heading','amenities-sub',
+    'contact-label','contact-heading','contact-sub'
+  ];
+  fields.forEach(k => {
+    const el = document.getElementById('pc-'+k);
+    if(el) el.value = pc[k] || '';
+  });
+}
+
+async function savePageContent(){
+  const fields = [
+    'hero-h1','hero-sub',
+    'offices-label','offices-heading','offices-sub',
+    'gallery-label','gallery-heading',
+    'location-label','location-heading','location-sub',
+    'amenities-label','amenities-heading','amenities-sub',
+    'contact-label','contact-heading','contact-sub'
+  ];
+  const pc = {};
+  fields.forEach(k => {
+    const el = document.getElementById('pc-'+k);
+    if(el) pc[k] = el.value.trim();
+  });
+  DB.pageContent = pc;
+  try{
+    const r = await fetch('/admin/api/save',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(DB)
+    });
+    const d = await r.json();
+    if(d.ok) toast('Page content saved ✓');
+    else toast('Save failed: '+d.error,'var(--red)');
+  } catch(e){ toast('Save failed','var(--red)'); }
+}
+
+
 
 // ═══════════════════════════════════════════════════════
 // MEDIA LIBRARY
