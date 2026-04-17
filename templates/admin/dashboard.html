@@ -257,6 +257,7 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
   <div class="logo">Qbix Centre <em>Management Portal</em></div>
   <nav>
     <button class="nb on" onclick="showPage('website',this)">&#9998; Content</button>
+    <button class="nb" onclick="showPage('homepage',this);buildHomePage()">&#127968; Home Page</button>
     <button class="nb" id="nav-marketing-btn" onclick="showPage('marketing',this)">&#128200; Marketing <span id="contact-badge" style="display:none;background:var(--red);color:#fff;border-radius:10px;font-size:11px;font-weight:700;padding:1px 6px;margin-left:4px;vertical-align:middle">0</span></button>
     <button class="nb" onclick="showPage('media',this);loadMedia()">&#128444; Media</button>
     <button class="nb" onclick="showPage('offices',this)">Offices</button>
@@ -313,81 +314,6 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
     </div>
   </div>
 
-  <!-- PAGE CONTENT EDITOR -->
-  <div class="card" style="margin-top:16px">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-      <div class="ct" style="margin-bottom:0">&#128396; Page Content <button class="help-btn" onclick="openHelp('help-website')" title="Help">?</button></div>
-      <button onclick="savePageContent()" style="background:var(--grn);border:none;border-radius:7px;color:#fff;font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:600;padding:8px 22px;cursor:pointer">&#128190; Save Content</button>
-    </div>
-    <div style="font-size:12px;color:var(--txt3);margin-bottom:16px">Edit the visible text on the home page — in page order. Changes go live instantly.</div>
-
-    <div style="display:flex;flex-direction:column;gap:18px">
-
-      <!-- HERO -->
-      <div style="border-left:3px solid var(--acc);padding-left:12px">
-        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--acc);margin-bottom:8px">Hero Section</div>
-        <label style="font-size:12px;color:var(--txt2);display:block;margin-bottom:4px">Main Headline</label>
-        <input id="pc-hero-h1" type="text" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;padding:8px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box" placeholder="Your Professional Home in North Macon, Georgia">
-        <label style="font-size:12px;color:var(--txt2);display:block;margin:8px 0 4px">Subtext</label>
-        <textarea id="pc-hero-sub" rows="2" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;padding:8px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box;resize:vertical" placeholder="Private offices and coworking space at Northside Crossing..."></textarea>
-      </div>
-
-      <!-- OFFICES SECTION -->
-      <div style="border-left:3px solid var(--blue);padding-left:12px">
-        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--blue);margin-bottom:8px">Open Offices Section</div>
-        <label style="font-size:12px;color:var(--txt2);display:block;margin-bottom:4px">Section Label (small text above heading)</label>
-        <input id="pc-offices-label" type="text" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;padding:8px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box" placeholder="Available Now">
-        <label style="font-size:12px;color:var(--txt2);display:block;margin:8px 0 4px">Heading</label>
-        <input id="pc-offices-heading" type="text" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;padding:8px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box" placeholder="Open Offices">
-        <label style="font-size:12px;color:var(--txt2);display:block;margin:8px 0 4px">Subtext</label>
-        <textarea id="pc-offices-sub" rows="2" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;padding:8px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box;resize:vertical" placeholder="These offices are ready for immediate occupancy..."></textarea>
-      </div>
-
-      <!-- GALLERY SECTION -->
-      <div style="border-left:3px solid var(--purple);padding-left:12px">
-        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--purple);margin-bottom:8px">Photo Gallery Section</div>
-        <label style="font-size:12px;color:var(--txt2);display:block;margin-bottom:4px">Section Label</label>
-        <input id="pc-gallery-label" type="text" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;padding:8px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box" placeholder="Inside Qbix Centre">
-        <label style="font-size:12px;color:var(--txt2);display:block;margin:8px 0 4px">Heading</label>
-        <input id="pc-gallery-heading" type="text" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;padding:8px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box" placeholder="See the Space">
-      </div>
-
-      <!-- NORTH MACON SECTION -->
-      <div style="border-left:3px solid var(--grn);padding-left:12px">
-        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--grn);margin-bottom:8px">Why North Macon Section</div>
-        <label style="font-size:12px;color:var(--txt2);display:block;margin-bottom:4px">Section Label</label>
-        <input id="pc-location-label" type="text" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;padding:8px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box" placeholder="Location Advantage">
-        <label style="font-size:12px;color:var(--txt2);display:block;margin:8px 0 4px">Heading</label>
-        <input id="pc-location-heading" type="text" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;padding:8px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box" placeholder="Why North Macon?">
-        <label style="font-size:12px;color:var(--txt2);display:block;margin:8px 0 4px">Subtext</label>
-        <textarea id="pc-location-sub" rows="2" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;padding:8px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box;resize:vertical" placeholder="Everything you need is minutes from your office door..."></textarea>
-      </div>
-
-      <!-- AMENITIES SECTION -->
-      <div style="border-left:3px solid var(--acc);padding-left:12px">
-        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--acc);margin-bottom:8px">Amenities Section</div>
-        <label style="font-size:12px;color:var(--txt2);display:block;margin-bottom:4px">Section Label</label>
-        <input id="pc-amenities-label" type="text" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;padding:8px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box" placeholder="What's Included">
-        <label style="font-size:12px;color:var(--txt2);display:block;margin:8px 0 4px">Heading</label>
-        <input id="pc-amenities-heading" type="text" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;padding:8px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box" placeholder="Your Amenities">
-        <label style="font-size:12px;color:var(--txt2);display:block;margin:8px 0 4px">Subtext</label>
-        <textarea id="pc-amenities-sub" rows="2" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;padding:8px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box;resize:vertical" placeholder="Every office at Qbix Centre includes all of the following..."></textarea>
-      </div>
-
-      <!-- CONTACT CTA SECTION -->
-      <div style="border-left:3px solid var(--red);padding-left:12px">
-        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--red);margin-bottom:8px">Contact CTA Section</div>
-        <label style="font-size:12px;color:var(--txt2);display:block;margin-bottom:4px">Section Label</label>
-        <input id="pc-contact-label" type="text" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;padding:8px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box" placeholder="Ready to Get Started?">
-        <label style="font-size:12px;color:var(--txt2);display:block;margin:8px 0 4px">Heading</label>
-        <input id="pc-contact-heading" type="text" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;padding:8px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box" placeholder="Come See Qbix Centre">
-        <label style="font-size:12px;color:var(--txt2);display:block;margin:8px 0 4px">Subtext</label>
-        <textarea id="pc-contact-sub" rows="2" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;padding:8px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box;resize:vertical" placeholder="No pressure — just come take a look..."></textarea>
-      </div>
-
-    </div>
-  </div>
-
   <!-- NEWS CATEGORIES -->
   <div class="card" style="margin-top:16px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
@@ -429,10 +355,122 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
 
 </div>
 
+<!-- HOME PAGE EDITOR -->
+<div class="page" id="page-homepage">
+  <div class="pg-title">&#127968; Home Page <a href="/" target="_blank" style="font-size:13px;font-weight:400;color:var(--acc);text-decoration:none;margin-left:10px">View live &#8599;</a></div>
+  <div class="pg-sub">Edit all visible text on the public home page. Changes save when you click Save Home Page.</div>
+
+  <div style="display:flex;justify-content:flex-end;margin-bottom:16px">
+    <button onclick="saveHomePageContent()" style="background:var(--acc);color:#000;border:none;border-radius:8px;padding:10px 28px;font-size:14px;font-weight:700;cursor:pointer;font-family:'IBM Plex Sans',sans-serif">&#128190; Save Home Page</button>
+  </div>
+
+  <!-- HERO -->
+  <div class="card" style="margin-bottom:16px;background:linear-gradient(135deg,#1a2744 0%,#2d4a7a 100%);border-color:#2d4a7a">
+    <div style="font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:#c9a84c;font-weight:700;margin-bottom:14px">Hero Section</div>
+    <label style="font-size:12px;color:#a0b0cc;display:block;margin-bottom:6px">Main Headline</label>
+    <input id="hp-hero-h1" type="text" style="width:100%;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:8px;color:#fff;font-size:22px;font-weight:700;padding:12px 14px;font-family:'Playfair Display',serif;box-sizing:border-box" placeholder="Your Professional Home in North Macon, Georgia">
+    <label style="font-size:12px;color:#a0b0cc;display:block;margin:12px 0 6px">Subtext</label>
+    <textarea id="hp-hero-sub" rows="2" style="width:100%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:8px;color:rgba(255,255,255,.85);font-size:15px;padding:10px 14px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box;resize:vertical" placeholder="Private offices and coworking space at Northside Crossing..."></textarea>
+  </div>
+
+  <!-- AVAILABLE OFFICES -->
+  <div class="card" style="margin-bottom:16px">
+    <div style="font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--blue);font-weight:700;margin-bottom:14px">Open Offices Section</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div>
+        <label style="font-size:12px;color:var(--txt2);display:block;margin-bottom:4px">Section Label</label>
+        <input id="hp-offices-label" type="text" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;padding:8px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box" placeholder="Available Now">
+      </div>
+      <div>
+        <label style="font-size:12px;color:var(--txt2);display:block;margin-bottom:4px">Heading</label>
+        <input id="hp-offices-heading" type="text" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:16px;font-weight:700;padding:8px 10px;font-family:'Playfair Display',serif;box-sizing:border-box" placeholder="Open Offices">
+      </div>
+    </div>
+    <label style="font-size:12px;color:var(--txt2);display:block;margin:10px 0 4px">Subtext</label>
+    <textarea id="hp-offices-sub" rows="2" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;padding:8px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box;resize:vertical"></textarea>
+    <div style="margin-top:12px;padding:10px 14px;background:var(--sur2);border-radius:8px;font-size:12px;color:var(--txt3)">&#128203; Office cards are pulled live from your Offices tab — edit individual offices there.</div>
+  </div>
+
+  <!-- GALLERY -->
+  <div class="card" style="margin-bottom:16px">
+    <div style="font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--purple);font-weight:700;margin-bottom:14px">Photo Gallery Section</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div>
+        <label style="font-size:12px;color:var(--txt2);display:block;margin-bottom:4px">Section Label</label>
+        <input id="hp-gallery-label" type="text" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;padding:8px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box" placeholder="Inside Qbix Centre">
+      </div>
+      <div>
+        <label style="font-size:12px;color:var(--txt2);display:block;margin-bottom:4px">Heading</label>
+        <input id="hp-gallery-heading" type="text" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:16px;font-weight:700;padding:8px 10px;font-family:'Playfair Display',serif;box-sizing:border-box" placeholder="See the Space">
+      </div>
+    </div>
+    <div style="margin-top:12px;padding:10px 14px;background:var(--sur2);border-radius:8px;font-size:12px;color:var(--txt3)">&#128444; Gallery photos are managed in the Content tab → Home Page Gallery.</div>
+  </div>
+
+  <!-- WHY NORTH MACON -->
+  <div class="card" style="margin-bottom:16px">
+    <div style="font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--grn);font-weight:700;margin-bottom:14px">Why North Macon Section</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+      <div>
+        <label style="font-size:12px;color:var(--txt2);display:block;margin-bottom:4px">Section Label</label>
+        <input id="hp-location-label" type="text" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;padding:8px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box" placeholder="Location Advantage">
+      </div>
+      <div>
+        <label style="font-size:12px;color:var(--txt2);display:block;margin-bottom:4px">Heading</label>
+        <input id="hp-location-heading" type="text" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:16px;font-weight:700;padding:8px 10px;font-family:'Playfair Display',serif;box-sizing:border-box" placeholder="Why North Macon?">
+      </div>
+    </div>
+    <label style="font-size:12px;color:var(--txt2);display:block;margin-bottom:4px">Subtext</label>
+    <textarea id="hp-location-sub" rows="2" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;padding:8px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box;resize:vertical;margin-bottom:16px"></textarea>
+
+    <div style="font-size:12px;font-weight:600;color:var(--txt2);margin-bottom:10px;text-transform:uppercase;letter-spacing:.06em">Landmark Photos</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px" id="attr-photo-editor"></div>
+
+    <div style="font-size:12px;font-weight:600;color:var(--txt2);margin-bottom:10px;text-transform:uppercase;letter-spacing:.06em">Category Tiles</div>
+    <div id="attr-tiles-editor" style="display:flex;flex-direction:column;gap:12px"></div>
+  </div>
+
+  <!-- AMENITIES -->
+  <div class="card" style="margin-bottom:16px">
+    <div style="font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--acc);font-weight:700;margin-bottom:14px">Amenities Section</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div>
+        <label style="font-size:12px;color:var(--txt2);display:block;margin-bottom:4px">Section Label</label>
+        <input id="hp-amenities-label" type="text" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;padding:8px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box" placeholder="What's Included">
+      </div>
+      <div>
+        <label style="font-size:12px;color:var(--txt2);display:block;margin-bottom:4px">Heading</label>
+        <input id="hp-amenities-heading" type="text" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:16px;font-weight:700;padding:8px 10px;font-family:'Playfair Display',serif;box-sizing:border-box" placeholder="Your Amenities">
+      </div>
+    </div>
+    <label style="font-size:12px;color:var(--txt2);display:block;margin:10px 0 4px">Subtext</label>
+    <textarea id="hp-amenities-sub" rows="2" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;padding:8px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box;resize:vertical"></textarea>
+    <div style="margin-top:12px;padding:10px 14px;background:var(--sur2);border-radius:8px;font-size:12px;color:var(--txt3)">&#9998; Amenity items are managed in the Content tab → Your Amenities.</div>
+  </div>
+
+  <!-- CONTACT CTA -->
+  <div class="card" style="margin-bottom:16px;background:#0f1a2e;border-color:#1e2f4a">
+    <div style="font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--red);font-weight:700;margin-bottom:14px">Contact CTA Section</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div>
+        <label style="font-size:12px;color:#a0b0cc;display:block;margin-bottom:4px">Section Label</label>
+        <input id="hp-contact-label" type="text" style="width:100%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:6px;color:#c9a84c;font-size:13px;padding:8px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box" placeholder="Ready to Get Started?">
+      </div>
+      <div>
+        <label style="font-size:12px;color:#a0b0cc;display:block;margin-bottom:4px">Heading</label>
+        <input id="hp-contact-heading" type="text" style="width:100%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:6px;color:#fff;font-size:16px;font-weight:700;padding:8px 10px;font-family:'Playfair Display',serif;box-sizing:border-box" placeholder="Come See Qbix Centre">
+      </div>
+    </div>
+    <label style="font-size:12px;color:#a0b0cc;display:block;margin:10px 0 4px">Subtext</label>
+    <textarea id="hp-contact-sub" rows="2" style="width:100%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:6px;color:rgba(255,255,255,.8);font-size:13px;padding:8px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box;resize:vertical"></textarea>
+  </div>
+
+  <div style="display:flex;justify-content:flex-end;padding-bottom:24px">
+    <button onclick="saveHomePageContent()" style="background:var(--acc);color:#000;border:none;border-radius:8px;padding:10px 28px;font-size:14px;font-weight:700;cursor:pointer;font-family:'IBM Plex Sans',sans-serif">&#128190; Save Home Page</button>
+  </div>
 </div>
 
 <!-- MARKETING -->
-<div class="page" id="page-marketing">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
     <div class="pg-title" style="margin-bottom:0">&#128200; Marketing <button class="help-btn" onclick="openHelp('help-marketing')" title="Help">?</button></div>
     <button onclick="toggleLeadSourceEditor()" id="ls-gear-btn" title="Manage lead source options" style="background:var(--sur2);border:1px solid var(--bdr);border-radius:8px;padding:7px 14px;font-size:13px;color:var(--txt2);cursor:pointer;display:flex;align-items:center;gap:6px;font-family:'IBM Plex Sans',sans-serif">&#9881;&#65039; Lead Sources</button>
@@ -1438,8 +1476,124 @@ function buildWebsite(){
   renderSitePages();
   renderHomeGallery();
   renderSiteAmenities();
-  loadPageContent();
 }
+
+// ═══════════════════════════════════════════════════════
+// HOME PAGE EDITOR
+// ═══════════════════════════════════════════════════════
+
+const _DEFAULT_TILES = [
+  { key:'dining',   label:'Dining',   iconBg:'#faeeda', items:['Circa Restaurant · 0.5 mi','First Watch · 0.3 mi','Panera Bread · 0.4 mi','Chick-fil-A · 0.6 mi'] },
+  { key:'shopping', label:'Shopping', iconBg:'#e1f5ee', items:['Shoppes at Riverside · 0.4 mi','Target · 1.2 mi','Kroger · 0.8 mi','Belk · 0.5 mi'] },
+  { key:'coffee',   label:'Coffee',   iconBg:'#e6f1fb', items:['Starbucks · 0.3 mi','Dunkin\' · 0.6 mi','Bad Bear Coffee · 1.2 mi'] },
+  { key:'banking',  label:'Banking',  iconBg:'#eeedfe', items:['Wells Fargo · 0.3 mi','Bank of America · 0.5 mi','Renasant Bank · 0.4 mi','Synovus Bank · 0.6 mi'] },
+  { key:'fitness',  label:'Fitness',  iconBg:'#eaf3de', items:['Planet Fitness · 0.8 mi','Orangetheory · 1.1 mi','Anytime Fitness · 1.4 mi'] },
+  { key:'hotels',   label:'Hotels',   iconBg:'#faece7', items:['Hilton Garden Inn · 1.0 mi','Courtyard Marriott · 1.3 mi','Hampton Inn · 1.5 mi'] },
+  { key:'golf',     label:'Golf',     iconBg:'#faeeda', items:['Idle Hour C.C. · 3 mi','Bowden Golf Course · 4 mi','Grey Rock Golf · 8 mi'] },
+];
+
+const _DEFAULT_ATTR_PHOTOS = [
+  { caption:'Shoppes at Riverside Crossing · 0.4 mi', url:'', public_id:'' },
+  { caption:'Northside Drive Corridor · 0.2 mi',      url:'', public_id:'' },
+  { caption:'Idle Hour Country Club · 3 mi',           url:'', public_id:'' },
+];
+
+let _attrPhotos = [];
+let _attrTiles  = [];
+
+function buildHomePage(){
+  const pc = DB.pageContent || {};
+  const textFields = [
+    'hero-h1','hero-sub',
+    'offices-label','offices-heading','offices-sub',
+    'gallery-label','gallery-heading',
+    'location-label','location-heading','location-sub',
+    'amenities-label','amenities-heading','amenities-sub',
+    'contact-label','contact-heading','contact-sub'
+  ];
+  textFields.forEach(k => {
+    const el = document.getElementById('hp-'+k);
+    if(el) el.value = pc[k] || '';
+  });
+  _attrPhotos = JSON.parse(JSON.stringify(DB.attractionPhotos || _DEFAULT_ATTR_PHOTOS));
+  _attrTiles  = JSON.parse(JSON.stringify(DB.attractionTiles  || _DEFAULT_TILES));
+  renderAttrPhotoEditor();
+  renderAttrTilesEditor();
+}
+
+function renderAttrPhotoEditor(){
+  const el = document.getElementById('attr-photo-editor');
+  if(!el) return;
+  el.innerHTML = _attrPhotos.map((p,i) => `
+    <div style="background:var(--sur2);border:1px solid var(--bdr);border-radius:10px;overflow:hidden">
+      <div style="height:110px;position:relative;background:#1b1f2b;display:flex;align-items:center;justify-content:center">
+        ${p.url
+          ? `<img src="${p.url.replace('/upload/','/upload/ar_3:2,c_fill,w_400/')}" style="width:100%;height:110px;object-fit:cover;display:block">`
+          : `<div style="color:var(--txt3);font-size:12px;text-align:center;padding:8px">No photo yet</div>`
+        }
+        <button onclick="openPickerFor('attr-photo-${i}')" style="position:absolute;bottom:6px;right:6px;background:var(--blue);border:none;border-radius:6px;color:#fff;font-size:11px;font-weight:600;padding:4px 10px;cursor:pointer">&#128444; Change</button>
+      </div>
+      <div style="padding:8px">
+        <input value="${p.caption||''}" oninput="_attrPhotos[${i}].caption=this.value"
+          style="width:100%;background:var(--sur);border:1px solid var(--bdr);border-radius:5px;color:var(--txt);font-size:12px;padding:6px 8px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box"
+          placeholder="Caption · distance">
+      </div>
+    </div>`).join('');
+}
+
+function renderAttrTilesEditor(){
+  const el = document.getElementById('attr-tiles-editor');
+  if(!el) return;
+  el.innerHTML = _attrTiles.map((tile,ti) => `
+    <div style="background:var(--sur2);border:1px solid var(--bdr);border-radius:10px;padding:14px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <div style="width:32px;height:32px;border-radius:50%;background:${tile.iconBg||'#faeeda'};flex-shrink:0"></div>
+        <input value="${tile.label}" oninput="_attrTiles[${ti}].label=this.value"
+          style="flex:1;background:var(--sur);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:14px;font-weight:700;padding:6px 10px;font-family:'IBM Plex Sans',sans-serif">
+      </div>
+      <div id="tile-items-${ti}" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px">
+        ${tile.items.map((item,ii) => `
+          <div style="display:flex;gap:6px;align-items:center">
+            <input value="${item}" oninput="_attrTiles[${ti}].items[${ii}]=this.value"
+              style="flex:1;background:var(--sur);border:1px solid var(--bdr);border-radius:5px;color:var(--txt);font-size:12px;padding:5px 8px;font-family:'IBM Plex Sans',sans-serif">
+            <button onclick="_attrTiles[${ti}].items.splice(${ii},1);renderAttrTilesEditor()"
+              style="background:transparent;border:1px solid var(--red);border-radius:5px;color:var(--red);font-size:12px;padding:4px 8px;cursor:pointer;flex-shrink:0">&#x2715;</button>
+          </div>`).join('')}
+      </div>
+      <button onclick="_attrTiles[${ti}].items.push('New place · 0 mi');renderAttrTilesEditor()"
+        style="background:transparent;border:1px solid var(--bdr);border-radius:6px;color:var(--txt2);font-size:12px;padding:5px 14px;cursor:pointer">+ Add place</button>
+    </div>`).join('');
+}
+
+async function saveHomePageContent(){
+  const textFields = [
+    'hero-h1','hero-sub',
+    'offices-label','offices-heading','offices-sub',
+    'gallery-label','gallery-heading',
+    'location-label','location-heading','location-sub',
+    'amenities-label','amenities-heading','amenities-sub',
+    'contact-label','contact-heading','contact-sub'
+  ];
+  const pc = DB.pageContent || {};
+  textFields.forEach(k => {
+    const el = document.getElementById('hp-'+k);
+    if(el) pc[k] = el.value.trim();
+  });
+  DB.pageContent       = pc;
+  DB.attractionPhotos  = _attrPhotos;
+  DB.attractionTiles   = _attrTiles;
+  try{
+    const r = await fetch('/admin/api/save',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(DB)
+    });
+    const d = await r.json();
+    if(d.ok) toast('Home page saved ✓');
+    else toast('Save failed: '+d.error,'var(--red)');
+  } catch(e){ toast('Save failed','var(--red)'); }
+}
+
+
 
 function buildBookingsTab(){
   const today=new Date().toISOString().slice(0,10);
@@ -3994,49 +4148,6 @@ async function saveSiteAmenities(){
   } catch(e){ toast('Save failed','var(--red)'); }
 }
 
-function loadPageContent(){
-  const pc = DB.pageContent || {};
-  const fields = [
-    'hero-h1','hero-sub',
-    'offices-label','offices-heading','offices-sub',
-    'gallery-label','gallery-heading',
-    'location-label','location-heading','location-sub',
-    'amenities-label','amenities-heading','amenities-sub',
-    'contact-label','contact-heading','contact-sub'
-  ];
-  fields.forEach(k => {
-    const el = document.getElementById('pc-'+k);
-    if(el) el.value = pc[k] || '';
-  });
-}
-
-async function savePageContent(){
-  const fields = [
-    'hero-h1','hero-sub',
-    'offices-label','offices-heading','offices-sub',
-    'gallery-label','gallery-heading',
-    'location-label','location-heading','location-sub',
-    'amenities-label','amenities-heading','amenities-sub',
-    'contact-label','contact-heading','contact-sub'
-  ];
-  const pc = {};
-  fields.forEach(k => {
-    const el = document.getElementById('pc-'+k);
-    if(el) pc[k] = el.value.trim();
-  });
-  DB.pageContent = pc;
-  try{
-    const r = await fetch('/admin/api/save',{
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify(DB)
-    });
-    const d = await r.json();
-    if(d.ok) toast('Page content saved ✓');
-    else toast('Save failed: '+d.error,'var(--red)');
-  } catch(e){ toast('Save failed','var(--red)'); }
-}
-
-
 
 // ═══════════════════════════════════════════════════════
 // MEDIA LIBRARY
@@ -4394,7 +4505,7 @@ function renderPickerGrid(assets){
 }
 
 function togglePickerCell(public_id){
-  const isSingle = (_pickerTarget === 'nl-hero');
+  const isSingle = (_pickerTarget === 'nl-hero' || (_pickerTarget && _pickerTarget.startsWith('attr-photo-')));
   if(isSingle){
     // Single select for hero
     _pickerSelected.clear();
@@ -4469,6 +4580,16 @@ async function confirmPickerSelection(){
     }
     renderHomeGallery();
     toast(selected.length+' photo'+(selected.length===1?'':'s')+' added — click Save Gallery to publish ✓');
+  } else if(_pickerTarget && _pickerTarget.startsWith('attr-photo-')){
+    const idx = parseInt(_pickerTarget.split('-').pop(), 10);
+    if(!isNaN(idx) && selected.length > 0){
+      const asset = selected[0];
+      _attrPhotos[idx] = Object.assign({}, _attrPhotos[idx]||{}, {
+        url: asset.url, public_id: asset.public_id
+      });
+      renderAttrPhotoEditor();
+      toast('Landmark photo updated — click Save Home Page to publish ✓');
+    }
   }
 }
 

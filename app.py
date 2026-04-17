@@ -535,7 +535,9 @@ def home():
         canonical_url=APP_URL+'/',
         og_image=og_image,
         ga_id=GA_MEASUREMENT_ID,
-        page_content=data.get('pageContent', {}))
+        page_content=data.get('pageContent', {}),
+        attraction_photos=data.get('attractionPhotos', []),
+        attraction_tiles=data.get('attractionTiles', []))
 
 @app.route('/offices')
 def offices_page():
