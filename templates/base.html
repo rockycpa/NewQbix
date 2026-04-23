@@ -95,8 +95,9 @@ img{max-width:100%}
 
 /* NAV */
 nav.site-nav{background:var(--navy);padding:0 5%;display:flex;align-items:center;height:70px;position:sticky;top:0;z-index:100;box-shadow:0 2px 20px rgba(0,0,0,.3);gap:12px}
-.nav-logo{font-family:'Playfair Display',serif;font-size:22px;color:var(--gold);font-weight:700;flex:1;min-width:0;display:flex;align-items:center;gap:10px;text-decoration:none;white-space:nowrap}.nav-logo-text{font-family:'Playfair Display',serif;font-size:22px;color:var(--gold);white-space:nowrap}
-.nav-logo span{color:var(--white);font-size:13px;font-family:'Inter',sans-serif;font-weight:300;margin-left:8px;opacity:.7;white-space:nowrap}
+.nav-logo{flex:1;min-width:0;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;text-decoration:none;line-height:1.1}
+.nav-logo-text{font-family:'Playfair Display',serif;font-size:22px;color:var(--gold);font-weight:700;white-space:nowrap;line-height:1.1}
+.nav-logo .nav-city{color:rgba(255,255,255,.7);font-size:12px;font-family:'Inter',sans-serif;font-weight:400;letter-spacing:.04em;white-space:nowrap;margin-top:3px}
 .nav-links{display:flex;gap:8px;align-items:center;flex-shrink:0}
 .nav-links a{color:rgba(255,255,255,.8);font-size:13px;font-weight:500;padding:6px 10px;border-radius:6px;transition:all .2s}
 .nav-links a:hover,.nav-links a.active{color:#fff;background:rgba(255,255,255,.1)}
@@ -108,14 +109,15 @@ nav.site-nav{background:var(--navy);padding:0 5%;display:flex;align-items:center
 /* NAV MOBILE — tighten for phones like S24 Ultra (~412px) */
 @media(max-width:700px){
   nav.site-nav{padding:0 4%}
-  .nav-logo-text{font-size:19px}
-  .nav-logo span.nav-city{display:none}  /* hide "Macon, GA" subtitle */
+  .nav-logo-text{font-size:18px}
+  .nav-logo .nav-city{font-size:11px;margin-top:2px}
   .nav-cta{padding:7px 14px!important;font-size:12px!important}
   .nav-cta-full{display:none}
   .nav-cta-short{display:inline}
 }
 @media(max-width:360px){
-  .nav-logo-text{font-size:17px}
+  .nav-logo-text{font-size:16px}
+  .nav-logo .nav-city{font-size:10px}
 }
 
 /* STICKY CTA BAR */
