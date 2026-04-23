@@ -6,6 +6,11 @@
 <title>{% block title %}{{ page_title if page_title else 'Qbix Centre &mdash; Professional Coworking in Macon, GA' }}{% endblock %}</title>
 <meta name="description" content="{% block description %}{{ page_desc if page_desc else 'Qbix Centre offers private and coworking office spaces in Macon, Georgia. Flexible memberships starting at $425/month.' }}{% endblock %}">
 
+{# ── FAVICON ───────────────────────────────────────────── #}
+<link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='img/favicon.svg') }}">
+<link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='img/favicon.ico') }}">
+<link rel="apple-touch-icon" href="{{ url_for('static', filename='img/favicon.svg') }}">
+
 {# ── CANONICAL ─────────────────────────────────────────── #}
 {% if canonical_url %}
 <link rel="canonical" href="{{ canonical_url }}">
@@ -89,15 +94,29 @@ a{color:var(--navy);text-decoration:none}
 img{max-width:100%}
 
 /* NAV */
-nav.site-nav{background:var(--navy);padding:0 5%;display:flex;align-items:center;height:70px;position:sticky;top:0;z-index:100;box-shadow:0 2px 20px rgba(0,0,0,.3)}
-.nav-logo{font-family:'Playfair Display',serif;font-size:22px;color:var(--gold);font-weight:700;flex:1;display:flex;align-items:center;gap:10px;text-decoration:none}.nav-logo-text{font-family:'Playfair Display',serif;font-size:22px;color:var(--gold)}
-.nav-logo span{color:var(--white);font-size:13px;font-family:'Inter',sans-serif;font-weight:300;margin-left:8px;opacity:.7}
-.nav-links{display:flex;gap:8px;align-items:center}
+nav.site-nav{background:var(--navy);padding:0 5%;display:flex;align-items:center;height:70px;position:sticky;top:0;z-index:100;box-shadow:0 2px 20px rgba(0,0,0,.3);gap:12px}
+.nav-logo{font-family:'Playfair Display',serif;font-size:22px;color:var(--gold);font-weight:700;flex:1;min-width:0;display:flex;align-items:center;gap:10px;text-decoration:none;white-space:nowrap}.nav-logo-text{font-family:'Playfair Display',serif;font-size:22px;color:var(--gold);white-space:nowrap}
+.nav-logo span{color:var(--white);font-size:13px;font-family:'Inter',sans-serif;font-weight:300;margin-left:8px;opacity:.7;white-space:nowrap}
+.nav-links{display:flex;gap:8px;align-items:center;flex-shrink:0}
 .nav-links a{color:rgba(255,255,255,.8);font-size:13px;font-weight:500;padding:6px 10px;border-radius:6px;transition:all .2s}
 .nav-links a:hover,.nav-links a.active{color:#fff;background:rgba(255,255,255,.1)}
-.nav-cta{background:var(--gold)!important;color:var(--navy)!important;font-weight:600!important;padding:8px 18px!important}
+.nav-cta{background:var(--gold)!important;color:var(--navy)!important;font-weight:600!important;padding:8px 18px!important;white-space:nowrap}
 .nav-cta:hover{background:var(--gold2)!important}
 .nav-admin{color:rgba(255,255,255,.4)!important;font-size:12px!important}
+.nav-cta-short{display:none}
+
+/* NAV MOBILE — tighten for phones like S24 Ultra (~412px) */
+@media(max-width:700px){
+  nav.site-nav{padding:0 4%}
+  .nav-logo-text{font-size:19px}
+  .nav-logo span.nav-city{display:none}  /* hide "Macon, GA" subtitle */
+  .nav-cta{padding:7px 14px!important;font-size:12px!important}
+  .nav-cta-full{display:none}
+  .nav-cta-short{display:inline}
+}
+@media(max-width:360px){
+  .nav-logo-text{font-size:17px}
+}
 
 /* STICKY CTA BAR */
 .sticky-cta{background:#1e3058;border-bottom:1px solid rgba(201,168,76,.25);padding:9px 5%;display:flex;align-items:center;justify-content:center;gap:18px;flex-wrap:wrap;position:sticky;top:70px;z-index:99}
@@ -210,14 +229,14 @@ footer a:hover{color:var(--gold)}
 <body>
 
 <nav class="site-nav">
-  <a href="/" class="nav-logo"><span class="nav-logo-text">Qbix Centre</span><span>Macon, GA</span></a>
+  <a href="/" class="nav-logo"><span class="nav-logo-text">Qbix Centre</span><span class="nav-city">Macon, GA</span></a>
   <div class="nav-links">
     <a href="/" class="{% if request.endpoint == 'home' %}active{% endif %}">Home</a>
     <a href="/#offices">Offices</a>
     <a href="/#amenities">Amenities</a>
     <a href="/news" class="{% if request.endpoint == 'news' %}active{% endif %}">News</a>
     <a href="/contact" class="{% if request.endpoint == 'contact' %}active{% endif %}">Contact</a>
-    <a href="/book" class="btn btn-gold btn-sm nav-cta">Book Conference Room</a>
+    <a href="/book" class="btn btn-gold btn-sm nav-cta"><span class="nav-cta-full">Book Conference Room</span><span class="nav-cta-short">Book Room</span></a>
     <a href="/admin" class="nav-admin">Admin</a>
   </div>
 </nav>

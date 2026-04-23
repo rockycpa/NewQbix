@@ -17,8 +17,9 @@
 .office-cards{display:flex;flex-wrap:wrap;gap:20px;justify-content:center}
 .office-card{background:#fff;border:1px solid var(--border);border-radius:var(--r);overflow:hidden;transition:all .2s;display:flex;flex-direction:column;width:280px;flex-shrink:0}
 .office-card:hover{box-shadow:0 8px 30px rgba(0,0,0,.1);transform:translateY(-2px)}
-.office-card-photo{height:190px;background:var(--border);overflow:hidden}
-.office-card-photo img{width:100%;height:100%;object-fit:cover;display:block}
+.office-card-photo{height:190px;background:var(--border);overflow:hidden;display:block}
+.office-card-photo img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .3s ease}
+.office-card-photo:hover img{transform:scale(1.03)}
 .office-card-photo .no-photo{width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--txt2);font-size:13px;background:#f0ede8}
 .office-card-body{padding:18px 20px;flex:1;display:flex;flex-direction:column}
 .office-card-num{font-family:'Playfair Display',serif;font-size:22px;color:var(--navy);margin-bottom:4px}
@@ -130,7 +131,7 @@
   <div class="office-cards">
     {% for o in vacant %}
     <div class="office-card">
-      <div class="office-card-photo">
+      <a href="/offices/{{ o.id }}" class="office-card-photo" aria-label="View details for Office {{ o.num }}">
         {% set hero = o.photos[0] if o.photos else none %}
         {% if hero and hero.url %}
           <img src="{{ hero.url.replace('/upload/', '/upload/ar_4:3,c_fill,w_600/') }}"
@@ -139,7 +140,7 @@
         {% else %}
           <div class="no-photo">📷 Photo coming soon</div>
         {% endif %}
-      </div>
+      </a>
       <div class="office-card-body">
         <div class="office-card-num">Office {{ o.num }}</div>
         <div class="office-card-size">{{ o.sqft }}{% if o.dormer %} + {{ o.dormer }} dormer{% endif %} sq ft</div>

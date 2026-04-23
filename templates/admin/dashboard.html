@@ -4291,15 +4291,23 @@ async function confirmDeleteMedia(){
 
 function getUsedPublicIds(){
   const used = new Set();
-  // Collect from all office photos
+  const collectFromPost = post => {
+    if(!post) return;
+    if(post.heroPhoto?.public_id) used.add(post.heroPhoto.public_id);
+    (post.galleryPhotos||[]).forEach(p=>{ if(p?.public_id) used.add(p.public_id); });
+  };
+  // All office photos
   (DB.offices||[]).forEach(o=>{
-    (o.photos||[]).forEach(p=>{ if(p.public_id) used.add(p.public_id); });
+    (o.photos||[]).forEach(p=>{ if(p?.public_id) used.add(p.public_id); });
   });
-  // Collect from all news/newsletter posts
-  (DB.posts||[]).forEach(post=>{
-    if(post.heroPhoto?.public_id)   used.add(post.heroPhoto.public_id);
-    (post.galleryPhotos||[]).forEach(p=>{ if(p.public_id) used.add(p.public_id); });
-  });
+  // News posts — public /news page (DB.posts)
+  (DB.posts||[]).forEach(collectFromPost);
+  // Newsletters — sent to members (DB.newsletter) — includes drafts + scheduled
+  (DB.newsletter||[]).forEach(collectFromPost);
+  // Home page slideshow
+  (DB.homeGallery||[]).forEach(p=>{ if(p?.public_id) used.add(p.public_id); });
+  // "Why North Macon" landmark photo cards
+  (DB.attractionPhotos||[]).forEach(p=>{ if(p?.public_id) used.add(p.public_id); });
   return used;
 }
 
@@ -4330,7 +4338,7 @@ async function runOrphanScan(){
     scanMsg.style.display='none';
     if(!orphans.length){
       summary.style.display='block';
-      summary.innerHTML='<span style="color:var(--grn)">&#10003; No orphaned photos found — everything in Cloudinary is linked to an office or news post.</span>';
+      summary.innerHTML='<span style="color:var(--grn)">&#10003; No orphaned photos found — every photo in Cloudinary is linked to an office, news post, newsletter, home gallery, or landmark card.</span>';
       footer.style.display='flex';
       document.getElementById('orphan-delete-btn').style.display='none';
       document.getElementById('orphan-footer-count').textContent='';
@@ -4339,7 +4347,7 @@ async function runOrphanScan(){
     document.getElementById('orphan-delete-btn').style.display='';
     const totalKb = orphans.reduce((s,a)=>s+(a.bytes||0),0);
     summary.style.display='block';
-    summary.innerHTML='Found <strong style="color:var(--acc)">'+orphans.length+' orphaned photo'+(orphans.length===1?'':'s')+'</strong> not linked to any office or news post — <span style="color:var(--txt3)">'+Math.round(totalKb/1024)+'KB total</span>. Check boxes to select, then delete.';
+    summary.innerHTML='Found <strong style="color:var(--acc)">'+orphans.length+' orphaned photo'+(orphans.length===1?'':'s')+'</strong> not linked to any office, news post, newsletter, home gallery, or landmark card — <span style="color:var(--txt3)">'+Math.round(totalKb/1024)+'KB total</span>. Check boxes to select, then delete.';
     selectbar.style.display='flex';
     grid.innerHTML = orphans.map(a=>{
       const displayUrl = cloudinaryUrl(a.url,{ar:'4:3',c:'fill',w:300});
@@ -4972,7 +4980,7 @@ function loadNlPhotos(post){
     <p>Click any photo to open the edit panel. Alt text is for accessibility and SEO. Caption is optional — currently not displayed publicly but stored for future use.</p>
 
     <h3>Clean Up Orphans</h3>
-    <p>Scans Cloudinary and compares against every photo reference in the database (office photos, news post photos, home gallery). Anything not referenced anywhere is shown as an "orphan."</p>
+    <p>Scans Cloudinary and compares against every photo reference in the database — office photos, news post hero &amp; gallery photos, newsletter hero &amp; gallery photos (including drafts and scheduled), the home-page slideshow, and the "Why North Macon" landmark cards. Anything not referenced anywhere is shown as an "orphan."</p>
     <ul class="help-workflow">
       <li>Click <strong>Clean Up Orphans</strong> in the toolbar</li>
       <li>Review the thumbnails — these are photos not linked to anything</li>
