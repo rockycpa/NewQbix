@@ -78,6 +78,19 @@ _pending_2fa   = {}   # session_id -> {code, expires, purpose}
 _booking_tokens = {}  # token -> member_email
 _onboard_tokens = {}  # token -> {name, email, expires}
 
+# ── Email sending ─────────────────────────────────────────────────────────────
+# Email delivery from the app has been disabled. All outbound email is now
+# handled manually through the Notify section (which opens the admin's email
+# client with recipients pre-populated). This stub keeps call sites intact so
+# the app does not crash if an old code path references it. Returns False so
+# any caller that counts successes will see zero sent.
+def send_email(to_email, to_name, subject, body_html):
+    app.logger.info(
+        'send_email stub invoked; app-side email is disabled. '
+        'to=%s subject=%r', to_email, subject
+    )
+    return False
+
 # ── Default data ──────────────────────────────────────────────────────────────
 DEFAULT_DATA = {
     "offices": [
