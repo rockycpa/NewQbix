@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% block title %}SMS Opt-In — Qbix Centre{% endblock %}
+{% block description %}Qbix Centre SMS consent and opt-in flow for member room booking verification.{% endblock %}
+
+{% block content %}
+
+<div class="hero" style="padding:60px 5% 50px">
+  <h1>Member Room <span>Booking</span></h1>
+  <p>Registered Qbix Centre members can reserve a conference room below. We'll send a one-time SMS verification code to confirm your membership before granting access.</p>
+</div>
+
+<section style="max-width:600px;margin:0 auto;padding:50px 5%">
+
+  <div class="section-label" style="text-align:center">Step 1 of 2</div>
+  <h2 class="section-title" style="text-align:center;margin-bottom:8px">Verify Your Membership</h2>
+  <p class="section-sub" style="text-align:center;margin:0 auto 36px">
+    Enter the mobile number on file with your Qbix Centre membership. We'll text you a verification code.
+  </p>
+
+  <div class="form-card">
+
+    <div class="form-group">
+      <label for="phone">Mobile Phone Number *</label>
+      <input
+        type="tel"
+        id="phone"
+        name="phone"
+        placeholder="(478) 000-0000"
+        style="font-size:16px;padding:12px 16px"
+      >
+    </div>
+
+    <!-- ── SMS CONSENT NOTICE ─────────────────────────────────── -->
+    <div style="
+      background:#f5f7fa;
+      border:1px solid #dde2ef;
+      border-left:4px solid var(--gold);
+      border-radius:8px;
+      padding:14px 16px;
+      margin-bottom:20px;
+      font-size:13px;
+      color:#444;
+      line-height:1.65;
+    ">
+      <strong style="color:var(--navy);display:block;margin-bottom:4px">&#128241; SMS Consent Notice</strong>
+      By entering your phone number and clicking <strong>Send Verification Code</strong>, you agree to receive
+      SMS text messages from <strong>Qbix Centre</strong> for the following purposes:
+      <ul style="margin:8px 0 8px 18px;color:#444">
+        <li>A one-time membership verification code</li>
+        <li>A booking confirmation once your reservation is complete</li>
+      </ul>
+      Message frequency: 1&ndash;3 messages per booking session.
+      Message and data rates may apply.
+      Reply <strong>STOP</strong> to opt out at any time.
+      Reply <strong>HELP</strong> for assistance.
+      View our <a href="/privacy" style="color:var(--navy);font-weight:600;text-decoration:underline">Privacy Policy</a>.
+      <br><br>
+      <em style="color:#888;font-size:12px">No messages will be sent until you click the button below.</em>
+    </div>
+    <!-- ── END CONSENT NOTICE ─────────────────────────────────── -->
+
+    <button
+      class="btn btn-gold"
+      style="width:100%;padding:14px;font-size:16px;border:none;cursor:pointer"
+      onclick="handleSubmit()"
+    >
+      Send Verification Code
+    </button>
+
+    <p style="margin-top:14px;font-size:12px;color:var(--txt2);text-align:center">
+      Must be a registered Qbix Centre member to proceed.
+      <a href="/contact" style="color:var(--navy);font-weight:600">Contact us</a> to enquire about membership.
+    </p>
+
+  </div>
+
+  <!-- ── WHAT HAPPENS NEXT ───────────────────────────────────── -->
+  <div style="margin-top:48px">
+    <div class="section-label" style="text-align:center">How It Works</div>
+    <div class="grid-3" style="margin-top:20px;gap:16px">
+
+      <div class="card" style="text-align:center;padding:22px 16px">
+        <div class="card-icon">&#128241;</div>
+        <h3 style="font-size:16px">Enter Your Number</h3>
+        <p>Provide the mobile number linked to your Qbix Centre membership and consent to SMS.</p>
+      </div>
+
+      <div class="card" style="text-align:center;padding:22px 16px">
+        <div class="card-icon">&#128274;</div>
+        <h3 style="font-size:16px">Receive a Code</h3>
+        <p>If your number matches our membership roll, we'll text you a one-time verification code.</p>
+      </div>
+
+      <div class="card" style="text-align:center;padding:22px 16px">
+        <div class="card-icon">&#128197;</div>
+        <h3 style="font-size:16px">Book Your Room</h3>
+        <p>Enter the code to access the reservation system and confirm your booking.</p>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── SAMPLE MESSAGES ────────────────────────────────────── -->
+  <div style="margin-top:48px">
+    <div class="section-label" style="text-align:center">Sample SMS Messages</div>
+    <h3 class="section-title" style="font-size:22px;text-align:center;margin-bottom:20px">What You'll Receive</h3>
+
+    <!-- Verification code sample -->
+    <div style="
+      background:var(--navy);
+      border-radius:12px;
+      padding:20px 24px;
+      margin-bottom:16px;
+      color:#fff;
+      font-size:14px;
+      line-height:1.7;
+    ">
+      <div style="font-size:11px;color:var(--gold);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">Verification Code Message</div>
+      <strong>Qbix Centre:</strong> Your verification code is <strong>572839</strong>.
+      Enter this on the website to access the reservation system.
+      Expires in 10 min. Do not share it.<br>
+      Reply STOP to opt out. Msg &amp; data rates may apply.
+    </div>
+
+    <!-- Booking confirmation sample -->
+    <div style="
+      background:var(--navy);
+      border-radius:12px;
+      padding:20px 24px;
+      color:#fff;
+      font-size:14px;
+      line-height:1.7;
+    ">
+      <div style="font-size:11px;color:var(--gold);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">Booking Confirmation Message</div>
+      <strong>Qbix Centre:</strong> Your reservation is confirmed!<br>
+      Room: Meeting Room B &nbsp;|&nbsp; Date: June 11, 2026 &nbsp;|&nbsp; Time: 10:00 AM &ndash; 12:00 PM<br>
+      Booking Ref: QBX-3041<br>
+      Reply STOP to opt out. Msg &amp; data rates may apply.
+    </div>
+
+    <p style="margin-top:16px;font-size:12px;color:var(--txt2);text-align:center">
+      Message frequency: 1&ndash;3 messages per booking session.
+      You will not receive marketing or promotional messages.
+    </p>
+  </div>
+
+</section>
+
+<script>
+function handleSubmit() {
+  const phone = document.getElementById('phone').value.trim();
+  if (!phone) {
+    alert('Please enter your mobile phone number.');
+    return;
+  }
+  // In production this posts to the backend for membership verification
+  alert('Demo only: In the live system, your number would be checked against the Qbix Centre membership roll and a verification code sent if matched.');
+}
+</script>
+
+{% endblock %}
