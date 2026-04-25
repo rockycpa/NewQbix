@@ -203,6 +203,18 @@ def load_data():
                     d = json.loads(json.dumps(DEFAULT_DATA))
         # Migrate: ensure new fields exist
         d.setdefault('bookings', [])
+        # Backfill resource fields on bookings created before multi-resource
+        # support — every legacy booking is the conference room.
+        # Also zero-pad start/end times: legacy records used "7:00" but the
+        # new 15-min picker emits "07:00", and conflict checks compare strings
+        # — mismatched padding sorts wrong (e.g. "08:00" < "7:00").
+        for b in d.get('bookings', []):
+            b.setdefault('resourceType', 'conference_room')
+            b.setdefault('resourceId',   'conference_room')
+            for k in ('start', 'end'):
+                v = b.get(k, '')
+                if v and ':' in v and len(v.split(':')[0]) == 1:
+                    b[k] = '0' + v
         d.setdefault('newsletter', [])
         d.setdefault('leadSources', [
             'Drive-by / Signage', 'Facebook', 'Nextdoor',
@@ -244,6 +256,43 @@ def load_data():
         ms.setdefault('newsletterCategories', [
             'Monthly Update', 'Member Spotlight', 'Community', 'Availability'
         ])
+        # Booking settings — admin-editable in phase 5. Defaults set here so the
+        # overage gate has values to read against on the very first deploy.
+        bs = d.setdefault('bookingSettings', {})
+        bs.setdefault('overageRatePerHour', 25)
+        bs.setdefault('overageWarningMessage',
+            'This booking will put you over your included hours for the month. '
+            'By confirming, you agree to incur additional charges at the rate above.')
+        # SMS templates — admin-editable in the Booking Settings panel.
+        # Variables: {space} {date} {start} {end} {member}
+        bs.setdefault('smsConfirmationTemplate',
+            'Qbix Centre: {space} booking confirmed for {date} {start}-{end}. '
+            '500A Northside Crossing, Macon GA. See you then!')
+        bs.setdefault('smsReminderTemplate',
+            'Qbix Centre reminder: You have the {space} tomorrow {date} at {start}. '
+            '500A Northside Crossing, Macon GA.')
+        bs.setdefault('smsEditTemplate',
+            'Qbix Centre: Your booking has been updated. {space} on {date} from {start}-{end}.')
+        bs.setdefault('smsCancelTemplate',
+            'Qbix Centre: Your booking has been cancelled. {space} on {date} {start}-{end}.')
+        # Disclosure shown on the /book flow before a member confirms.
+        bs.setdefault('optInDisclosure',
+            'By booking, you agree to receive SMS text messages from Qbix Centre about '
+            'your booking (confirmation, 24-hour reminder, edits, and cancellations). '
+            'Message and data rates may apply. Reply STOP to opt out, HELP for help.')
+        # SMS Messaging section of /privacy. Stored as raw HTML so the admin can
+        # tweak wording (carrier-required STOP/HELP language stays in the default).
+        bs.setdefault('privacySmsHtml',
+            '<p>By providing your mobile phone number on our website booking or login '
+            'forms, you consent to receive SMS text messages from Qbix Centre for the '
+            'purposes of account verification and membership-related communications. '
+            'Consent is collected via our website forms, where you are informed of SMS '
+            'messaging before submitting your phone number. No messages are sent prior '
+            'to that submission.</p>'
+            '<p>Message frequency: 1&ndash;3 messages per booking session (verification '
+            'code plus booking confirmation). Message and data rates may apply. You may '
+            'opt out at any time by replying STOP to any message. Reply HELP for '
+            'assistance. You will not receive further messages after opting out.</p>')
         return d
     except Exception as e:
         print(f"[DB ERROR] load_data: {e}")
@@ -310,9 +359,73 @@ def hours_included(data, member_name):
     return sum(int(o.get('confHours') or 6) for o in data['offices'] if o.get('member') == member_name)
 
 
+# ── Booking resource helpers ──────────────────────────────────────────────────
+# A "resource" is anything members can book. Today: the conference room (always)
+# plus any office whose status == 'Vacant'. Each booking carries resourceId so
+# we can scope availability and conflict checks per resource.
+CONFERENCE_ROOM_ID    = 'conference_room'
+CONFERENCE_ROOM_LABEL = 'Conference Room'
+
+def get_bookable_resources(data):
+    """Return list of bookable resources: conference room + vacant offices.
+    Each item: {id, type, label}. Used by the calendar resource picker and to
+    validate resourceId on booking create/edit."""
+    resources = [{
+        'id':    CONFERENCE_ROOM_ID,
+        'type':  'conference_room',
+        'label': CONFERENCE_ROOM_LABEL,
+    }]
+    for o in data.get('offices', []):
+        if o.get('status') == 'Vacant':
+            resources.append({
+                'id':    o['id'],
+                'type':  'office',
+                'label': f"Office {o.get('num', '')}".strip(),
+            })
+    return resources
+
+def resource_label(data, resource_id):
+    """Look up the human-readable label for a resourceId (for SMS templates,
+    confirmation messages, admin views)."""
+    if resource_id == CONFERENCE_ROOM_ID:
+        return CONFERENCE_ROOM_LABEL
+    for o in data.get('offices', []):
+        if o.get('id') == resource_id:
+            return f"Office {o.get('num', '')}".strip()
+    return resource_id  # fallback — shouldn't happen for valid IDs
+
+def _booking_duration_hours(b):
+    """Compute booking duration in hours from start/end HH:MM strings.
+    Returns 0 on parse error so a malformed record can't blow up totals."""
+    try:
+        sh, sm = (int(x) for x in b.get('start', '0:0').split(':'))
+        eh, em = (int(x) for x in b.get('end',   '0:0').split(':'))
+        minutes = (eh * 60 + em) - (sh * 60 + sm)
+        return max(0, minutes) / 60.0
+    except (ValueError, AttributeError):
+        return 0.0
+
+def get_member_hours_used(data, member_name, year, month):
+    """Sum confirmed booking hours for this member in the given month, across
+    all resources (conference room + offices both draw from the same bucket).
+    Returns a float (e.g. 4.25 for 4 hours 15 minutes)."""
+    total = 0.0
+    for b in data.get('bookings', []):
+        if (b.get('memberName') == member_name
+                and b.get('year')   == year
+                and b.get('month')  == month
+                and b.get('status') != 'cancelled'):
+            total += _booking_duration_hours(b)
+    return total
+
+
 # ── SMS helper (Twilio) ───────────────────────────────────────────────────────
 def send_sms(to_phone, message):
-    """Send SMS via Twilio. Phone number should be 10 digits, e.g. 4787379107."""
+    """Send SMS via Twilio. Phone number should be 10 digits, e.g. 4787379107.
+    Empty messages are silently skipped — admin can blank an SMS template in
+    the Booking Settings panel to disable that message entirely."""
+    if not message or not str(message).strip():
+        return False
     if not TWILIO_ACCOUNT_SID or not TWILIO_AUTH_TOKEN or not TWILIO_PHONE_NUMBER:
         print(f"[SMS] Twilio not configured — would send to {to_phone}: {message}")
         return False
@@ -593,7 +706,11 @@ def contact():
 @app.route('/privacy')
 def privacy():
     track_pageview('/privacy')
-    return render_template('public/privacy.html', ga_id=GA_MEASUREMENT_ID)
+    data = get_db()
+    privacy_sms_html = data.get('bookingSettings', {}).get('privacySmsHtml', '')
+    return render_template('public/privacy.html',
+                           privacy_sms_html=privacy_sms_html,
+                           ga_id=GA_MEASUREMENT_ID)
 
 @app.route('/sms-optin')
 def sms_optin():
@@ -914,28 +1031,58 @@ def book_calendar():
     if not member:
         return redirect(url_for('book_home'))
 
-    included = hours_included(data, member['name'])
+    included  = hours_included(data, member['name'])
+    resources = get_bookable_resources(data)
+    bs        = data.get('bookingSettings', {})
+    # Two-month window: this month and next month. The UI caps prev/next nav.
+    now      = datetime.now()
+    next_dt  = (now.replace(day=1) + timedelta(days=32)).replace(day=1)
     return render_template('public/book_calendar.html',
         token=bt,
         member_name=entry['name'],
         included_hours=included,
+        resources=resources,
+        min_year=now.year,   min_month=now.month,
+        max_year=next_dt.year, max_month=next_dt.month,
+        opt_in_disclosure=bs.get('optInDisclosure', ''),
         ga_id=GA_MEASUREMENT_ID)
 
 @app.route('/book/slots')
 def book_slots():
-    """Return booked slots for a given month."""
+    """Return booked slots for a given month plus the signed-in member's
+    per-month hours usage. Optional ?resource_id=... filters slots to a single
+    resource (used by phase-2 UI). Hours-used totals span ALL resources since
+    conference room and office bookings share one monthly bucket."""
     bt = request.args.get('token', '')
-    if bt not in _booking_tokens:
+    entry = _booking_tokens.get(bt)
+    if not entry:
         return jsonify({'ok': False}), 401
 
     year  = int(request.args.get('year',  datetime.now().year))
     month = int(request.args.get('month', datetime.now().month))
+    resource_filter = request.args.get('resource_id', '').strip()
     data  = get_db()
 
     slots = [b for b in data.get('bookings', [])
              if b.get('year') == year and b.get('month') == month
-             and b.get('status') != 'cancelled']
-    return jsonify({'ok': True, 'slots': slots})
+             and b.get('status') != 'cancelled'
+             and (not resource_filter or b.get('resourceId') == resource_filter)]
+
+    # Resolve the booker's member name so hours-used is keyed correctly.
+    # Same lookup the create route uses (members → fall back to occupants).
+    member_name = entry.get('name', '')
+    hours_used     = get_member_hours_used(data, member_name, year, month)
+    hours_inc      = hours_included(data, member_name)
+    bs             = data.get('bookingSettings', {})
+    overage_rate   = bs.get('overageRatePerHour', 25)
+
+    return jsonify({
+        'ok':            True,
+        'slots':         slots,
+        'hoursUsed':     round(hours_used, 2),
+        'hoursIncluded': hours_inc,
+        'overageRate':   overage_rate,
+    })
 
 @app.route('/book/create', methods=['POST'])
 def book_create():
@@ -950,46 +1097,92 @@ def book_create():
     if not member:
         return jsonify({'ok': False, 'error': 'Member not found'}), 400
 
-    date_str   = request.json.get('date', '')    # YYYY-MM-DD
-    start_time = request.json.get('start', '')   # HH:MM
-    end_time   = request.json.get('end', '')     # HH:MM
-    title      = request.json.get('title', 'Meeting')
+    date_str       = request.json.get('date', '')    # YYYY-MM-DD
+    start_time     = request.json.get('start', '')   # HH:MM
+    end_time       = request.json.get('end', '')     # HH:MM
+    title          = request.json.get('title', 'Meeting')
+    # Resource defaults to conference room when caller omits it (preserves
+    # phase-1 UI behavior). Validated against the bookable list below.
+    resource_id    = (request.json.get('resourceId') or CONFERENCE_ROOM_ID).strip()
+    accept_overage = bool(request.json.get('acceptOverage', False))
 
     try:
         dt = datetime.strptime(date_str, '%Y-%m-%d')
     except ValueError:
         return jsonify({'ok': False, 'error': 'Invalid date'}), 400
 
-    # Check for conflicts
+    # Validate resource exists and is currently bookable.
+    bookable = get_bookable_resources(data)
+    chosen   = next((r for r in bookable if r['id'] == resource_id), None)
+    if not chosen:
+        return jsonify({'ok': False, 'error': 'That space is not available for booking.'}), 400
+
+    # Check for conflicts — only against bookings on the SAME resource.
     for b in data.get('bookings', []):
         if (b.get('date') == date_str
                 and b.get('status') != 'cancelled'
+                and b.get('resourceId') == resource_id
                 and not (end_time <= b.get('start','') or start_time >= b.get('end',''))):
             return jsonify({'ok': False, 'error': 'That time slot is already booked.'})
 
+    # Overage gate — month-scoped accounting. Conference room + office hours
+    # share one bucket. If this booking pushes the member over their monthly
+    # included hours and the caller hasn't accepted overage, return an
+    # overage payload so the UI can show the warning modal.
+    booking_hours = _booking_duration_hours({'start': start_time, 'end': end_time})
+    hours_used    = get_member_hours_used(data, member['name'], dt.year, dt.month)
+    hours_inc     = hours_included(data, member['name'])
+    bs            = data.get('bookingSettings', {})
+    overage_rate  = float(bs.get('overageRatePerHour', 25))
+    hours_after   = hours_used + booking_hours
+    hours_over    = max(0.0, hours_after - hours_inc)
+    overage_charge = round(hours_over * overage_rate, 2)
+
+    if hours_over > 0 and not accept_overage:
+        return jsonify({
+            'ok':                    False,
+            'overage':               True,
+            'hoursThisBooking':      round(booking_hours, 2),
+            'hoursUsed':             round(hours_used, 2),
+            'hoursIncluded':         hours_inc,
+            'hoursOver':             round(hours_over, 2),
+            'overageRate':           overage_rate,
+            'overageCharge':         overage_charge,
+            'overageWarningMessage': bs.get('overageWarningMessage', ''),
+        })
+
     booking_id = '_' + secrets.token_hex(4)
     booking = {
-        'id':          booking_id,
-        'memberName':  member['name'],
-        'memberEmail': entry['email'],
-        'date':        date_str,
-        'year':        dt.year,
-        'month':       dt.month,
-        'start':       start_time,
-        'end':         end_time,
-        'title':       title,
-        'status':      'confirmed',
-        'createdAt':   datetime.now().isoformat(),
+        'id':           booking_id,
+        'memberName':   member['name'],
+        'memberEmail':  entry['email'],
+        'resourceType': chosen['type'],
+        'resourceId':   chosen['id'],
+        'date':         date_str,
+        'year':         dt.year,
+        'month':        dt.month,
+        'start':        start_time,
+        'end':          end_time,
+        'title':        title,
+        'status':       'confirmed',
+        'createdAt':    datetime.now().isoformat(),
     }
+    # Stamp overage detail when this booking caused (any part of) the overage,
+    # so admin can see what was charged.
+    if hours_over > 0:
+        booking['overageHours']  = round(hours_over, 2)
+        booking['overageRate']   = overage_rate
+        booking['overageCharge'] = overage_charge
     data.setdefault('bookings', []).append(booking)
     save_data(data)
 
-    # Confirmation SMS to member
+    res_label = chosen['label']
+
+    # Confirmation SMS to member — body comes from admin-editable template.
+    sms_ctx = _booking_sms_ctx(data, booking, override_label=res_label)
     if member.get('phone'):
-        send_sms(member['phone'],
-            f'Qbix Centre: Booking confirmed for {date_str} {start_time}-{end_time}. '
-            f'500A Northside Crossing, Macon GA. See you then!'
-        )
+        send_sms(member['phone'], render_sms_template(
+            bs.get('smsConfirmationTemplate', ''), sms_ctx))
 
     # Schedule reminder (24h before) in background thread
     def send_reminder():
@@ -1000,10 +1193,12 @@ def book_create():
             if wait > 0:
                 time.sleep(wait)
             if member.get('phone'):
-                send_sms(member['phone'],
-                    f'Qbix Centre reminder: You have the conference room tomorrow {date_str} at {start_time}. '
-                    f'500A Northside Crossing, Macon GA.'
-                )
+                # Re-read settings at fire time so a template edit between book
+                # time and reminder time takes effect.
+                latest    = get_db()
+                latest_bs = latest.get('bookingSettings', {})
+                send_sms(member['phone'], render_sms_template(
+                    latest_bs.get('smsReminderTemplate', ''), sms_ctx))
         except Exception as e:
             print(f'Reminder error: {e}')
 
@@ -1029,6 +1224,179 @@ def book_cancel():
     booking['status'] = 'cancelled'
     save_data(data)
     return jsonify({'ok': True})
+
+@app.route('/book/edit', methods=['POST'])
+def book_edit():
+    """Member-initiated edit of a future booking. Same conflict + overage gate
+    as /book/create, but excludes the booking being edited from the checks."""
+    bt = request.json.get('token', '')
+    entry = _booking_tokens.get(bt)
+    if not entry or datetime.now() > entry['expires']:
+        return jsonify({'ok': False, 'error': 'Session expired'}), 401
+
+    booking_id = request.json.get('bookingId', '')
+    data = get_db()
+    booking = next((b for b in data.get('bookings', [])
+                    if b['id'] == booking_id
+                    and b.get('memberEmail','').lower() == entry['email'].lower()
+                    and b.get('status') != 'cancelled'), None)
+    if not booking:
+        return jsonify({'ok': False, 'error': 'Booking not found'}), 404
+
+    # Only future bookings can be edited.
+    try:
+        existing_dt = datetime.strptime(f"{booking['date']} {booking['start']}", '%Y-%m-%d %H:%M')
+        if existing_dt < datetime.now():
+            return jsonify({'ok': False, 'error': 'Cannot edit past bookings'}), 400
+    except (ValueError, KeyError):
+        pass
+
+    new_date  = request.json.get('date',  booking['date'])
+    new_start = request.json.get('start', booking['start'])
+    new_end   = request.json.get('end',   booking['end'])
+    new_title = request.json.get('title', booking.get('title', 'Meeting'))
+    new_res   = (request.json.get('resourceId') or booking.get('resourceId') or CONFERENCE_ROOM_ID).strip()
+    accept_overage = bool(request.json.get('acceptOverage', False))
+
+    return _apply_booking_edit(data, booking, new_date, new_start, new_end,
+                               new_title, new_res, accept_overage,
+                               sms_kind='member-edit')
+
+def _apply_booking_edit(data, booking, new_date, new_start, new_end, new_title,
+                        new_res, accept_overage, sms_kind):
+    """Shared edit logic for both /book/edit (member) and /admin/api/booking-edit
+    (admin). Returns a Flask response. Also called by admin-edit so behavior is
+    identical except for sms_kind which controls the message template."""
+    try:
+        dt = datetime.strptime(new_date, '%Y-%m-%d')
+    except ValueError:
+        return jsonify({'ok': False, 'error': 'Invalid date'}), 400
+
+    # Validate resource exists and is currently bookable.
+    bookable = get_bookable_resources(data)
+    chosen   = next((r for r in bookable if r['id'] == new_res), None)
+    if not chosen:
+        return jsonify({'ok': False, 'error': 'That space is not available for booking.'}), 400
+
+    # Conflict check, excluding the booking being edited.
+    for b in data.get('bookings', []):
+        if (b['id'] != booking['id']
+                and b.get('date') == new_date
+                and b.get('status') != 'cancelled'
+                and b.get('resourceId') == new_res
+                and not (new_end <= b.get('start','') or new_start >= b.get('end',''))):
+            return jsonify({'ok': False, 'error': 'That time slot is already booked.'})
+
+    # Overage check — exclude this booking from "hours used" since we're replacing it.
+    member_name   = booking['memberName']
+    booking_hours = _booking_duration_hours({'start': new_start, 'end': new_end})
+    other_used = sum(
+        _booking_duration_hours(b) for b in data.get('bookings', [])
+        if b.get('memberName') == member_name
+        and b.get('year')   == dt.year
+        and b.get('month')  == dt.month
+        and b.get('status') != 'cancelled'
+        and b['id'] != booking['id']
+    )
+    hours_inc      = hours_included(data, member_name)
+    bs             = data.get('bookingSettings', {})
+    overage_rate   = float(bs.get('overageRatePerHour', 25))
+    hours_after    = other_used + booking_hours
+    hours_over     = max(0.0, hours_after - hours_inc)
+    overage_charge = round(hours_over * overage_rate, 2)
+
+    if hours_over > 0 and not accept_overage:
+        return jsonify({
+            'ok':                    False,
+            'overage':               True,
+            'hoursThisBooking':      round(booking_hours, 2),
+            'hoursUsed':             round(other_used, 2),
+            'hoursIncluded':         hours_inc,
+            'hoursOver':             round(hours_over, 2),
+            'overageRate':           overage_rate,
+            'overageCharge':         overage_charge,
+            'overageWarningMessage': bs.get('overageWarningMessage', ''),
+        })
+
+    # Apply the edit.
+    booking['resourceType'] = chosen['type']
+    booking['resourceId']   = chosen['id']
+    booking['date']         = new_date
+    booking['year']         = dt.year
+    booking['month']        = dt.month
+    booking['start']        = new_start
+    booking['end']          = new_end
+    booking['title']        = new_title
+    booking['updatedAt']    = datetime.now().isoformat()
+    if hours_over > 0:
+        booking['overageHours']  = round(hours_over, 2)
+        booking['overageRate']   = overage_rate
+        booking['overageCharge'] = overage_charge
+    else:
+        booking.pop('overageHours',  None)
+        booking.pop('overageRate',   None)
+        booking.pop('overageCharge', None)
+    save_data(data)
+
+    # Send "your booking has been updated" SMS to the member, using the
+    # admin-editable edit template against the *new* values (not stale).
+    phone = _member_phone(data, booking.get('memberEmail',''), booking.get('memberName',''))
+    if phone:
+        ctx = _booking_sms_ctx(data, booking,
+                               override_label=chosen['label'],
+                               override_date=new_date,
+                               override_start=new_start,
+                               override_end=new_end)
+        send_sms(phone, render_sms_template(
+            bs.get('smsEditTemplate', ''), ctx))
+    return jsonify({'ok': True, 'booking': booking})
+
+def render_sms_template(tmpl, ctx):
+    """Substitute {var} placeholders in an admin-editable SMS template. Falls
+    back to the literal template string if a variable is missing so a typo'd
+    template still sends *something* rather than nothing."""
+    if not tmpl:
+        return ''
+    try:
+        return tmpl.format(**ctx)
+    except (KeyError, IndexError, ValueError):
+        return tmpl
+
+def _booking_sms_ctx(data, booking, override_label=None, override_date=None,
+                     override_start=None, override_end=None):
+    """Build the substitution dict for a booking SMS. Accepts overrides so the
+    edit-confirmation can use the *new* values rather than the stale stamped
+    ones on the booking row."""
+    label = override_label or resource_label(data, booking.get('resourceId', CONFERENCE_ROOM_ID))
+    return {
+        'space':  label,
+        'date':   override_date  or booking.get('date',  ''),
+        'start':  override_start or booking.get('start', ''),
+        'end':    override_end   or booking.get('end',   ''),
+        'member': booking.get('memberName', ''),
+    }
+
+def _member_phone(data, email, name):
+    """Find the SMS-deliverable phone for a member or occupant. Email is checked
+    first, then a name match. Returns '' if nothing usable is on file."""
+    email = (email or '').lower()
+    if email:
+        m = next((m for m in data.get('members', [])
+                  if m.get('email','').lower() == email), None)
+        if m and m.get('phone'):
+            return m['phone']
+        o = next((o for o in data.get('occupants', [])
+                  if o.get('email','').lower() == email), None)
+        if o and o.get('phone'):
+            return o['phone']
+    if name:
+        m = next((m for m in data.get('members', []) if m.get('name') == name), None)
+        if m and m.get('phone'):
+            return m['phone']
+        o = next((o for o in data.get('occupants', []) if o.get('name') == name), None)
+        if o and o.get('phone'):
+            return o['phone']
+    return ''
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1882,6 +2250,52 @@ def reschedule_post():
 def admin_bookings():
     return redirect(url_for('admin_dashboard'))
 
+# ── Booking Settings (admin-editable rate, warning, SMS templates) ───────────
+
+# Whitelist of editable keys + their type (str|float). Anything else posted is
+# silently dropped so a stray field can't sneak into the JSON blob.
+_BOOKING_SETTINGS_FIELDS = {
+    'overageRatePerHour':      'float',
+    'overageWarningMessage':   'str',
+    'smsConfirmationTemplate': 'str',
+    'smsReminderTemplate':     'str',
+    'smsEditTemplate':         'str',
+    'smsCancelTemplate':       'str',
+    'optInDisclosure':         'str',
+    'privacySmsHtml':          'str',
+}
+
+@app.route('/admin/api/booking-settings', methods=['GET'])
+@login_required
+def admin_get_booking_settings():
+    data = get_db()
+    bs   = data.get('bookingSettings', {})
+    out  = {k: bs.get(k, '') for k in _BOOKING_SETTINGS_FIELDS}
+    return jsonify({'ok': True, 'settings': out})
+
+@app.route('/admin/api/booking-settings', methods=['POST'])
+@login_required
+def admin_save_booking_settings():
+    payload = request.json or {}
+    data = get_db()
+    bs   = data.setdefault('bookingSettings', {})
+    for key, kind in _BOOKING_SETTINGS_FIELDS.items():
+        if key not in payload:
+            continue
+        val = payload[key]
+        if kind == 'float':
+            try:
+                val = float(val)
+                if val < 0:
+                    return jsonify({'ok': False, 'error': f'{key} cannot be negative'}), 400
+            except (TypeError, ValueError):
+                return jsonify({'ok': False, 'error': f'{key} must be a number'}), 400
+            bs[key] = val
+        else:
+            bs[key] = (val or '').strip() if isinstance(val, str) else val
+    save_data(data)
+    return jsonify({'ok': True})
+
 @app.route('/admin/api/booking-cancel', methods=['POST'])
 @login_required
 def admin_cancel_booking():
@@ -1892,7 +2306,162 @@ def admin_cancel_booking():
         return jsonify({'ok': False}), 404
     booking['status'] = 'cancelled'
     save_data(data)
+    # Notify the member their booking was cancelled — admin-editable template.
+    phone = _member_phone(data, booking.get('memberEmail',''), booking.get('memberName',''))
+    if phone:
+        bs  = data.get('bookingSettings', {})
+        ctx = _booking_sms_ctx(data, booking)
+        send_sms(phone, render_sms_template(
+            bs.get('smsCancelTemplate', ''), ctx))
     return jsonify({'ok': True})
+
+@app.route('/admin/api/bookable-resources')
+@login_required
+def admin_bookable_resources():
+    """Used by the admin Bookings tab to populate the resource picker in the
+    Add/Edit Booking modals. Includes the active member + occupant list too,
+    so the modal can offer a member picker without an extra round-trip."""
+    data = get_db()
+    members = sorted([m['name'] for m in data.get('members', [])
+                      if m.get('status') == 'Active' and m.get('name')])
+    occupants = sorted([o['name'] for o in data.get('occupants', [])
+                        if o.get('status') == 'Active' and o.get('name')])
+    return jsonify({
+        'ok':        True,
+        'resources': get_bookable_resources(data),
+        'members':   members,
+        'occupants': occupants,
+    })
+
+@app.route('/admin/api/booking-create', methods=['POST'])
+@login_required
+def admin_create_booking():
+    """Admin creates a booking on behalf of an active member or occupant.
+    Same conflict + overage gate as /book/create, but no auth-token check
+    (relies on @login_required) and the member is chosen from the picker."""
+    member_name = request.json.get('memberName', '').strip()
+    if not member_name:
+        return jsonify({'ok': False, 'error': 'Member is required'}), 400
+
+    data = get_db()
+    # Look up by name across active members first, then active occupants.
+    member = next((m for m in data.get('members', [])
+                   if m.get('name') == member_name and m.get('status') == 'Active'), None)
+    member_email = ''
+    if member:
+        member_email = member.get('email', '')
+    else:
+        occ = next((o for o in data.get('occupants', [])
+                    if o.get('name') == member_name and o.get('status') == 'Active'), None)
+        if occ:
+            member_email = occ.get('email', '')
+            # An occupant booking still records the occupant's own name so
+            # they can edit/cancel it from the public flow.
+        else:
+            return jsonify({'ok': False, 'error': 'Member not found or not active'}), 404
+
+    date_str       = request.json.get('date', '')
+    start_time     = request.json.get('start', '')
+    end_time       = request.json.get('end', '')
+    title          = request.json.get('title', 'Meeting')
+    resource_id    = (request.json.get('resourceId') or CONFERENCE_ROOM_ID).strip()
+    accept_overage = bool(request.json.get('acceptOverage', False))
+
+    try:
+        dt = datetime.strptime(date_str, '%Y-%m-%d')
+    except ValueError:
+        return jsonify({'ok': False, 'error': 'Invalid date'}), 400
+
+    bookable = get_bookable_resources(data)
+    chosen   = next((r for r in bookable if r['id'] == resource_id), None)
+    if not chosen:
+        return jsonify({'ok': False, 'error': 'That space is not available for booking.'}), 400
+
+    # Conflict check on the same resource.
+    for b in data.get('bookings', []):
+        if (b.get('date') == date_str
+                and b.get('status') != 'cancelled'
+                and b.get('resourceId') == resource_id
+                and not (end_time <= b.get('start','') or start_time >= b.get('end',''))):
+            return jsonify({'ok': False, 'error': 'That time slot is already booked.'})
+
+    # Overage check.
+    booking_hours  = _booking_duration_hours({'start': start_time, 'end': end_time})
+    hours_used     = get_member_hours_used(data, member_name, dt.year, dt.month)
+    hours_inc      = hours_included(data, member_name)
+    bs             = data.get('bookingSettings', {})
+    overage_rate   = float(bs.get('overageRatePerHour', 25))
+    hours_after    = hours_used + booking_hours
+    hours_over     = max(0.0, hours_after - hours_inc)
+    overage_charge = round(hours_over * overage_rate, 2)
+
+    if hours_over > 0 and not accept_overage:
+        return jsonify({
+            'ok':                    False,
+            'overage':               True,
+            'hoursThisBooking':      round(booking_hours, 2),
+            'hoursUsed':             round(hours_used, 2),
+            'hoursIncluded':         hours_inc,
+            'hoursOver':             round(hours_over, 2),
+            'overageRate':           overage_rate,
+            'overageCharge':         overage_charge,
+            'overageWarningMessage': bs.get('overageWarningMessage', ''),
+        })
+
+    booking_id = '_' + secrets.token_hex(4)
+    booking = {
+        'id':           booking_id,
+        'memberName':   member_name,
+        'memberEmail':  member_email,
+        'resourceType': chosen['type'],
+        'resourceId':   chosen['id'],
+        'date':         date_str,
+        'year':         dt.year,
+        'month':        dt.month,
+        'start':        start_time,
+        'end':          end_time,
+        'title':        title,
+        'status':       'confirmed',
+        'createdAt':    datetime.now().isoformat(),
+        'createdBy':    'admin',
+    }
+    if hours_over > 0:
+        booking['overageHours']  = round(hours_over, 2)
+        booking['overageRate']   = overage_rate
+        booking['overageCharge'] = overage_charge
+    data.setdefault('bookings', []).append(booking)
+    save_data(data)
+
+    # Confirmation SMS to the member — admin-editable template.
+    phone = _member_phone(data, member_email, member_name)
+    if phone:
+        ctx = _booking_sms_ctx(data, booking, override_label=chosen['label'])
+        send_sms(phone, render_sms_template(
+            bs.get('smsConfirmationTemplate', ''), ctx))
+    return jsonify({'ok': True, 'booking': booking})
+
+@app.route('/admin/api/booking-edit', methods=['POST'])
+@login_required
+def admin_edit_booking():
+    """Admin edits any booking. Reuses the shared edit logic; identical to
+    /book/edit except no member-auth filter on the lookup."""
+    booking_id = request.json.get('bookingId', '')
+    data = get_db()
+    booking = next((b for b in data.get('bookings', [])
+                    if b['id'] == booking_id and b.get('status') != 'cancelled'), None)
+    if not booking:
+        return jsonify({'ok': False, 'error': 'Booking not found'}), 404
+
+    new_date  = request.json.get('date',  booking['date'])
+    new_start = request.json.get('start', booking['start'])
+    new_end   = request.json.get('end',   booking['end'])
+    new_title = request.json.get('title', booking.get('title', 'Meeting'))
+    new_res   = (request.json.get('resourceId') or booking.get('resourceId') or CONFERENCE_ROOM_ID).strip()
+    accept_overage = bool(request.json.get('acceptOverage', False))
+
+    return _apply_booking_edit(data, booking, new_date, new_start, new_end,
+                               new_title, new_res, accept_overage,
+                               sms_kind='admin-edit')
 
 # ── Monthly usage email (called by scheduler or manually) ────────────────────
 

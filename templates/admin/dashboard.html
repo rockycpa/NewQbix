@@ -1261,13 +1261,70 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
 
 <!-- BOOKINGS -->
 <div class="page" id="page-bookings">
-  <div class="pg-title">&#128197; Conference Room Bookings <button class="help-btn" onclick="openHelp('help-bookings')" title="Help">?</button></div><div class="pg-sub">All upcoming bookings</div>
-  <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center">
-    <button class="btn-add" onclick="sendMonthlyUsage()" style="background:var(--purple)">&#128231; Send Monthly Usage Emails</button>
+  <div class="pg-title">&#128197; Bookings <button class="help-btn" onclick="openHelp('help-bookings')" title="Help">?</button></div><div class="pg-sub">All upcoming bookings (conference room + offices)</div>
+  <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;flex-wrap:wrap">
+    <button class="btn-add" onclick="openBookingModal(null)" style="margin-left:0">+ Add Booking</button>
+    <button class="btn-add" onclick="sendMonthlyUsage()" style="background:var(--purple);margin-left:0">&#128231; Send Monthly Usage Emails</button>
   </div>
+
+  <details class="card" style="margin-bottom:16px;padding:14px 18px" id="booking-settings-card">
+    <summary style="cursor:pointer;font-weight:700;font-size:15px;color:var(--txt);user-select:none">&#9881; Booking Settings <span style="font-weight:400;color:var(--txt3);font-size:12px;margin-left:6px">overage rate &middot; SMS templates &middot; opt-in disclosure &middot; privacy SMS section</span></summary>
+    <div style="margin-top:14px">
+      <div style="font-size:12px;color:var(--txt3);margin-bottom:10px;line-height:1.6">
+        Available variables in SMS templates: <code>{space}</code> <code>{date}</code> <code>{start}</code> <code>{end}</code> <code>{member}</code>. Leave a template blank to skip that message entirely.
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-bottom:14px">
+        <div>
+          <label style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--txt3);font-weight:700;display:block;margin-bottom:6px">Overage Rate ($/hr)</label>
+          <input type="number" id="bs-overage-rate" min="0" step="0.01" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:7px;color:var(--txt);font-family:'IBM Plex Sans',sans-serif;font-size:14px;padding:9px 11px;outline:none;box-sizing:border-box">
+        </div>
+        <div>
+          <label style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--txt3);font-weight:700;display:block;margin-bottom:6px">Overage Warning Message</label>
+          <textarea id="bs-overage-warning" rows="2" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;padding:8px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box;resize:vertical" placeholder="Shown in the overage modal before a member confirms an over-budget booking."></textarea>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-bottom:14px">
+        <div>
+          <label style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--txt3);font-weight:700;display:block;margin-bottom:6px">SMS &mdash; Confirmation</label>
+          <textarea id="bs-sms-confirm" rows="3" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;padding:8px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box;resize:vertical"></textarea>
+        </div>
+        <div>
+          <label style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--txt3);font-weight:700;display:block;margin-bottom:6px">SMS &mdash; 24-hr Reminder</label>
+          <textarea id="bs-sms-remind" rows="3" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;padding:8px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box;resize:vertical"></textarea>
+        </div>
+        <div>
+          <label style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--txt3);font-weight:700;display:block;margin-bottom:6px">SMS &mdash; Edit</label>
+          <textarea id="bs-sms-edit" rows="3" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;padding:8px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box;resize:vertical"></textarea>
+        </div>
+        <div>
+          <label style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--txt3);font-weight:700;display:block;margin-bottom:6px">SMS &mdash; Cancel</label>
+          <textarea id="bs-sms-cancel" rows="3" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;padding:8px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box;resize:vertical"></textarea>
+        </div>
+      </div>
+
+      <div style="margin-bottom:14px">
+        <label style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--txt3);font-weight:700;display:block;margin-bottom:6px">SMS Opt-In Disclosure (shown on /book before Confirm)</label>
+        <textarea id="bs-optin" rows="3" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;padding:8px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box;resize:vertical"></textarea>
+      </div>
+
+      <div style="margin-bottom:14px">
+        <label style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--txt3);font-weight:700;display:block;margin-bottom:6px">Privacy Policy &mdash; SMS Messaging Section (HTML)</label>
+        <textarea id="bs-privacy-sms" rows="6" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;padding:8px 10px;font-family:'IBM Plex Mono',monospace;box-sizing:border-box;resize:vertical"></textarea>
+        <div style="font-size:11px;color:var(--txt3);margin-top:4px">Renders inside &lt;h2&gt;3. SMS Messaging&lt;/h2&gt; on <a href="/privacy" target="_blank" style="color:var(--acc)">/privacy</a>. Keep STOP/HELP language for carrier compliance.</div>
+      </div>
+
+      <div style="display:flex;justify-content:flex-end;gap:8px;padding-top:10px;border-top:1px solid var(--bdr)">
+        <button class="btn-sm" onclick="loadBookingSettings()">Reset</button>
+        <button class="btn-save" onclick="saveBookingSettings()">Save Settings</button>
+      </div>
+    </div>
+  </details>
+
   <div class="card"><div class="tw">
     <table>
-      <thead><tr><th>Date</th><th>Time</th><th>Member</th><th>Title</th><th>Status</th><th>Action</th></tr></thead>
+      <thead><tr><th>Date</th><th>Time</th><th>Space</th><th>Member</th><th>Title</th><th>Overage</th><th>Status</th><th>Actions</th></tr></thead>
       <tbody id="bookings-tbody"></tbody>
     </table>
   </div></div>
@@ -1276,6 +1333,40 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
 </main>
 
 <!-- Modals -->
+<div class="mo" id="booking-modal" onclick="closeMo(event,'booking-modal')" style="z-index:320">
+  <div class="mi" style="max-width:520px">
+    <button class="mx" onclick="closeBookingModal()">&#x2715;</button>
+    <div class="mt" id="book-modal-title">Add Booking</div>
+    <div class="ms">Conference room or vacant office &middot; 15-minute increments &middot; 7am&ndash;6pm</div>
+    <input type="hidden" id="book-modal-id">
+    <div class="fg" style="margin-top:12px">
+      <div class="fl full"><label>Member</label>
+        <select id="book-modal-member"></select>
+      </div>
+      <div class="fl full"><label>Space</label>
+        <select id="book-modal-resource"></select>
+      </div>
+      <div class="fl full"><label>Date</label>
+        <input type="date" id="book-modal-date">
+      </div>
+      <div class="fl"><label>Start</label>
+        <select id="book-modal-start"></select>
+      </div>
+      <div class="fl"><label>End</label>
+        <select id="book-modal-end"></select>
+      </div>
+      <div class="fl full"><label>Title</label>
+        <input type="text" id="book-modal-title-in" placeholder="Meeting">
+      </div>
+    </div>
+    <div id="book-modal-overage" style="display:none"></div>
+    <div class="form-actions" style="padding-top:14px;border-top:1px solid var(--bdr);margin-top:14px">
+      <button class="btn-cancel" onclick="closeBookingModal()">Cancel</button>
+      <button class="btn-save" onclick="saveBooking()">Save Booking</button>
+    </div>
+  </div>
+</div>
+
 <div class="mo" id="view-modal" onclick="closeMo(event,'view-modal')">
   <div class="mi">
     <button class="mx" onclick="closeMo(null,'view-modal')">&#x2715;</button>
@@ -1596,16 +1687,258 @@ async function saveHomePageContent(){
 
 
 
+// Cache populated by loadBookableResources() — used for resource labels in
+// the table and to populate the Add/Edit modal dropdowns.
+let _bookableResources = [];
+let _bookablePeople    = {members: [], occupants: []};
+
+async function loadBookableResources(){
+  try {
+    const r = await fetch('/admin/api/bookable-resources');
+    const result = await r.json();
+    if(result.ok){
+      _bookableResources = result.resources || [];
+      _bookablePeople    = {members: result.members || [], occupants: result.occupants || []};
+    }
+  } catch(e){ console.error('loadBookableResources', e); }
+}
+
+function bookingResourceLabel(rid){
+  const r = _bookableResources.find(x => x.id === rid);
+  if(r) return r.label;
+  // Fallback for offices that have since been leased (no longer in the
+  // bookable list but old bookings still reference them).
+  const off = (DB.offices||[]).find(o => o.id === rid);
+  if(off) return 'Office ' + (off.num || '');
+  return rid === 'conference_room' ? 'Conference Room' : (rid || '—');
+}
+
 function buildBookingsTab(){
   const today=new Date().toISOString().slice(0,10);
   const rows=(DB.bookings||[]).filter(b=>b.status!=='cancelled').sort((a,b)=>(a.date+a.start).localeCompare(b.date+b.start));
-  document.getElementById('bookings-tbody').innerHTML=rows.map(b=>`<tr><td class="mono">${b.date}</td><td class="mono">${b.start}&ndash;${b.end}</td><td>${b.memberName}</td><td>${b.title||'Meeting'}</td><td><span class="badge ${b.date<today?'br':'bg'}">${b.date<today?'Past':'Upcoming'}</span></td><td><button class="btn-sm del" onclick="adminCancelBooking('${b.id}')">Cancel</button></td></tr>`).join('')||'<tr><td colspan="6" style="text-align:center;color:var(--txt3);padding:20px">No bookings</td></tr>';
+  if(!rows.length){
+    document.getElementById('bookings-tbody').innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--txt3);padding:20px">No bookings</td></tr>';
+    return;
+  }
+  document.getElementById('bookings-tbody').innerHTML = rows.map(b => {
+    const overage = b.overageCharge ? `$${Number(b.overageCharge).toFixed(2)}` : '—';
+    return `<tr>
+      <td class="mono">${b.date}</td>
+      <td class="mono">${b.start}&ndash;${b.end}</td>
+      <td>${bookingResourceLabel(b.resourceId)}</td>
+      <td>${b.memberName||''}</td>
+      <td>${b.title||'Meeting'}</td>
+      <td>${overage}</td>
+      <td><span class="badge ${b.date<today?'br':'bg'}">${b.date<today?'Past':'Upcoming'}</span></td>
+      <td>
+        <button class="btn-sm" onclick='openBookingModal(${JSON.stringify(b).replace(/'/g, "&#39;")})'>Edit</button>
+        <button class="btn-sm del" onclick="adminCancelBooking('${b.id}')">Cancel</button>
+      </td>
+    </tr>`;
+  }).join('');
 }
 
 async function adminCancelBooking(id){
+  if(!confirm('Cancel this booking? The member will be notified by SMS.')) return;
   const r=await fetch('/admin/api/booking-cancel',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bookingId:id})});
   const result=await r.json();
   if(result.ok){const b=DB.bookings.find(x=>x.id===id);if(b)b.status='cancelled';buildBookingsTab();toast('Booking cancelled');}
+}
+
+// ── Add / Edit Booking modal ─────────────────────────────────────────────────
+// b=null means "create new"; b is an existing booking record means "edit".
+let _pendingAdminBooking = null;
+
+function bookingTimeOptions(){
+  // 15-min increments from 07:00 to 18:00. Mirror of the public-side TIMES.
+  const out = [];
+  for(let h = 7; h <= 18; h++){
+    for(let m = 0; m < 60; m += 15){
+      if(h === 18 && m > 0) break;
+      out.push(String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0'));
+    }
+  }
+  return out;
+}
+
+function openBookingModal(b){
+  if(!_bookableResources.length){
+    // Resources weren't preloaded yet — load on demand.
+    loadBookableResources().then(() => openBookingModal(b));
+    return;
+  }
+  const isEdit = !!b;
+  _pendingAdminBooking = null;
+  document.getElementById('book-modal-title').textContent = isEdit ? 'Edit Booking' : 'Add Booking';
+  document.getElementById('book-modal-id').value = isEdit ? b.id : '';
+
+  // Member picker — Active members + Active occupants. Disabled when editing
+  // (changing whose booking it is would re-bill the wrong bucket).
+  const memSel = document.getElementById('book-modal-member');
+  let opts = '<option value="">— Select a member —</option>';
+  if(_bookablePeople.members.length){
+    opts += '<optgroup label="Members">' +
+      _bookablePeople.members.map(n => `<option value="${n}">${n}</option>`).join('') +
+      '</optgroup>';
+  }
+  if(_bookablePeople.occupants.length){
+    opts += '<optgroup label="Occupants">' +
+      _bookablePeople.occupants.map(n => `<option value="${n}">${n}</option>`).join('') +
+      '</optgroup>';
+  }
+  memSel.innerHTML = opts;
+  memSel.value    = isEdit ? b.memberName : '';
+  memSel.disabled = isEdit;
+
+  // Resource picker
+  const resSel = document.getElementById('book-modal-resource');
+  resSel.innerHTML = _bookableResources.map(r => `<option value="${r.id}">${r.label}</option>`).join('');
+  // If editing an office that's since been leased, add a one-off option so it
+  // displays correctly even though it's not in the bookable list anymore.
+  if(isEdit && b.resourceId && !_bookableResources.find(r => r.id === b.resourceId)){
+    resSel.insertAdjacentHTML('afterbegin',
+      `<option value="${b.resourceId}">${bookingResourceLabel(b.resourceId)} (no longer vacant)</option>`);
+  }
+  resSel.value = isEdit ? b.resourceId : 'conference_room';
+
+  // Time selects
+  const startSel = document.getElementById('book-modal-start');
+  const endSel   = document.getElementById('book-modal-end');
+  const times    = bookingTimeOptions();
+  startSel.innerHTML = times.slice(0,-1).map(t => `<option value="${t}">${t}</option>`).join('');
+  endSel.innerHTML   = times.slice(1).map(t => `<option value="${t}">${t}</option>`).join('');
+
+  document.getElementById('book-modal-date').value  = isEdit ? b.date  : new Date().toISOString().slice(0,10);
+  startSel.value                                    = isEdit ? b.start : '09:00';
+  endSel.value                                      = isEdit ? b.end   : '10:00';
+  document.getElementById('book-modal-title-in').value = isEdit ? (b.title || 'Meeting') : 'Meeting';
+
+  document.getElementById('book-modal-overage').style.display = 'none';
+  document.getElementById('booking-modal').classList.add('open');
+}
+
+function closeBookingModal(){
+  document.getElementById('booking-modal').classList.remove('open');
+  _pendingAdminBooking = null;
+}
+
+async function saveBooking(){
+  const id          = document.getElementById('book-modal-id').value;
+  const memberName  = document.getElementById('book-modal-member').value;
+  const resourceId  = document.getElementById('book-modal-resource').value;
+  const date        = document.getElementById('book-modal-date').value;
+  const start       = document.getElementById('book-modal-start').value;
+  const end         = document.getElementById('book-modal-end').value;
+  const title       = document.getElementById('book-modal-title-in').value || 'Meeting';
+
+  if(!id && !memberName){ toast('Please pick a member','#dc2626'); return; }
+  if(!date){ toast('Please pick a date','#dc2626'); return; }
+  if(end <= start){ toast('End time must be after start time','#dc2626'); return; }
+
+  const payload = id
+    ? {bookingId: id, resourceId, date, start, end, title, acceptOverage: false}
+    : {memberName, resourceId, date, start, end, title, acceptOverage: false};
+  const url = id ? '/admin/api/booking-edit' : '/admin/api/booking-create';
+  await submitAdminBooking(url, payload);
+}
+
+async function submitAdminBooking(url, payload){
+  const r = await fetch(url, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  const result = await r.json();
+  if(result.ok){
+    closeBookingModal();
+    toast(result.booking && result.booking.updatedAt ? 'Booking updated' : 'Booking added');
+    // Refresh the local DB cache so the table re-renders.
+    await loadAdminData();
+    buildBookingsTab();
+  } else if(result.overage){
+    _pendingAdminBooking = {url, payload};
+    showAdminOverage(result);
+  } else {
+    toast(result.error || 'Could not save booking', '#dc2626');
+  }
+}
+
+function showAdminOverage(info){
+  const box = document.getElementById('book-modal-overage');
+  box.innerHTML = `
+    <div style="background:#3a1f1f;border:1px solid var(--red);border-radius:8px;padding:12px;margin-top:12px;font-size:13px">
+      <div style="color:var(--red);font-weight:600;margin-bottom:6px">⚠️ Additional Charges</div>
+      <div style="color:var(--txt2);margin-bottom:8px">${info.overageWarningMessage || 'This booking exceeds the included monthly hours.'}</div>
+      <div>This booking: <strong>${info.hoursThisBooking} hrs</strong></div>
+      <div>Already used: <strong>${info.hoursUsed} hrs</strong></div>
+      <div>Included: <strong>${info.hoursIncluded} hrs</strong></div>
+      <div>Over by: <strong>${info.hoursOver} hrs</strong> @ $${Number(info.overageRate).toFixed(2)}/hr</div>
+      <div style="margin-top:6px">Charge: <strong>$${Number(info.overageCharge).toFixed(2)}</strong></div>
+      <div style="margin-top:10px;display:flex;gap:6px">
+        <button class="btn-sm" onclick="cancelAdminOverage()">Cancel</button>
+        <button class="btn-sm" style="border-color:var(--acc);color:var(--acc)" onclick="acceptAdminOverage()">Accept &amp; Confirm</button>
+      </div>
+    </div>`;
+  box.style.display = 'block';
+}
+
+async function acceptAdminOverage(){
+  if(!_pendingAdminBooking) return;
+  const {url, payload} = _pendingAdminBooking;
+  await submitAdminBooking(url, {...payload, acceptOverage: true});
+}
+
+function cancelAdminOverage(){
+  _pendingAdminBooking = null;
+  document.getElementById('book-modal-overage').style.display = 'none';
+}
+
+async function loadAdminData(){
+  // Re-fetches the admin DB blob so tabs render against fresh data.
+  try {
+    const r = await fetch('/admin/api/data');
+    const j = await r.json();
+    if(j && j.data){ Object.assign(DB, j.data); }
+  } catch(e){ console.error('loadAdminData', e); }
+}
+
+// ── Booking Settings (rate, warning, SMS templates, opt-in, privacy SMS) ────
+async function loadBookingSettings(){
+  try {
+    const r = await fetch('/admin/api/booking-settings');
+    const j = await r.json();
+    if(!j.ok){ toast('Could not load settings: '+(j.error||''),'#dc2626'); return; }
+    const s = j.settings || {};
+    document.getElementById('bs-overage-rate').value    = s.overageRatePerHour ?? '';
+    document.getElementById('bs-overage-warning').value = s.overageWarningMessage   || '';
+    document.getElementById('bs-sms-confirm').value     = s.smsConfirmationTemplate || '';
+    document.getElementById('bs-sms-remind').value      = s.smsReminderTemplate     || '';
+    document.getElementById('bs-sms-edit').value        = s.smsEditTemplate         || '';
+    document.getElementById('bs-sms-cancel').value      = s.smsCancelTemplate       || '';
+    document.getElementById('bs-optin').value           = s.optInDisclosure         || '';
+    document.getElementById('bs-privacy-sms').value     = s.privacySmsHtml          || '';
+  } catch(e){ console.error('loadBookingSettings', e); }
+}
+
+async function saveBookingSettings(){
+  const payload = {
+    overageRatePerHour:      document.getElementById('bs-overage-rate').value,
+    overageWarningMessage:   document.getElementById('bs-overage-warning').value,
+    smsConfirmationTemplate: document.getElementById('bs-sms-confirm').value,
+    smsReminderTemplate:     document.getElementById('bs-sms-remind').value,
+    smsEditTemplate:         document.getElementById('bs-sms-edit').value,
+    smsCancelTemplate:       document.getElementById('bs-sms-cancel').value,
+    optInDisclosure:         document.getElementById('bs-optin').value,
+    privacySmsHtml:          document.getElementById('bs-privacy-sms').value,
+  };
+  if(payload.overageRatePerHour === '' || isNaN(Number(payload.overageRatePerHour))){
+    toast('Overage rate must be a number','#dc2626'); return;
+  }
+  try {
+    const r = await fetch('/admin/api/booking-settings', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(payload)
+    });
+    const j = await r.json();
+    if(j.ok) toast('Booking settings saved \u2713');
+    else     toast('Save failed: '+(j.error||''),'#dc2626');
+  } catch(e){ toast('Save failed','#dc2626'); }
 }
 
 async function sendMonthlyUsage(){
@@ -2027,7 +2360,7 @@ function drillBack(){
   loadAnalytics(true);
 }
 
-function refreshAll(){ buildWebsite(); buildMarketing(); renderOffices(); renderMembers(); renderOccupants(); renderWaitlist(); buildNotify(); buildBookingsTab(); buildNewsletterHistory(); loadContactMessages(); }
+function refreshAll(){ buildWebsite(); buildMarketing(); renderOffices(); renderMembers(); renderOccupants(); renderWaitlist(); buildNotify(); buildBookingsTab(); buildNewsletterHistory(); loadContactMessages(); loadBookableResources(); loadBookingSettings(); }
 
 // === OFFICES ===
 let ofFilter='all',ofSearch='';
@@ -3345,7 +3678,7 @@ function showPage(id,btn){
   if(id==='newsletter'){populateNlCategorySelect();}
 }
 function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.getElementById(id).classList.remove('open');}
-document.addEventListener('keydown',e=>{if(e.key==='Escape')['form-modal','view-modal','conf-modal','onboard-modal','review-modal'].forEach(id=>document.getElementById(id).classList.remove('open'));});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')['form-modal','view-modal','conf-modal','onboard-modal','review-modal','booking-modal'].forEach(id=>{const el=document.getElementById(id);if(el)el.classList.remove('open');});});
 
 loadData();
 window.addEventListener('resize', () => { if(document.getElementById('rv-canvas')) buildReviewChart(); });

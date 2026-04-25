@@ -43,10 +43,26 @@
 
     <!-- Calendar -->
     <div style="flex:1;min-width:300px">
+      <!-- Resource picker (defaults to Conference Room; vacant offices listed below) -->
+      <div style="background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <label for="resource-select" style="font-size:14px;font-weight:500;color:var(--navy);margin:0">Booking:</label>
+        <select id="resource-select" onchange="onResourceChange()" style="flex:1;min-width:200px;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:14px;background:#fff">
+          {% for r in resources %}
+          <option value="{{ r.id }}">{{ r.label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- Hours summary for the currently-viewed month. Updates on month-nav. -->
+      <div id="hours-summary" style="background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:12px 16px;margin-bottom:16px;font-size:14px;color:var(--txt2);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <span><span id="hours-month-label" style="font-weight:500;color:var(--navy)"></span></span>
+        <span><span id="hours-used">0</span> / <span id="hours-included">0</span> hours used &middot; <span id="hours-remaining" style="font-weight:500;color:var(--navy)">0</span> remaining</span>
+      </div>
+
       <div class="cal-header">
-        <button class="cal-nav" onclick="prevMonth()">◀</button>
+        <button class="cal-nav" onclick="prevMonth()" id="cal-prev">◀</button>
         <div style="font-family:'Playfair Display',serif;font-size:20px;color:var(--navy)" id="cal-title"></div>
-        <button class="cal-nav" onclick="nextMonth()">▶</button>
+        <button class="cal-nav" onclick="nextMonth()" id="cal-next">▶</button>
       </div>
       <div class="cal-grid" id="cal-grid">
         <div class="cal-day-label">Mon</div>
@@ -78,6 +94,9 @@
           </select>
         </div>
         <button onclick="confirmBooking()" class="btn btn-gold" style="width:100%;margin-top:16px">Confirm Booking</button>
+        {% if opt_in_disclosure %}
+        <p style="font-size:11px;color:var(--txt2);margin-top:10px;line-height:1.5">{{ opt_in_disclosure }} See our <a href="/privacy" style="color:var(--gold)">Privacy Policy</a>.</p>
+        {% endif %}
       </div>
 
       <div id="success-panel" class="time-picker" style="display:none;text-align:center">
@@ -85,6 +104,27 @@
         <h3>Booking Confirmed!</h3>
         <p style="color:var(--txt2);font-size:14px;margin-top:8px" id="confirm-msg"></p>
         <button onclick="location.reload()" class="btn btn-navy btn-sm" style="margin-top:16px">Book Another</button>
+      </div>
+
+      <!-- Overage warning modal — shown when a booking pushes a member over
+           their included monthly hours. Text is admin-editable in phase 5. -->
+      <div id="overage-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;align-items:center;justify-content:center;padding:20px">
+        <div style="background:#fff;border-radius:var(--r);max-width:480px;width:100%;padding:28px;box-shadow:0 12px 40px rgba(0,0,0,0.3)">
+          <div style="font-size:36px;margin-bottom:8px">⚠️</div>
+          <h3 style="font-family:'Playfair Display',serif;color:var(--navy);margin:0 0 12px 0">Additional Charges Apply</h3>
+          <p id="overage-warning-text" style="color:var(--txt);font-size:14px;line-height:1.5;margin:0 0 16px 0"></p>
+          <div style="background:var(--light);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin-bottom:20px;font-size:14px">
+            <div style="display:flex;justify-content:space-between;padding:4px 0"><span>This booking:</span><span id="ov-this">&mdash;</span></div>
+            <div style="display:flex;justify-content:space-between;padding:4px 0"><span>Already used this month:</span><span id="ov-used">&mdash;</span></div>
+            <div style="display:flex;justify-content:space-between;padding:4px 0"><span>Included monthly hours:</span><span id="ov-inc">&mdash;</span></div>
+            <div style="display:flex;justify-content:space-between;padding:4px 0;border-top:1px solid var(--border);margin-top:6px;padding-top:8px;font-weight:500;color:var(--navy)"><span>Hours over:</span><span id="ov-over">&mdash;</span></div>
+            <div style="display:flex;justify-content:space-between;padding:4px 0;font-weight:600;color:var(--navy)"><span>Additional charge:</span><span id="ov-charge">&mdash;</span></div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button onclick="cancelOverage()" class="btn btn-navy" style="flex:1;background:#fff;color:var(--navy);border:1px solid var(--navy)">Cancel</button>
+            <button onclick="acceptOverage()" class="btn btn-gold" style="flex:1">Accept &amp; Confirm</button>
+          </div>
+        </div>
       </div>
 
       <!-- Upcoming bookings -->
@@ -97,25 +137,132 @@
   </div>
 </section>
 
+<!-- Edit booking modal — shown when member clicks Edit on an upcoming booking. -->
+<div id="edit-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9998;align-items:center;justify-content:center;padding:20px">
+  <div style="background:#fff;border-radius:var(--r);max-width:480px;width:100%;padding:28px;box-shadow:0 12px 40px rgba(0,0,0,0.3)">
+    <h3 style="font-family:'Playfair Display',serif;color:var(--navy);margin:0 0 16px 0">Edit Booking</h3>
+    <input type="hidden" id="edit-id">
+    <div class="form-group">
+      <label style="font-size:13px">Space</label>
+      <select id="edit-resource" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:14px">
+        {% for r in resources %}
+        <option value="{{ r.id }}">{{ r.label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-group" style="margin-top:12px">
+      <label style="font-size:13px">Date</label>
+      <input type="date" id="edit-date" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:14px">
+    </div>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <div class="form-group" style="flex:1">
+        <label style="font-size:13px">Start</label>
+        <select id="edit-start" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:14px"></select>
+      </div>
+      <div class="form-group" style="flex:1">
+        <label style="font-size:13px">End</label>
+        <select id="edit-end" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:14px"></select>
+      </div>
+    </div>
+    <div class="form-group" style="margin-top:12px">
+      <label style="font-size:13px">Meeting Title</label>
+      <input type="text" id="edit-title" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:14px">
+    </div>
+    <div style="display:flex;gap:8px;margin-top:20px;flex-wrap:wrap">
+      <button onclick="closeEditModal()" class="btn btn-navy" style="flex:1;background:#fff;color:var(--navy);border:1px solid var(--navy)">Cancel</button>
+      <button onclick="saveEdit()" class="btn btn-gold" style="flex:1" id="edit-save-btn">Save Changes</button>
+    </div>
+  </div>
+</div>
+
 {% block extra_js %}
 <script>
-const TOKEN = '{{ token }}';
+const TOKEN  = '{{ token }}';
 const MEMBER = '{{ member_name }}';
-let currentYear  = new Date().getFullYear();
-let currentMonth = new Date().getMonth() + 1;
+
+// Two-month booking window — server-supplied. Calendar nav is capped to these.
+const MIN_YEAR  = {{ min_year }},  MIN_MONTH = {{ min_month }};
+const MAX_YEAR  = {{ max_year }},  MAX_MONTH = {{ max_month }};
+
+let currentYear  = MIN_YEAR;
+let currentMonth = MIN_MONTH;
 let selectedDate = null;
 let bookedSlots  = [];
 
-const TIMES = ['7:00','7:30','8:00','8:30','9:00','9:30','10:00','10:30','11:00','11:30',
-               '12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30','16:00',
-               '16:30','17:00','17:30','18:00'];
+// 15-minute increments, business hours 7:00 AM – 6:00 PM (last bookable START
+// is 17:45; 18:00 is end-only).
+const TIMES = (function(){
+  const out = [];
+  for(let h = 7; h <= 18; h++){
+    for(let m = 0; m < 60; m += 15){
+      if(h === 18 && m > 0) break;  // cap at 18:00
+      out.push(String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0'));
+    }
+  }
+  return out;
+})();
+
+function currentResourceId(){
+  const sel = document.getElementById('resource-select');
+  return sel ? sel.value : 'conference_room';
+}
+
+// Cached usage values from /book/slots — used to update header on month-nav.
+let hoursUsed = 0, hoursIncluded = 0, overageRate = 25;
+
+// Pending booking when waiting on user response to overage warning modal.
+let pendingBooking = null;
 
 async function loadSlots(){
-  const r = await fetch(`/book/slots?token=${TOKEN}&year=${currentYear}&month=${currentMonth}`);
+  const rid = encodeURIComponent(currentResourceId());
+  const r = await fetch(`/book/slots?token=${TOKEN}&year=${currentYear}&month=${currentMonth}&resource_id=${rid}`);
   const result = await r.json();
-  bookedSlots = result.ok ? result.slots : [];
+  bookedSlots   = result.ok ? result.slots : [];
+  hoursUsed     = result.ok ? (result.hoursUsed     || 0) : 0;
+  hoursIncluded = result.ok ? (result.hoursIncluded || 0) : 0;
+  overageRate   = result.ok ? (result.overageRate   || 25) : 25;
+  updateNavButtons();
+  updateHoursSummary();
   renderCalendar();
   loadMyBookings();
+}
+
+function updateHoursSummary(){
+  const monthLabel = new Date(currentYear, currentMonth-1, 1)
+    .toLocaleDateString('en-US', {month:'long', year:'numeric'});
+  document.getElementById('hours-month-label').textContent = monthLabel;
+  document.getElementById('hours-used').textContent     = hoursUsed.toFixed(2).replace(/\.00$/, '');
+  document.getElementById('hours-included').textContent = hoursIncluded;
+  const remaining = Math.max(0, hoursIncluded - hoursUsed);
+  const remEl = document.getElementById('hours-remaining');
+  remEl.textContent = remaining.toFixed(2).replace(/\.00$/, '');
+  // Color cue: red when over, gold when remaining is 1 hour or less.
+  if(hoursUsed > hoursIncluded){
+    remEl.style.color = '#b91c1c';
+    remEl.textContent = '0 (over by ' + (hoursUsed - hoursIncluded).toFixed(2).replace(/\.00$/, '') + ')';
+  } else if(remaining <= 1){
+    remEl.style.color = 'var(--gold)';
+  } else {
+    remEl.style.color = 'var(--navy)';
+  }
+}
+
+function onResourceChange(){
+  // Hide any open booking panels and refresh slot data for the new resource.
+  document.getElementById('booking-panel').style.display = 'none';
+  document.getElementById('success-panel').style.display = 'none';
+  selectedDate = null;
+  loadSlots();
+}
+
+function updateNavButtons(){
+  // Enforce the two-month window — disable prev when on min month, next on max.
+  const atMin = (currentYear === MIN_YEAR && currentMonth === MIN_MONTH);
+  const atMax = (currentYear === MAX_YEAR && currentMonth === MAX_MONTH);
+  const prev = document.getElementById('cal-prev');
+  const next = document.getElementById('cal-next');
+  if(prev){ prev.disabled = atMin; prev.style.opacity = atMin ? '0.3' : '1'; prev.style.cursor = atMin ? 'not-allowed' : 'pointer'; }
+  if(next){ next.disabled = atMax; next.style.opacity = atMax ? '0.3' : '1'; next.style.cursor = atMax ? 'not-allowed' : 'pointer'; }
 }
 
 function renderCalendar(){
@@ -218,49 +365,208 @@ async function confirmBooking(){
   const btn = document.querySelector('#booking-panel .btn-gold');
   btn.disabled=true; btn.textContent='Booking...';
 
+  const resourceId = currentResourceId();
+  await submitBooking({date:selectedDate, start, end, title, resourceId, acceptOverage:false});
+}
+
+// Centralized submit — used both by initial confirm AND by the overage modal's
+// accept button (which retries with acceptOverage:true).
+async function submitBooking(payload){
   const r = await fetch('/book/create',{
     method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({token:TOKEN, date:selectedDate, start, end, title})
+    body:JSON.stringify({token:TOKEN, ...payload})
   });
   const result = await r.json();
+  const btn = document.querySelector('#booking-panel .btn-gold');
 
   if(result.ok){
     document.getElementById('booking-panel').style.display='none';
     document.getElementById('success-panel').style.display='block';
+    const resLabel = document.getElementById('resource-select').selectedOptions[0].textContent;
     document.getElementById('confirm-msg').textContent =
-      `${selectedDate} from ${formatTime(start)} to ${formatTime(end)}. A confirmation has been sent to your email.`;
+      `${resLabel} on ${payload.date} from ${formatTime(payload.start)} to ${formatTime(payload.end)}. A confirmation text has been sent to your phone.`;
+    pendingBooking = null;
+    if(btn){ btn.disabled=false; btn.textContent='Confirm Booking'; }
     loadSlots();
+  } else if(result.overage){
+    // Stash the booking and pop the warning modal — user must accept or cancel.
+    pendingBooking = payload;
+    showOverageModal(result);
+    if(btn){ btn.disabled=false; btn.textContent='Confirm Booking'; }
   } else {
     toast(result.error || 'Booking failed.','#dc2626');
-    btn.disabled=false; btn.textContent='Confirm Booking';
+    if(btn){ btn.disabled=false; btn.textContent='Confirm Booking'; }
+  }
+}
+
+function showOverageModal(info){
+  document.getElementById('overage-warning-text').textContent =
+    info.overageWarningMessage || 'This booking exceeds your included monthly hours.';
+  document.getElementById('ov-this').textContent   = formatHours(info.hoursThisBooking) + ' hours';
+  document.getElementById('ov-used').textContent   = formatHours(info.hoursUsed) + ' hours';
+  document.getElementById('ov-inc').textContent    = info.hoursIncluded + ' hours';
+  document.getElementById('ov-over').textContent   = formatHours(info.hoursOver) + ' hours @ $' + Number(info.overageRate).toFixed(2) + '/hr';
+  document.getElementById('ov-charge').textContent = '$' + Number(info.overageCharge).toFixed(2);
+  document.getElementById('overage-modal').style.display = 'flex';
+}
+
+function formatHours(n){
+  // Trim trailing .00 and .X0 for clean display (e.g. 1.25 not 1.25, but 1 not 1.00)
+  const x = Number(n) || 0;
+  return x.toFixed(2).replace(/\.?0+$/, '');
+}
+
+async function acceptOverage(){
+  if(!pendingBooking) return;
+  document.getElementById('overage-modal').style.display = 'none';
+  // pendingBooking._isEdit is set when the overage came from /book/edit, not /book/create.
+  if(pendingBooking._isEdit){
+    await submitEdit({...pendingBooking, acceptOverage:true});
+  } else {
+    await submitBooking({...pendingBooking, acceptOverage:true});
+  }
+}
+
+function cancelOverage(){
+  pendingBooking = null;
+  document.getElementById('overage-modal').style.display = 'none';
+}
+
+// ── Edit-booking modal ──────────────────────────────────────────────────────
+function openEditModal(b){
+  document.getElementById('edit-id').value       = b.id;
+  document.getElementById('edit-resource').value = b.resourceId || 'conference_room';
+  document.getElementById('edit-date').value     = b.date;
+  document.getElementById('edit-title').value    = b.title || 'Meeting';
+  // Populate full time options (15-min, 7am–6pm). The edit modal doesn't try
+  // to gray out conflicting slots in real time — server validates on save.
+  const startSel = document.getElementById('edit-start');
+  const endSel   = document.getElementById('edit-end');
+  startSel.innerHTML = ''; endSel.innerHTML = '';
+  TIMES.slice(0,-1).forEach(t => {
+    const opt = document.createElement('option');
+    opt.value = t; opt.textContent = formatTime(t); startSel.appendChild(opt);
+  });
+  TIMES.slice(1).forEach(t => {
+    const opt = document.createElement('option');
+    opt.value = t; opt.textContent = formatTime(t); endSel.appendChild(opt);
+  });
+  startSel.value = b.start;
+  endSel.value   = b.end;
+  document.getElementById('edit-modal').style.display = 'flex';
+}
+
+function closeEditModal(){
+  document.getElementById('edit-modal').style.display = 'none';
+}
+
+async function saveEdit(){
+  const payload = {
+    bookingId:  document.getElementById('edit-id').value,
+    resourceId: document.getElementById('edit-resource').value,
+    date:       document.getElementById('edit-date').value,
+    start:      document.getElementById('edit-start').value,
+    end:        document.getElementById('edit-end').value,
+    title:      document.getElementById('edit-title').value || 'Meeting',
+    acceptOverage: false,
+  };
+  if(payload.end <= payload.start){
+    toast('End time must be after start time.','#dc2626'); return;
+  }
+  const btn = document.getElementById('edit-save-btn');
+  btn.disabled = true; btn.textContent = 'Saving...';
+  await submitEdit(payload);
+  btn.disabled = false; btn.textContent = 'Save Changes';
+}
+
+async function submitEdit(payload){
+  const r = await fetch('/book/edit',{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({token:TOKEN, ...payload})
+  });
+  const result = await r.json();
+  if(result.ok){
+    closeEditModal();
+    toast('Booking updated. A text confirmation has been sent.');
+    pendingBooking = null;
+    loadSlots();
+  } else if(result.overage){
+    pendingBooking = {...payload, _isEdit:true};
+    showOverageModal(result);
+  } else {
+    toast(result.error || 'Could not save changes.','#dc2626');
   }
 }
 
 async function loadMyBookings(){
+  // The /book/slots feed is filtered to ONE resource at a time, so to show all
+  // of this member's upcoming bookings we hit /book/slots without the resource
+  // filter for both this month and next.
   const today = new Date().toISOString().slice(0,10);
-  const upcoming = bookedSlots
-    .filter(b => b.memberName===MEMBER && b.date >= today)
+  const months = [
+    {y: MIN_YEAR, m: MIN_MONTH},
+    {y: MAX_YEAR, m: MAX_MONTH},
+  ];
+  let all = [];
+  for(const {y, m} of months){
+    const r = await fetch(`/book/slots?token=${TOKEN}&year=${y}&month=${m}`);
+    const result = await r.json();
+    if(result.ok) all = all.concat(result.slots || []);
+  }
+  // De-dupe (in case both months returned overlapping data) and filter to mine.
+  const seen = new Set();
+  const upcoming = all
+    .filter(b => b.memberName===MEMBER && b.date >= today && !seen.has(b.id) && (seen.add(b.id), true))
     .sort((a,b) => (a.date+a.start).localeCompare(b.date+b.start))
-    .slice(0,5);
+    .slice(0,8);
 
   const el = document.getElementById('my-bookings');
   if(!upcoming.length){
     el.textContent = 'No upcoming bookings.'; return;
   }
-  el.innerHTML = upcoming.map(b =>
-    `<div style="padding:8px 0;border-bottom:1px solid var(--border)">
-      <div style="font-weight:500;color:var(--txt)">${b.date}</div>
-      <div style="color:var(--txt2)">${b.start}&ndash;${b.end} · ${b.title||'Meeting'}</div>
-    </div>`
-  ).join('');
+  el.innerHTML = upcoming.map(b => {
+    const resLabel = resourceLabelFor(b.resourceId);
+    return `<div style="padding:10px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap">
+      <div style="flex:1;min-width:160px">
+        <div style="font-weight:500;color:var(--txt)">${b.date} · ${b.start}&ndash;${b.end}</div>
+        <div style="color:var(--txt2);font-size:12px">${resLabel} · ${b.title||'Meeting'}</div>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button onclick='openEditModal(${JSON.stringify(b).replace(/'/g, "&#39;")})' class="btn-sm" style="background:#fff;color:var(--navy);border:1px solid var(--border);padding:4px 10px;border-radius:5px;font-size:12px;cursor:pointer">Edit</button>
+        <button onclick="cancelMyBooking('${b.id}')" class="btn-sm" style="background:#fff;color:#b91c1c;border:1px solid #fca5a5;padding:4px 10px;border-radius:5px;font-size:12px;cursor:pointer">Cancel</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function resourceLabelFor(rid){
+  const sel = document.getElementById('resource-select');
+  if(!sel) return rid || 'Conference Room';
+  const opt = Array.from(sel.options).find(o => o.value === rid);
+  return opt ? opt.textContent : (rid || 'Conference Room');
+}
+
+async function cancelMyBooking(id){
+  if(!confirm('Cancel this booking?')) return;
+  const r = await fetch('/book/cancel',{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({token:TOKEN, bookingId:id})
+  });
+  const result = await r.json();
+  if(result.ok){ toast('Booking cancelled'); loadSlots(); }
+  else toast(result.error || 'Could not cancel.','#dc2626');
 }
 
 function prevMonth(){
+  // Don't navigate before the min month of the booking window.
+  if(currentYear === MIN_YEAR && currentMonth === MIN_MONTH) return;
   currentMonth--;
   if(currentMonth < 1){ currentMonth=12; currentYear--; }
   loadSlots();
 }
 function nextMonth(){
+  // Don't navigate past the max month of the booking window.
+  if(currentYear === MAX_YEAR && currentMonth === MAX_MONTH) return;
   currentMonth++;
   if(currentMonth > 12){ currentMonth=1; currentYear++; }
   loadSlots();
