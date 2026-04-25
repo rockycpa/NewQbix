@@ -1364,23 +1364,23 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
     <div class="ms">Conference room or vacant office &middot; 15-minute increments &middot; 7am&ndash;6pm</div>
     <input type="hidden" id="book-modal-id">
     <div class="fg" style="margin-top:12px">
-      <div class="fl full"><label>Member</label>
+      <div class="fl"><label>Member</label>
         <select id="book-modal-member"></select>
       </div>
-      <div class="fl full"><label>Space</label>
+      <div class="fl"><label>Space</label>
         <select id="book-modal-resource"></select>
       </div>
-      <div class="fl full"><label>Date</label>
+      <div class="fl"><label>Date</label>
         <input type="date" id="book-modal-date">
+      </div>
+      <div class="fl"><label>Title</label>
+        <input type="text" id="book-modal-title-in" placeholder="Meeting">
       </div>
       <div class="fl"><label>Start</label>
         <select id="book-modal-start"></select>
       </div>
       <div class="fl"><label>End</label>
         <select id="book-modal-end"></select>
-      </div>
-      <div class="fl full"><label>Title</label>
-        <input type="text" id="book-modal-title-in" placeholder="Meeting">
       </div>
     </div>
     <div id="book-modal-overage" style="display:none"></div>
@@ -1925,11 +1925,18 @@ function cancelAdminOverage(){
 }
 
 async function loadAdminData(){
-  // Re-fetches the admin DB blob so tabs render against fresh data.
+  // Re-fetches the admin DB blob so tabs render against fresh data. The
+  // /admin/api/data endpoint returns the DB object directly (not wrapped),
+  // so we replace DB's contents wholesale with the response payload.
   try {
     const r = await fetch('/admin/api/data');
     const j = await r.json();
-    if(j && j.data){ Object.assign(DB, j.data); }
+    if(j && typeof j === 'object'){
+      // Wipe stale keys, then copy fresh ones in. This avoids a stale
+      // bookings array (or any other top-level field) lingering across saves.
+      for(const k of Object.keys(DB)) delete DB[k];
+      Object.assign(DB, j);
+    }
   } catch(e){ console.error('loadAdminData', e); }
 }
 

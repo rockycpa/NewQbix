@@ -1027,6 +1027,7 @@ def book_calendar():
     return render_template('public/book_calendar.html',
         token=bt,
         member_name=entry['name'],
+        member_email=entry.get('email', ''),
         included_hours=included,
         resources=resources,
         min_year=now.year,   min_month=now.month,

@@ -8,7 +8,7 @@
 .cal-nav:hover{background:var(--light)}
 .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
 .cal-day-label{text-align:center;font-size:12px;font-weight:600;color:var(--txt2);padding:8px 0}
-.cal-day{text-align:center;padding:10px 4px;border-radius:7px;cursor:pointer;border:1px solid transparent;transition:all .15s;min-height:60px;position:relative}
+.cal-day{text-align:center;padding:10px 4px;border-radius:7px;cursor:pointer;border:1px solid transparent;transition:all .15s;min-height:80px;position:relative}
 .cal-day:hover:not(.cal-day-past):not(.cal-day-empty){background:var(--light);border-color:var(--border)}
 .cal-day.cal-day-today{border-color:var(--gold);background:#fef3c7}
 .cal-day.cal-day-past{opacity:.4;cursor:default}
@@ -38,11 +38,11 @@
   <a href="/book" style="color:rgba(255,255,255,.6);font-size:13px">Sign out</a>
 </div>
 
-<section style="max-width:900px;margin:0 auto">
-  <div style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap">
+<section style="max-width:1400px;margin:0 auto;padding:0 5%">
+  <div style="display:flex;gap:32px;align-items:flex-start;flex-wrap:wrap">
 
     <!-- Calendar -->
-    <div style="flex:1;min-width:300px">
+    <div style="flex:1 1 540px;min-width:300px">
       <!-- Resource picker (defaults to Conference Room; vacant offices listed below) -->
       <div style="background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
         <label for="resource-select" style="font-size:14px;font-weight:500;color:var(--navy);margin:0">Booking:</label>
@@ -76,7 +76,7 @@
     </div>
 
     <!-- Booking panel -->
-    <div style="width:300px">
+    <div style="flex:0 1 360px;min-width:280px;width:100%;max-width:380px">
       <div id="booking-panel" class="time-picker" style="display:none">
         <h3 id="panel-date"></h3>
         <div class="form-group">
@@ -179,6 +179,22 @@
 <script>
 const TOKEN  = '{{ token }}';
 const MEMBER = '{{ member_name }}';
+const MEMBER_EMAIL = '{{ member_email }}';
+
+// Normalize a name for tolerant comparison (case-insensitive, trimmed,
+// collapsed whitespace). Used for "is this booking mine?" checks because
+// admin-created bookings may differ in casing/spacing from the session name.
+function _nameKey(s){
+  return (s || '').toString().trim().toLowerCase().replace(/\s+/g,' ');
+}
+const MY_NAME_KEY  = _nameKey(MEMBER);
+const MY_EMAIL_KEY = (MEMBER_EMAIL || '').toLowerCase().trim();
+function isMine(b){
+  if(!b) return false;
+  if(MY_NAME_KEY  && _nameKey(b.memberName)  === MY_NAME_KEY)  return true;
+  if(MY_EMAIL_KEY && (b.memberEmail || '').toLowerCase().trim() === MY_EMAIL_KEY) return true;
+  return false;
+}
 
 // Two-month booking window — server-supplied. Calendar nav is capped to these.
 const MIN_YEAR  = {{ min_year }},  MIN_MONTH = {{ min_month }};
@@ -296,7 +312,7 @@ function renderCalendar(){
 
     let html = `<div class="day-num">${d}</div><div class="day-slots">`;
     dayBookings.forEach(b => {
-      const isMe = b.memberName === MEMBER;
+      const isMe = isMine(b);
       html += `<div class="slot-pip ${isMe?'mine':'taken'}">${b.start}&ndash;${b.end}</div>`;
     });
     html += '</div>';
@@ -514,9 +530,11 @@ async function loadMyBookings(){
     if(result.ok) all = all.concat(result.slots || []);
   }
   // De-dupe (in case both months returned overlapping data) and filter to mine.
+  // Use isMine() rather than a strict `===` so casing/whitespace differences in
+  // the stored memberName don't hide the member's own bookings.
   const seen = new Set();
   const upcoming = all
-    .filter(b => b.memberName===MEMBER && b.date >= today && !seen.has(b.id) && (seen.add(b.id), true))
+    .filter(b => isMine(b) && b.date >= today && !seen.has(b.id) && (seen.add(b.id), true))
     .sort((a,b) => (a.date+a.start).localeCompare(b.date+b.start))
     .slice(0,8);
 
