@@ -1364,7 +1364,7 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
     <div class="ms">Conference room or vacant office &middot; 15-minute increments &middot; 7am&ndash;6pm</div>
     <input type="hidden" id="book-modal-id">
     <div class="fg" style="margin-top:12px">
-      <div class="fl"><label>Member</label>
+      <div class="fl"><label>Occupant</label>
         <select id="book-modal-member"></select>
       </div>
       <div class="fl"><label>Space</label>
@@ -1714,7 +1714,7 @@ async function saveHomePageContent(){
 // Cache populated by loadBookableResources() — used for resource labels in
 // the table and to populate the Add/Edit modal dropdowns.
 let _bookableResources = [];
-let _bookablePeople    = {members: [], occupants: []};
+let _bookablePeople    = {occupants: []};
 
 async function loadBookableResources(){
   try {
@@ -1722,7 +1722,7 @@ async function loadBookableResources(){
     const result = await r.json();
     if(result.ok){
       _bookableResources = result.resources || [];
-      _bookablePeople    = {members: result.members || [], occupants: result.occupants || []};
+      _bookablePeople    = {occupants: result.occupants || []};
     }
   } catch(e){ console.error('loadBookableResources', e); }
   // Re-render the admin calendar so its resource picker is current.
@@ -1802,20 +1802,14 @@ function openBookingModal(b, prefill){
   document.getElementById('book-modal-title').textContent = isEdit ? 'Edit Booking' : 'Add Booking';
   document.getElementById('book-modal-id').value = isEdit ? b.id : '';
 
-  // Member picker — Active members + Active occupants. Disabled when editing
-  // (changing whose booking it is would re-bill the wrong bucket).
+  // Occupant picker — Active occupants only. Members (companies) are not
+  // bookable directly; the booking rolls up to the occupant's parent member.
+  // Disabled when editing (changing whose booking it is would re-bill the
+  // wrong bucket).
   const memSel = document.getElementById('book-modal-member');
-  let opts = '<option value="">— Select a member —</option>';
-  if(_bookablePeople.members.length){
-    opts += '<optgroup label="Members">' +
-      _bookablePeople.members.map(n => `<option value="${n}">${n}</option>`).join('') +
-      '</optgroup>';
-  }
-  if(_bookablePeople.occupants.length){
-    opts += '<optgroup label="Occupants">' +
-      _bookablePeople.occupants.map(n => `<option value="${n}">${n}</option>`).join('') +
-      '</optgroup>';
-  }
+  let opts = '<option value="">— Select an occupant —</option>';
+  opts += (_bookablePeople.occupants || [])
+    .map(n => `<option value="${n}">${n}</option>`).join('');
   memSel.innerHTML = opts;
   memSel.value    = isEdit ? b.memberName : '';
   memSel.disabled = isEdit;
@@ -1865,7 +1859,7 @@ async function saveBooking(){
   const end         = document.getElementById('book-modal-end').value;
   const title       = document.getElementById('book-modal-title-in').value || 'Meeting';
 
-  if(!id && !memberName){ toast('Please pick a member','#dc2626'); return; }
+  if(!id && !memberName){ toast('Please pick an occupant','#dc2626'); return; }
   if(!date){ toast('Please pick a date','#dc2626'); return; }
   if(end <= start){ toast('End time must be after start time','#dc2626'); return; }
 

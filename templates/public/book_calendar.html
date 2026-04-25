@@ -8,14 +8,14 @@
 .cal-nav:hover{background:var(--light)}
 .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
 .cal-day-label{text-align:center;font-size:12px;font-weight:600;color:var(--txt2);padding:8px 0}
-.cal-day{text-align:center;padding:10px 4px;border-radius:7px;cursor:pointer;border:1px solid transparent;transition:all .15s;min-height:80px;position:relative}
+.cal-day{text-align:center;padding:10px 6px;border-radius:7px;cursor:pointer;border:1px solid transparent;transition:all .15s;min-height:90px;position:relative}
 .cal-day:hover:not(.cal-day-past):not(.cal-day-empty){background:var(--light);border-color:var(--border)}
 .cal-day.cal-day-today{border-color:var(--gold);background:#fef3c7}
 .cal-day.cal-day-past{opacity:.4;cursor:default}
 .cal-day.cal-day-empty{cursor:default}
-.cal-day .day-num{font-size:14px;font-weight:500}
-.cal-day .day-slots{display:flex;flex-direction:column;gap:2px;margin-top:4px}
-.slot-pip{font-size:9px;padding:1px 4px;border-radius:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cal-day .day-num{font-size:16px;font-weight:600}
+.cal-day .day-slots{display:flex;flex-direction:column;gap:3px;margin-top:6px}
+.slot-pip{font-size:12px;padding:3px 6px;border-radius:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500}
 .slot-pip.taken{background:#fee2e2;color:#991b1b}
 .slot-pip.mine{background:#d1fae5;color:#065f46}
 
@@ -38,11 +38,11 @@
   <a href="/book" style="color:rgba(255,255,255,.6);font-size:13px">Sign out</a>
 </div>
 
-<section style="max-width:1400px;margin:0 auto;padding:0 5%">
+<section style="max-width:1700px;margin:0 auto;padding:24px 2%">
   <div style="display:flex;gap:32px;align-items:flex-start;flex-wrap:wrap">
 
     <!-- Calendar -->
-    <div style="flex:1 1 540px;min-width:300px">
+    <div style="flex:1 1 720px;min-width:300px">
       <!-- Resource picker (defaults to Conference Room; vacant offices listed below) -->
       <div style="background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
         <label for="resource-select" style="font-size:14px;font-weight:500;color:var(--navy);margin:0">Booking:</label>
@@ -240,7 +240,9 @@ async function loadSlots(){
   updateNavButtons();
   updateHoursSummary();
   renderCalendar();
-  loadMyBookings();
+  // NB: My Upcoming Bookings is fetched separately so it can run in
+  // parallel with this call (and so it isn't refetched on resource-picker
+  // changes or month nav, since the data doesn't depend on either).
 }
 
 function updateHoursSummary(){
@@ -404,6 +406,7 @@ async function submitBooking(payload){
     pendingBooking = null;
     if(btn){ btn.disabled=false; btn.textContent='Confirm Booking'; }
     loadSlots();
+    loadMyBookings();
   } else if(result.overage){
     // Stash the booking and pop the warning modal — user must accept or cancel.
     pendingBooking = payload;
@@ -506,6 +509,7 @@ async function submitEdit(payload){
     toast('Booking updated. A text confirmation has been sent.');
     pendingBooking = null;
     loadSlots();
+    loadMyBookings();
   } else if(result.overage){
     pendingBooking = {...payload, _isEdit:true};
     showOverageModal(result);
@@ -515,46 +519,34 @@ async function submitEdit(payload){
 }
 
 async function loadMyBookings(){
-  // The /book/slots feed is filtered to ONE resource at a time, so to show all
-  // of this member's upcoming bookings we hit /book/slots without the resource
-  // filter for both this month and next.
-  const today = new Date().toISOString().slice(0,10);
-  const months = [
-    {y: MIN_YEAR, m: MIN_MONTH},
-    {y: MAX_YEAR, m: MAX_MONTH},
-  ];
-  let all = [];
-  for(const {y, m} of months){
-    const r = await fetch(`/book/slots?token=${TOKEN}&year=${y}&month=${m}`);
-    const result = await r.json();
-    if(result.ok) all = all.concat(result.slots || []);
-  }
-  // De-dupe (in case both months returned overlapping data) and filter to mine.
-  // Use isMine() rather than a strict `===` so casing/whitespace differences in
-  // the stored memberName don't hide the member's own bookings.
-  const seen = new Set();
-  const upcoming = all
-    .filter(b => isMine(b) && b.date >= today && !seen.has(b.id) && (seen.add(b.id), true))
-    .sort((a,b) => (a.date+a.start).localeCompare(b.date+b.start))
-    .slice(0,8);
-
+  // Single round-trip: /book/my-bookings returns all of this member's
+  // upcoming bookings across every resource, server-filtered. Cached
+  // and only refetched after a successful create/edit/cancel — resource
+  // picker changes and month nav don't trigger a refetch.
   const el = document.getElementById('my-bookings');
-  if(!upcoming.length){
-    el.textContent = 'No upcoming bookings.'; return;
+  try {
+    const r = await fetch(`/book/my-bookings?token=${TOKEN}`);
+    const result = await r.json();
+    const upcoming = (result.ok ? (result.bookings || []) : []).slice(0, 8);
+    if(!upcoming.length){
+      el.textContent = 'No upcoming bookings.'; return;
+    }
+    el.innerHTML = upcoming.map(b => {
+      const resLabel = resourceLabelFor(b.resourceId);
+      return `<div style="padding:10px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap">
+        <div style="flex:1;min-width:160px">
+          <div style="font-weight:500;color:var(--txt)">${b.date} · ${b.start}&ndash;${b.end}</div>
+          <div style="color:var(--txt2);font-size:12px">${resLabel} · ${b.title||'Meeting'}</div>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button onclick='openEditModal(${JSON.stringify(b).replace(/'/g, "&#39;")})' class="btn-sm" style="background:#fff;color:var(--navy);border:1px solid var(--border);padding:4px 10px;border-radius:5px;font-size:12px;cursor:pointer">Edit</button>
+          <button onclick="cancelMyBooking('${b.id}')" class="btn-sm" style="background:#fff;color:#b91c1c;border:1px solid #fca5a5;padding:4px 10px;border-radius:5px;font-size:12px;cursor:pointer">Cancel</button>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e){
+    el.textContent = 'Could not load upcoming bookings.';
   }
-  el.innerHTML = upcoming.map(b => {
-    const resLabel = resourceLabelFor(b.resourceId);
-    return `<div style="padding:10px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap">
-      <div style="flex:1;min-width:160px">
-        <div style="font-weight:500;color:var(--txt)">${b.date} · ${b.start}&ndash;${b.end}</div>
-        <div style="color:var(--txt2);font-size:12px">${resLabel} · ${b.title||'Meeting'}</div>
-      </div>
-      <div style="display:flex;gap:6px">
-        <button onclick='openEditModal(${JSON.stringify(b).replace(/'/g, "&#39;")})' class="btn-sm" style="background:#fff;color:var(--navy);border:1px solid var(--border);padding:4px 10px;border-radius:5px;font-size:12px;cursor:pointer">Edit</button>
-        <button onclick="cancelMyBooking('${b.id}')" class="btn-sm" style="background:#fff;color:#b91c1c;border:1px solid #fca5a5;padding:4px 10px;border-radius:5px;font-size:12px;cursor:pointer">Cancel</button>
-      </div>
-    </div>`;
-  }).join('');
 }
 
 function resourceLabelFor(rid){
@@ -571,7 +563,7 @@ async function cancelMyBooking(id){
     body:JSON.stringify({token:TOKEN, bookingId:id})
   });
   const result = await r.json();
-  if(result.ok){ toast('Booking cancelled'); loadSlots(); }
+  if(result.ok){ toast('Booking cancelled'); loadSlots(); loadMyBookings(); }
   else toast(result.error || 'Could not cancel.','#dc2626');
 }
 
@@ -590,7 +582,10 @@ function nextMonth(){
   loadSlots();
 }
 
+// Initial load: fire both fetches in parallel so the upcoming-bookings
+// panel doesn't have to wait for the calendar grid to finish loading.
 loadSlots();
+loadMyBookings();
 </script>
 {% endblock %}
 {% endblock %}
