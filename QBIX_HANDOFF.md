@@ -62,7 +62,7 @@
 | ADMIN_PHONE | 4787379107 |
 | SECRET_KEY | set |
 | APP_URL | update to https://qbixcentre.com after domain points |
-| TWILIO_ACCOUNT_SID | AC61e3028c7238dc3ac8292f78546d8c6a |
+| TWILIO_ACCOUNT_SID | set in Railway (starts with AC...) |
 | TWILIO_AUTH_TOKEN | set |
 | TWILIO_PHONE_NUMBER | +18665096310 |
 | GA_MEASUREMENT_ID | G-YCMYW731TM (verify it's set — was missing in last review) |
