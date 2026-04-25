@@ -1,23 +1,26 @@
 {% extends "base.html" %}
-{% block title %}Book Conference Room{% endblock %}
+{% block title %}Book a Space{% endblock %}
 
 {% block content %}
 <div class="hero" style="padding:60px 5%">
-  <h1>Conference Room <span>Booking</span></h1>
-  <p>Reserve the Qbix Centre conference room online, 24/7. Active members only.</p>
+  <h1>Book <span>a Space</span></h1>
+  <p>Reserve the Qbix Centre conference room or your office online, 24/7. Active members only.</p>
 </div>
 
 <section style="max-width:480px;margin:0 auto">
   <div class="form-card" style="margin:0">
     <h2>Member Sign In</h2>
-    <p class="subtitle">Enter the email address associated with your Qbix Centre membership. We'll send you a verification code.</p>
+    <p class="subtitle">Enter the mobile phone number on file with your Qbix Centre membership. We'll text you a 6-digit verification code.</p>
 
-    <div id="step-email">
+    <div id="step-phone">
       <div class="form-group">
-        <label>Your Member Email Address</label>
-        <input type="email" id="member-email" placeholder="your@email.com" onkeydown="if(event.key==='Enter')requestCode()">
+        <label>Your Member Mobile Number</label>
+        <input type="tel" id="member-phone" placeholder="(478) 555-0123" autocomplete="tel" inputmode="tel" oninput="formatPhone(this)" onkeydown="if(event.key==='Enter')requestCode()">
       </div>
       <button onclick="requestCode()" class="btn btn-navy" style="width:100%" id="req-btn">Send Verification Code</button>
+      {% if opt_in_disclosure %}
+      <p style="font-size:11px;color:var(--txt2);margin-top:14px;line-height:1.5">{{ opt_in_disclosure }} See our <a href="/privacy" style="color:var(--gold)">Privacy Policy</a>.</p>
+      {% endif %}
     </div>
 
     <div id="step-code" class="hidden">
@@ -27,7 +30,7 @@
         <input type="text" id="verify-code" maxlength="6" placeholder="000000" style="font-size:24px;letter-spacing:8px;text-align:center" oninput="this.value=this.value.replace(/\D/g,'')" onkeydown="if(event.key==='Enter')verifyCode()">
       </div>
       <button onclick="verifyCode()" class="btn btn-navy" style="width:100%" id="verify-btn">Verify Code</button>
-      <button onclick="resetToEmail()" style="width:100%;margin-top:10px;background:none;border:none;color:var(--txt2);font-size:13px;cursor:pointer;padding:8px">Use a different email</button>
+      <button onclick="resetToPhone()" style="width:100%;margin-top:10px;background:none;border:none;color:var(--txt2);font-size:13px;cursor:pointer;padding:8px">Use a different number</button>
     </div>
   </div>
 
@@ -40,29 +43,44 @@
 <script>
 let _token = '';
 
+// Light formatting only — strip non-digits and pretty-print as the user types.
+function formatPhone(el){
+  const d = el.value.replace(/\D/g,'').slice(0,10);
+  if(d.length <= 3)      el.value = d;
+  else if(d.length <= 6) el.value = `(${d.slice(0,3)}) ${d.slice(3)}`;
+  else                   el.value = `(${d.slice(0,3)}) ${d.slice(3,6)}-${d.slice(6)}`;
+}
+
 async function requestCode(){
-  const email = document.getElementById('member-email').value.trim();
-  if(!email){ toast('Please enter your email address.','#dc2626'); return; }
+  const raw = document.getElementById('member-phone').value;
+  const digits = raw.replace(/\D/g,'');
+  if(digits.length < 10){ toast('Please enter a 10-digit mobile number.','#dc2626'); return; }
 
   const btn = document.getElementById('req-btn');
   btn.disabled=true; btn.textContent='Sending...';
 
   const r = await fetch('/book/request-code',{
     method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({email})
+    body:JSON.stringify({phone: digits})
   });
   const result = await r.json();
 
-  if(result.ok){
-    _token = result.token;
-    document.getElementById('step-email').classList.add('hidden');
-    document.getElementById('step-code').classList.remove('hidden');
-    document.getElementById('code-msg').textContent = `We sent a 6-digit code to ${email}. It expires in 10 minutes.`;
-    document.getElementById('verify-code').focus();
-  } else {
-    toast(result.error || 'Could not send code.','#dc2626');
-    btn.disabled=false; btn.textContent='Send Verification Code';
+  if(result.ok && result.bypass){
+    // Admin testing bypass — straight into the calendar.
+    window.location = '/book/calendar?token=' + result.bookingToken;
+    return;
   }
+  if(result.ok){
+    // Real Twilio flow (post-Phase-9): show the code-entry step.
+    _token = result.token;
+    document.getElementById('step-phone').classList.add('hidden');
+    document.getElementById('step-code').classList.remove('hidden');
+    document.getElementById('code-msg').textContent = `We sent a 6-digit code to ${raw}. It expires in 10 minutes.`;
+    document.getElementById('verify-code').focus();
+    return;
+  }
+  toast(result.error || 'Could not send code.','#dc2626');
+  btn.disabled=false; btn.textContent='Send Verification Code';
 }
 
 async function verifyCode(){
@@ -86,8 +104,8 @@ async function verifyCode(){
   }
 }
 
-function resetToEmail(){
-  document.getElementById('step-email').classList.remove('hidden');
+function resetToPhone(){
+  document.getElementById('step-phone').classList.remove('hidden');
   document.getElementById('step-code').classList.add('hidden');
   document.getElementById('req-btn').disabled=false;
   document.getElementById('req-btn').textContent='Send Verification Code';

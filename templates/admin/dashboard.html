@@ -266,7 +266,7 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
     <button class="nb" onclick="showPage('waitlist',this)">Waiting List</button>
     <button class="nb notify-btn" onclick="showPage('notify',this)">&#128226; Notify</button>
     <button class="nb" onclick="showPage('newsletter',this)" style="background:rgba(155,126,212,.15);color:var(--purple);border:1px solid rgba(155,126,212,.3)">&#128240; Newsletter</button>
-    <button class="nb" onclick="showPage('bookings',this)">&#128197; Bookings</button>
+    <button class="nb" onclick="showPage('bookings',this);renderBookingCalendar()">&#128197; Bookings</button>
   </nav>
   <div class="hstats">
     <a href="/admin/logout" style="font-size:12px;color:var(--txt2);margin-left:8px">Sign out</a>
@@ -1322,7 +1322,31 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
     </div>
   </details>
 
-  <div class="card"><div class="tw">
+  <!-- Calendar / List toggle -->
+  <div style="display:flex;gap:6px;margin-bottom:12px;align-items:center">
+    <div role="tablist" style="display:inline-flex;background:var(--sur2);border:1px solid var(--bdr);border-radius:7px;padding:3px">
+      <button id="bv-tab-cal"  onclick="setBookingView('cal')"  style="background:var(--blue);color:#fff;border:none;border-radius:5px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer">&#128197; Calendar</button>
+      <button id="bv-tab-list" onclick="setBookingView('list')" style="background:transparent;color:var(--txt2);border:none;border-radius:5px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer">&#9776; List</button>
+    </div>
+  </div>
+
+  <!-- Calendar view -->
+  <div id="bv-calendar" class="card" style="padding:14px 16px">
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
+      <select id="bv-resource" onchange="renderBookingCalendar()" style="background:var(--sur2);border:1px solid var(--bdr);border-radius:7px;color:var(--txt);font-size:13px;padding:7px 10px;outline:none;min-width:200px"></select>
+      <div style="display:flex;gap:4px;margin-left:auto;align-items:center">
+        <button class="btn-sm" onclick="bvNavMonth(-1)">&laquo; Prev</button>
+        <div id="bv-month-label" style="font-weight:700;font-size:14px;min-width:160px;text-align:center"></div>
+        <button class="btn-sm" onclick="bvNavMonth(1)">Next &raquo;</button>
+        <button class="btn-sm" onclick="bvGoToday()" style="margin-left:6px">Today</button>
+      </div>
+    </div>
+    <div id="bv-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--bdr);border:1px solid var(--bdr);border-radius:8px;overflow:hidden"></div>
+    <div style="font-size:11px;color:var(--txt3);margin-top:8px">Click an existing booking to edit. Click an empty day to add a new booking on that date.</div>
+  </div>
+
+  <!-- List view -->
+  <div id="bv-list" class="card" style="display:none"><div class="tw">
     <table>
       <thead><tr><th>Date</th><th>Time</th><th>Space</th><th>Member</th><th>Title</th><th>Overage</th><th>Status</th><th>Actions</th></tr></thead>
       <tbody id="bookings-tbody"></tbody>
@@ -1701,6 +1725,10 @@ async function loadBookableResources(){
       _bookablePeople    = {members: result.members || [], occupants: result.occupants || []};
     }
   } catch(e){ console.error('loadBookableResources', e); }
+  // Re-render the admin calendar so its resource picker is current.
+  if(typeof renderBookingCalendar === 'function' && document.getElementById('bv-grid')){
+    renderBookingCalendar();
+  }
 }
 
 function bookingResourceLabel(rid){
@@ -1742,7 +1770,7 @@ async function adminCancelBooking(id){
   if(!confirm('Cancel this booking? The member will be notified by SMS.')) return;
   const r=await fetch('/admin/api/booking-cancel',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bookingId:id})});
   const result=await r.json();
-  if(result.ok){const b=DB.bookings.find(x=>x.id===id);if(b)b.status='cancelled';buildBookingsTab();toast('Booking cancelled');}
+  if(result.ok){const b=DB.bookings.find(x=>x.id===id);if(b)b.status='cancelled';buildBookingsTab();renderBookingCalendar();toast('Booking cancelled');}
 }
 
 // ── Add / Edit Booking modal ─────────────────────────────────────────────────
@@ -1761,10 +1789,12 @@ function bookingTimeOptions(){
   return out;
 }
 
-function openBookingModal(b){
+function openBookingModal(b, prefill){
+  // `prefill` is an optional {date, resourceId} hint used when adding from the
+  // calendar view — pre-selects the day and resource the admin clicked on.
   if(!_bookableResources.length){
     // Resources weren't preloaded yet — load on demand.
-    loadBookableResources().then(() => openBookingModal(b));
+    loadBookableResources().then(() => openBookingModal(b, prefill));
     return;
   }
   const isEdit = !!b;
@@ -1799,7 +1829,9 @@ function openBookingModal(b){
     resSel.insertAdjacentHTML('afterbegin',
       `<option value="${b.resourceId}">${bookingResourceLabel(b.resourceId)} (no longer vacant)</option>`);
   }
-  resSel.value = isEdit ? b.resourceId : 'conference_room';
+  resSel.value = isEdit ? b.resourceId
+                       : (prefill && prefill.resourceId) ? prefill.resourceId
+                       : 'conference_room';
 
   // Time selects
   const startSel = document.getElementById('book-modal-start');
@@ -1808,7 +1840,9 @@ function openBookingModal(b){
   startSel.innerHTML = times.slice(0,-1).map(t => `<option value="${t}">${t}</option>`).join('');
   endSel.innerHTML   = times.slice(1).map(t => `<option value="${t}">${t}</option>`).join('');
 
-  document.getElementById('book-modal-date').value  = isEdit ? b.date  : new Date().toISOString().slice(0,10);
+  document.getElementById('book-modal-date').value  = isEdit ? b.date
+                                                    : (prefill && prefill.date) ? prefill.date
+                                                    : new Date().toISOString().slice(0,10);
   startSel.value                                    = isEdit ? b.start : '09:00';
   endSel.value                                      = isEdit ? b.end   : '10:00';
   document.getElementById('book-modal-title-in').value = isEdit ? (b.title || 'Meeting') : 'Meeting';
@@ -1851,6 +1885,7 @@ async function submitAdminBooking(url, payload){
     // Refresh the local DB cache so the table re-renders.
     await loadAdminData();
     buildBookingsTab();
+    renderBookingCalendar();
   } else if(result.overage){
     _pendingAdminBooking = {url, payload};
     showAdminOverage(result);
@@ -1896,6 +1931,128 @@ async function loadAdminData(){
     const j = await r.json();
     if(j && j.data){ Object.assign(DB, j.data); }
   } catch(e){ console.error('loadAdminData', e); }
+}
+
+// ── Calendar view of admin bookings (Phase 8) ───────────────────────────────
+// Mirrors the public /book/calendar UI but supports admin actions on click:
+// click a booking block to edit it, click an empty area on a day to add a
+// new booking pre-filled with that date. Admin is NOT capped at the 2-month
+// window — they can navigate to any month forward or back.
+let _bvYear  = new Date().getFullYear();
+let _bvMonth = new Date().getMonth() + 1;
+let _bvView  = 'cal';   // 'cal' | 'list'
+
+function setBookingView(v){
+  _bvView = v;
+  const cal  = document.getElementById('bv-calendar');
+  const list = document.getElementById('bv-list');
+  const tCal = document.getElementById('bv-tab-cal');
+  const tLst = document.getElementById('bv-tab-list');
+  if(v === 'cal'){
+    cal.style.display  = '';
+    list.style.display = 'none';
+    tCal.style.background='var(--blue)'; tCal.style.color='#fff';
+    tLst.style.background='transparent'; tLst.style.color='var(--txt2)';
+    renderBookingCalendar();
+  } else {
+    cal.style.display  = 'none';
+    list.style.display = '';
+    tCal.style.background='transparent'; tCal.style.color='var(--txt2)';
+    tLst.style.background='var(--blue)'; tLst.style.color='#fff';
+    buildBookingsTab();
+  }
+}
+
+function bvNavMonth(delta){
+  let y = _bvYear, m = _bvMonth + delta;
+  if(m < 1){ m = 12; y -= 1; }
+  if(m > 12){ m = 1; y += 1; }
+  _bvYear = y; _bvMonth = m;
+  renderBookingCalendar();
+}
+
+function bvGoToday(){
+  const now = new Date();
+  _bvYear = now.getFullYear();
+  _bvMonth = now.getMonth() + 1;
+  renderBookingCalendar();
+}
+
+function renderBookingCalendar(){
+  // Populate the resource picker once per render — cheap, keeps it in sync
+  // when a member leases/vacates an office without a tab refresh.
+  const sel = document.getElementById('bv-resource');
+  const prev = sel.value;
+  sel.innerHTML = (_bookableResources.length
+    ? _bookableResources.map(r => `<option value="${r.id}">${r.label}</option>`).join('')
+    : '<option value="conference_room">Conference Room</option>');
+  sel.value = prev || 'conference_room';
+
+  const monthLabel = new Date(_bvYear, _bvMonth - 1, 1)
+    .toLocaleString('en-US', {month:'long', year:'numeric'});
+  document.getElementById('bv-month-label').textContent = monthLabel;
+
+  // Group this month's confirmed bookings on the selected resource by date.
+  const rid = sel.value;
+  const monthStr = `${_bvYear}-${String(_bvMonth).padStart(2,'0')}`;
+  const byDate = {};
+  (DB.bookings || []).forEach(b => {
+    if(b.status === 'cancelled') return;
+    if(b.resourceId !== rid) return;
+    if(!b.date || !b.date.startsWith(monthStr)) return;
+    (byDate[b.date] = byDate[b.date] || []).push(b);
+  });
+  Object.values(byDate).forEach(list => list.sort((a,b) => a.start.localeCompare(b.start)));
+
+  // Build the 7-column day grid with leading blanks for the first row.
+  const firstWeekday = new Date(_bvYear, _bvMonth - 1, 1).getDay(); // 0=Sun
+  const daysInMonth  = new Date(_bvYear, _bvMonth, 0).getDate();
+  const today        = new Date().toISOString().slice(0,10);
+
+  let html = '';
+  // Weekday headers
+  ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach(d => {
+    html += `<div style="background:var(--sur);font-size:11px;font-weight:700;color:var(--txt3);text-align:center;padding:6px 0;text-transform:uppercase;letter-spacing:.06em">${d}</div>`;
+  });
+  // Leading blanks
+  for(let i = 0; i < firstWeekday; i++){
+    html += '<div style="background:var(--sur);min-height:88px"></div>';
+  }
+  // Day cells
+  for(let d = 1; d <= daysInMonth; d++){
+    const dateStr = `${monthStr}-${String(d).padStart(2,'0')}`;
+    const isToday = dateStr === today;
+    const dayB = byDate[dateStr] || [];
+    const dayLabel = `<div style="font-size:11px;color:${isToday?'var(--acc)':'var(--txt3)'};font-weight:${isToday?'800':'600'};margin-bottom:4px">${d}${isToday?' &middot; Today':''}</div>`;
+    const blocks = dayB.map(b => {
+      const safeName  = (b.memberName || '').replace(/</g,'&lt;').replace(/&/g,'&amp;');
+      // Match the pattern used by the list view's Edit button: outer single
+      // quotes on the attribute, JSON apostrophes encoded as &#39; so they
+      // survive the round-trip through HTML parsing.
+      const json = JSON.stringify(b).replace(/'/g,'&#39;');
+      return `<div onclick='event.stopPropagation();openBookingModal(${json})' title="Click to edit" style="background:var(--sur2);border-left:3px solid var(--blue);border-radius:3px;padding:3px 5px;font-size:11px;line-height:1.3;margin-bottom:2px;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+        <span style="color:var(--acc);font-weight:700">${b.start}</span> ${safeName}
+      </div>`;
+    }).join('');
+    html += `<div onclick="bvAddOnDate('${dateStr}')" style="background:var(--bg);min-height:88px;padding:5px 6px;cursor:pointer;display:flex;flex-direction:column;${isToday?'box-shadow:inset 0 0 0 2px var(--acc)':''}">
+      ${dayLabel}
+      <div style="flex:1;overflow:hidden">${blocks}</div>
+    </div>`;
+  }
+  // Trailing blanks to round out the last row
+  const totalCells = firstWeekday + daysInMonth;
+  const trailing   = (7 - (totalCells % 7)) % 7;
+  for(let i = 0; i < trailing; i++){
+    html += '<div style="background:var(--sur);min-height:88px"></div>';
+  }
+  document.getElementById('bv-grid').innerHTML = html;
+}
+
+function bvAddOnDate(dateStr){
+  // Open the Add modal pre-filled with that date and the currently-selected
+  // resource. Member is left blank — admin still has to pick.
+  const rid = document.getElementById('bv-resource').value || 'conference_room';
+  openBookingModal(null, {date: dateStr, resourceId: rid});
 }
 
 // ── Booking Settings (rate, warning, SMS templates, opt-in, privacy SMS) ────

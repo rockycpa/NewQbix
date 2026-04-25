@@ -940,59 +940,46 @@ def onboard_submit(token):
 
 @app.route('/book')
 def book_home():
-    return render_template('public/book_home.html', ga_id=GA_MEASUREMENT_ID)
+    data = get_db()
+    bs   = data.get('bookingSettings', {})
+    return render_template('public/book_home.html',
+        opt_in_disclosure=bs.get('optInDisclosure', ''),
+        ga_id=GA_MEASUREMENT_ID)
 
 @app.route('/book/request-code', methods=['POST'])
 def book_request_code():
-    email = request.json.get('email', '').strip().lower()
-    data  = get_db()
+    """Phase 7 — phone-number entry point. While Twilio toll-free verification
+    is pending, only ADMIN_PHONE is allowed in: that bypass grants a booking
+    session token immediately, no SMS code step. Every other phone number is
+    rejected with a friendly test-mode message. When Twilio approval clears
+    (Phase 9), this handler swaps to a real lookup-by-phone + send-code flow."""
+    raw_phone = request.json.get('phone', '')
+    phone     = _normalize_phone(raw_phone)
+    if not phone:
+        return jsonify({'ok': False, 'error': 'Please enter a valid 10-digit phone number.'})
 
-    # Check if active member with this email
-    member = next((m for m in data['members']
-                   if m.get('email','').lower() == email
-                   and m.get('status') == 'Active'), None)
+    data       = get_db()
+    admin_norm = _normalize_phone(ADMIN_PHONE)
 
-    # Also check occupants - find their member company
-    if not member:
-        occ = next((o for o in data['occupants']
-                    if o.get('email','').lower() == email
-                    and o.get('status') == 'Active'), None)
-        if occ:
-            member = next((m for m in data['members']
-                          if m.get('name') == occ.get('company')
-                          and m.get('status') == 'Active'), None)
-            if not member:
-                # Create a pseudo-member from occupant
-                member = {'name': occ.get('name'), 'email': email, 'status': 'Active'}
+    # ── Admin testing bypass ──────────────────────────────────────────────────
+    if admin_norm and phone == admin_norm:
+        member = _member_by_phone(data, phone)
+        if not member:
+            return jsonify({'ok': False, 'error':
+                'Your phone is the ADMIN_PHONE but no Active member or occupant '
+                'has it on file. Add yourself as a test member to enable bypass.'})
+        booking_token = secrets.token_urlsafe(32)
+        _booking_tokens[booking_token] = {
+            'email':   member.get('_phone_member_email', ''),
+            'name':    member.get('_phone_member_name', ''),
+            'expires': datetime.now() + timedelta(hours=2),
+        }
+        return jsonify({'ok': True, 'bypass': True, 'bookingToken': booking_token})
 
-    if not member:
-        return jsonify({'ok': False, 'error': 'Email not found in our active member list.'})
-
-    code = generate_code()
-    token = secrets.token_urlsafe(32)
-    _pending_2fa[token] = {
-        'code':    code,
-        'email':   email,
-        'name':    member['name'],
-        'expires': datetime.now() + timedelta(minutes=10),
-    }
-
-    # Look up member phone for SMS
-    member_phone = member.get('phone', '')
-    if not member_phone:
-        # Try occupants for phone
-        occ2 = next((o for o in data['occupants']
-                     if o.get('email','').lower() == email
-                     and o.get('status') == 'Active'), None)
-        if occ2:
-            member_phone = occ2.get('phone', '')
-
-    if member_phone:
-        send_sms(member_phone, f'Qbix Centre booking code: {code}. Expires in 10 minutes.')
-    else:
-        print(f"[BOOKING] No phone found for {email} — code not sent")
-
-    return jsonify({'ok': True, 'token': token})
+    # ── Everyone else — test mode block ──────────────────────────────────────
+    return jsonify({'ok': False, 'error':
+        'Phone-based booking login is currently in test mode. '
+        'Please contact the admin to be added as a tester.'})
 
 @app.route('/book/verify', methods=['POST'])
 def book_verify():
@@ -1375,6 +1362,36 @@ def _booking_sms_ctx(data, booking, override_label=None, override_date=None,
         'end':    override_end   or booking.get('end',   ''),
         'member': booking.get('memberName', ''),
     }
+
+def _normalize_phone(p):
+    """Reduce any phone string (with dashes, parens, +1 country code, etc.)
+    down to a 10-digit string for comparison. Returns '' if fewer than 10
+    digits are present."""
+    digits = ''.join(filter(str.isdigit, str(p or '')))
+    if len(digits) >= 11 and digits.startswith('1'):
+        digits = digits[1:]
+    return digits if len(digits) == 10 else ''
+
+def _member_by_phone(data, phone):
+    """Look up an active member or occupant by phone number. Returns the
+    record dict with an extra '_phone_member_name' key set to the name we'll
+    book under (occupants book under their own name). None if no match."""
+    digits = _normalize_phone(phone)
+    if not digits:
+        return None
+    for m in data.get('members', []):
+        if m.get('status') == 'Active' and _normalize_phone(m.get('phone','')) == digits:
+            rec = dict(m)
+            rec['_phone_member_name']  = m.get('name','')
+            rec['_phone_member_email'] = m.get('email','')
+            return rec
+    for o in data.get('occupants', []):
+        if o.get('status') == 'Active' and _normalize_phone(o.get('phone','')) == digits:
+            rec = dict(o)
+            rec['_phone_member_name']  = o.get('name','')
+            rec['_phone_member_email'] = o.get('email','')
+            return rec
+    return None
 
 def _member_phone(data, email, name):
     """Find the SMS-deliverable phone for a member or occupant. Email is checked
