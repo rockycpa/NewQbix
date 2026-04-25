@@ -320,7 +320,8 @@ def track_pageview(path):
     try:
         # Skip admin, static, health routes and bots
         skip = ['/admin', '/static', '/health', '/favicon', '/book/slots',
-                '/book/verify', '/book/create', '/book/cancel', '/book/request-code']
+                '/book/my-bookings', '/book/verify', '/book/create',
+                '/book/cancel', '/book/request-code']
         if any(path.startswith(s) for s in skip):
             return
         referrer = request.referrer or ''
@@ -405,13 +406,21 @@ def _booking_duration_hours(b):
     except (ValueError, AttributeError):
         return 0.0
 
+def _booking_billed_to(b):
+    """Resolve which member account a booking's hours roll up to. Bookings
+    made by occupants stamp `parentMember` (the company / member name); old
+    bookings without that field fall back to `memberName` so their hours
+    don't get lost when accounting changed."""
+    return (b.get('parentMember') or b.get('memberName') or '')
+
 def get_member_hours_used(data, member_name, year, month):
-    """Sum confirmed booking hours for this member in the given month, across
-    all resources (conference room + offices both draw from the same bucket).
-    Returns a float (e.g. 4.25 for 4 hours 15 minutes)."""
+    """Sum confirmed booking hours billed to this member in the given month,
+    across all resources (conference room + offices both draw from the same
+    bucket). Occupants' bookings under this member roll up here via the
+    parentMember field. Returns a float (e.g. 4.25 for 4h 15m)."""
     total = 0.0
     for b in data.get('bookings', []):
-        if (b.get('memberName') == member_name
+        if (_booking_billed_to(b) == member_name
                 and b.get('year')   == year
                 and b.get('month')  == month
                 and b.get('status') != 'cancelled'):
@@ -963,16 +972,17 @@ def book_request_code():
 
     # ── Admin testing bypass ──────────────────────────────────────────────────
     if admin_norm and phone == admin_norm:
-        member = _member_by_phone(data, phone)
-        if not member:
+        occupant = _member_by_phone(data, phone)
+        if not occupant:
             return jsonify({'ok': False, 'error':
-                'Your phone is the ADMIN_PHONE but no Active member or occupant '
-                'has it on file. Add yourself as a test member to enable bypass.'})
+                'Your phone is the ADMIN_PHONE but no Active occupant has it '
+                'on file. Add yourself as a test occupant to enable bypass.'})
         booking_token = secrets.token_urlsafe(32)
         _booking_tokens[booking_token] = {
-            'email':   member.get('_phone_member_email', ''),
-            'name':    member.get('_phone_member_name', ''),
-            'expires': datetime.now() + timedelta(hours=2),
+            'email':        occupant.get('_phone_member_email', ''),
+            'name':         occupant.get('_phone_member_name', ''),
+            'parentMember': occupant.get('_phone_parent_member', ''),
+            'expires':      datetime.now() + timedelta(hours=2),
         }
         return jsonify({'ok': True, 'bypass': True, 'bookingToken': booking_token})
 
@@ -1013,8 +1023,13 @@ def book_calendar():
         return redirect(url_for('book_home'))
 
     data = get_db()
+    # Sessions are now created by occupant lookup, so the parent member name
+    # is stamped on the token. We look up the member record by that name to
+    # compute included hours; occupants without a valid parent member can't
+    # book (their hours bucket would be undefined).
+    parent_name = (entry.get('parentMember') or '').strip()
     member = next((m for m in data['members']
-                   if m.get('email','').lower() == entry['email'].lower()), None)
+                   if m.get('name') == parent_name), None) if parent_name else None
     if not member:
         return redirect(url_for('book_home'))
 
@@ -1056,11 +1071,12 @@ def book_slots():
              and b.get('status') != 'cancelled'
              and (not resource_filter or b.get('resourceId') == resource_filter)]
 
-    # Resolve the booker's member name so hours-used is keyed correctly.
-    # Same lookup the create route uses (members → fall back to occupants).
-    member_name = entry.get('name', '')
-    hours_used     = get_member_hours_used(data, member_name, year, month)
-    hours_inc      = hours_included(data, member_name)
+    # Hours/limits live on the parent member account (the company). All
+    # occupants share that bucket; the token carries `parentMember` so we
+    # don't have to re-derive it from the occupant record on every call.
+    parent_member  = (entry.get('parentMember') or '').strip()
+    hours_used     = get_member_hours_used(data, parent_member, year, month) if parent_member else 0.0
+    hours_inc      = hours_included(data, parent_member) if parent_member else 0
     bs             = data.get('bookingSettings', {})
     overage_rate   = bs.get('overageRatePerHour', 25)
 
@@ -1072,6 +1088,38 @@ def book_slots():
         'overageRate':   overage_rate,
     })
 
+@app.route('/book/my-bookings')
+def book_my_bookings():
+    """Return ALL of the signed-in member's upcoming (today-and-later)
+    bookings across every resource in a single round trip. Used by the
+    member calendar's "My Upcoming Bookings" panel so it doesn't need to
+    pull two months of all-resource data and filter client-side."""
+    bt = request.args.get('token', '')
+    entry = _booking_tokens.get(bt)
+    if not entry:
+        return jsonify({'ok': False}), 401
+
+    data       = get_db()
+    member_name  = (entry.get('name', '') or '').strip().lower()
+    member_email = (entry.get('email', '') or '').strip().lower()
+    today_iso  = datetime.now().date().isoformat()
+
+    def _is_mine(b):
+        if not b: return False
+        bn = (b.get('memberName',  '') or '').strip().lower()
+        be = (b.get('memberEmail', '') or '').strip().lower()
+        if member_name  and bn == member_name:  return True
+        if member_email and be == member_email: return True
+        return False
+
+    mine = [b for b in data.get('bookings', [])
+            if b.get('status') != 'cancelled'
+            and (b.get('date') or '') >= today_iso
+            and _is_mine(b)]
+    mine.sort(key=lambda b: (b.get('date',''), b.get('start','')))
+    # Cap at a reasonable number for display.
+    return jsonify({'ok': True, 'bookings': mine[:20]})
+
 @app.route('/book/create', methods=['POST'])
 def book_create():
     bt = request.json.get('token', '')
@@ -1079,11 +1127,17 @@ def book_create():
     if not entry or datetime.now() > entry['expires']:
         return jsonify({'ok': False, 'error': 'Session expired'}), 401
 
-    data   = get_db()
+    data = get_db()
+    # Sessions are issued only to occupants now. The parent member account
+    # (occupant.company) is stamped on the token; we look it up here so we
+    # can credit hours, enforce limits, and build the confirmation SMS.
+    parent_name = (entry.get('parentMember') or '').strip()
     member = next((m for m in data['members']
-                   if m.get('email','').lower() == entry['email'].lower()), None)
+                   if m.get('name') == parent_name), None) if parent_name else None
     if not member:
-        return jsonify({'ok': False, 'error': 'Member not found'}), 400
+        return jsonify({'ok': False, 'error': 'Member account not found'}), 400
+
+    occupant_name  = entry.get('name', '')   # who actually booked
 
     date_str       = request.json.get('date', '')    # YYYY-MM-DD
     start_time     = request.json.get('start', '')   # HH:MM
@@ -1142,8 +1196,12 @@ def book_create():
     booking_id = '_' + secrets.token_hex(4)
     booking = {
         'id':           booking_id,
-        'memberName':   member['name'],
-        'memberEmail':  entry['email'],
+        # Booker (occupant) is recorded under memberName/memberEmail so the
+        # member calendar's "My Upcoming Bookings" filter still works for them.
+        'memberName':   occupant_name,
+        'memberEmail':  entry.get('email', ''),
+        # parentMember = the member account this booking's hours roll up to.
+        'parentMember': member['name'],
         'resourceType': chosen['type'],
         'resourceId':   chosen['id'],
         'date':         date_str,
@@ -1166,10 +1224,13 @@ def book_create():
 
     res_label = chosen['label']
 
-    # Confirmation SMS to member — body comes from admin-editable template.
-    sms_ctx = _booking_sms_ctx(data, booking, override_label=res_label)
-    if member.get('phone'):
-        send_sms(member['phone'], render_sms_template(
+    # Confirmation SMS goes to the occupant who actually made the booking,
+    # not the parent member. _member_phone falls back across both, but with
+    # an occupant email match first this resolves to the occupant's phone.
+    sms_phone = _member_phone(data, entry.get('email',''), occupant_name)
+    sms_ctx   = _booking_sms_ctx(data, booking, override_label=res_label)
+    if sms_phone:
+        send_sms(sms_phone, render_sms_template(
             bs.get('smsConfirmationTemplate', ''), sms_ctx))
 
     # Schedule reminder (24h before) in background thread
@@ -1180,12 +1241,12 @@ def book_create():
             wait = (reminder_dt - datetime.now()).total_seconds()
             if wait > 0:
                 time.sleep(wait)
-            if member.get('phone'):
+            if sms_phone:
                 # Re-read settings at fire time so a template edit between book
                 # time and reminder time takes effect.
                 latest    = get_db()
                 latest_bs = latest.get('bookingSettings', {})
-                send_sms(member['phone'], render_sms_template(
+                send_sms(sms_phone, render_sms_template(
                     latest_bs.get('smsReminderTemplate', ''), sms_ctx))
         except Exception as e:
             print(f'Reminder error: {e}')
@@ -1276,17 +1337,19 @@ def _apply_booking_edit(data, booking, new_date, new_start, new_end, new_title,
             return jsonify({'ok': False, 'error': 'That time slot is already booked.'})
 
     # Overage check — exclude this booking from "hours used" since we're replacing it.
-    member_name   = booking['memberName']
+    # Hours roll up to the parent member account; occupants without parentMember
+    # (legacy bookings) fall back to their own memberName so totals stay correct.
+    billed_to     = _booking_billed_to(booking)
     booking_hours = _booking_duration_hours({'start': new_start, 'end': new_end})
     other_used = sum(
         _booking_duration_hours(b) for b in data.get('bookings', [])
-        if b.get('memberName') == member_name
+        if _booking_billed_to(b) == billed_to
         and b.get('year')   == dt.year
         and b.get('month')  == dt.month
         and b.get('status') != 'cancelled'
         and b['id'] != booking['id']
     )
-    hours_inc      = hours_included(data, member_name)
+    hours_inc      = hours_included(data, billed_to)
     bs             = data.get('bookingSettings', {})
     overage_rate   = float(bs.get('overageRatePerHour', 25))
     hours_after    = other_used + booking_hours
@@ -1374,23 +1437,23 @@ def _normalize_phone(p):
     return digits if len(digits) == 10 else ''
 
 def _member_by_phone(data, phone):
-    """Look up an active member or occupant by phone number. Returns the
-    record dict with an extra '_phone_member_name' key set to the name we'll
-    book under (occupants book under their own name). None if no match."""
+    """Look up an active OCCUPANT by phone number. Members (companies) are
+    intentionally NOT matched here — bookings always flow through occupants
+    so that monthly hour limits stay attached to the parent member account.
+    Returns the occupant record dict augmented with:
+      _phone_member_name   — occupant's own name (booked under)
+      _phone_member_email  — occupant's email
+      _phone_parent_member — the member account name to credit hours against
+    None if no match."""
     digits = _normalize_phone(phone)
     if not digits:
         return None
-    for m in data.get('members', []):
-        if m.get('status') == 'Active' and _normalize_phone(m.get('phone','')) == digits:
-            rec = dict(m)
-            rec['_phone_member_name']  = m.get('name','')
-            rec['_phone_member_email'] = m.get('email','')
-            return rec
     for o in data.get('occupants', []):
         if o.get('status') == 'Active' and _normalize_phone(o.get('phone','')) == digits:
             rec = dict(o)
-            rec['_phone_member_name']  = o.get('name','')
-            rec['_phone_member_email'] = o.get('email','')
+            rec['_phone_member_name']   = o.get('name','')
+            rec['_phone_member_email']  = o.get('email','')
+            rec['_phone_parent_member'] = o.get('company','')
             return rec
     return None
 
@@ -2337,46 +2400,45 @@ def admin_cancel_booking():
 @login_required
 def admin_bookable_resources():
     """Used by the admin Bookings tab to populate the resource picker in the
-    Add/Edit Booking modals. Includes the active member + occupant list too,
-    so the modal can offer a member picker without an extra round-trip."""
+    Add/Edit Booking modals. Returns the active occupant list (the only people
+    bookings can be made for) — bookings always credit hours to the occupant's
+    parent member account, so member-direct selection is intentionally absent."""
     data = get_db()
-    members = sorted([m['name'] for m in data.get('members', [])
-                      if m.get('status') == 'Active' and m.get('name')])
     occupants = sorted([o['name'] for o in data.get('occupants', [])
                         if o.get('status') == 'Active' and o.get('name')])
     return jsonify({
         'ok':        True,
         'resources': get_bookable_resources(data),
-        'members':   members,
         'occupants': occupants,
     })
 
 @app.route('/admin/api/booking-create', methods=['POST'])
 @login_required
 def admin_create_booking():
-    """Admin creates a booking on behalf of an active member or occupant.
-    Same conflict + overage gate as /book/create, but no auth-token check
-    (relies on @login_required) and the member is chosen from the picker."""
-    member_name = request.json.get('memberName', '').strip()
-    if not member_name:
-        return jsonify({'ok': False, 'error': 'Member is required'}), 400
+    """Admin creates a booking on behalf of an active occupant. Same conflict
+    + overage gate as /book/create, but no auth-token check (relies on
+    @login_required) and the occupant is chosen from the picker. Hours roll
+    up to the occupant's parent member account."""
+    occupant_name = request.json.get('memberName', '').strip()
+    if not occupant_name:
+        return jsonify({'ok': False, 'error': 'Occupant is required'}), 400
 
     data = get_db()
-    # Look up by name across active members first, then active occupants.
-    member = next((m for m in data.get('members', [])
-                   if m.get('name') == member_name and m.get('status') == 'Active'), None)
-    member_email = ''
-    if member:
-        member_email = member.get('email', '')
-    else:
-        occ = next((o for o in data.get('occupants', [])
-                    if o.get('name') == member_name and o.get('status') == 'Active'), None)
-        if occ:
-            member_email = occ.get('email', '')
-            # An occupant booking still records the occupant's own name so
-            # they can edit/cancel it from the public flow.
-        else:
-            return jsonify({'ok': False, 'error': 'Member not found or not active'}), 404
+    # Look up active occupant by name. Members (companies) are not bookable
+    # directly — the parent member is derived from occupant.company.
+    occ = next((o for o in data.get('occupants', [])
+                if o.get('name') == occupant_name and o.get('status') == 'Active'), None)
+    if not occ:
+        return jsonify({'ok': False, 'error': 'Occupant not found or not active'}), 404
+
+    parent_member_name = (occ.get('company') or '').strip()
+    parent_member = next((m for m in data.get('members', [])
+                          if m.get('name') == parent_member_name), None) if parent_member_name else None
+    if not parent_member:
+        return jsonify({'ok': False, 'error':
+            f'Occupant "{occupant_name}" is not linked to an active member account.'}), 400
+
+    occupant_email = occ.get('email', '')
 
     date_str       = request.json.get('date', '')
     start_time     = request.json.get('start', '')
@@ -2403,10 +2465,11 @@ def admin_create_booking():
                 and not (end_time <= b.get('start','') or start_time >= b.get('end',''))):
             return jsonify({'ok': False, 'error': 'That time slot is already booked.'})
 
-    # Overage check.
+    # Overage check — accounted at the parent-member level (all occupants
+    # under one member share the same monthly hour bucket).
     booking_hours  = _booking_duration_hours({'start': start_time, 'end': end_time})
-    hours_used     = get_member_hours_used(data, member_name, dt.year, dt.month)
-    hours_inc      = hours_included(data, member_name)
+    hours_used     = get_member_hours_used(data, parent_member_name, dt.year, dt.month)
+    hours_inc      = hours_included(data, parent_member_name)
     bs             = data.get('bookingSettings', {})
     overage_rate   = float(bs.get('overageRatePerHour', 25))
     hours_after    = hours_used + booking_hours
@@ -2429,8 +2492,10 @@ def admin_create_booking():
     booking_id = '_' + secrets.token_hex(4)
     booking = {
         'id':           booking_id,
-        'memberName':   member_name,
-        'memberEmail':  member_email,
+        # Booker = occupant. Hours roll up to parentMember.
+        'memberName':   occupant_name,
+        'memberEmail':  occupant_email,
+        'parentMember': parent_member_name,
         'resourceType': chosen['type'],
         'resourceId':   chosen['id'],
         'date':         date_str,
@@ -2450,8 +2515,8 @@ def admin_create_booking():
     data.setdefault('bookings', []).append(booking)
     save_data(data)
 
-    # Confirmation SMS to the member — admin-editable template.
-    phone = _member_phone(data, member_email, member_name)
+    # Confirmation SMS to the occupant who's actually using the space.
+    phone = _member_phone(data, occupant_email, occupant_name)
     if phone:
         ctx = _booking_sms_ctx(data, booking, override_label=chosen['label'])
         send_sms(phone, render_sms_template(
@@ -2496,10 +2561,12 @@ def send_monthly_usage():
     month_name = datetime(year, month, 1).strftime('%B %Y')
 
     for member in active_with_email:
-        # Count their bookings that month
+        # Count their bookings that month — bookings billed to this member
+        # account, including any made by occupants under it (those stamp
+        # `parentMember`; legacy bookings fall back to `memberName`).
         member_bookings = [
             b for b in data.get('bookings', [])
-            if b.get('memberEmail','').lower() == member.get('email','').lower()
+            if _booking_billed_to(b) == member['name']
             and b.get('year') == year
             and b.get('month') == month
             and b.get('status') != 'cancelled'
