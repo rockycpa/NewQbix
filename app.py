@@ -73,10 +73,129 @@ if _cloudinary_available:
 # Serializer for signed tokens (onboarding links, booking tokens)
 serializer = URLSafeTimedSerializer(app.secret_key)
 
-# In-memory stores (fine for single-instance Railway deployment)
-_pending_2fa   = {}   # session_id -> {code, expires, purpose}
-_booking_tokens = {}  # token -> member_email
-_onboard_tokens = {}  # token -> {name, email, expires}
+# Booking tokens, 2FA codes, and onboarding tokens all used to live in
+# module-level dicts. That broke under multiple gunicorn workers / dyno
+# restarts (a token issued on worker A would 401 on worker B). Everything
+# is now persisted in the JSONB blob via the helpers below.
+
+def _bt_get(data, token):
+    """Return a booking-token entry (with `expires` as datetime) if it exists
+    and hasn't expired; None otherwise. Reads from data['_bookingTokens']."""
+    if not token: return None
+    rec = (data.get('_bookingTokens') or {}).get(token)
+    if not rec: return None
+    try:
+        expires = datetime.fromisoformat(str(rec.get('expires','')))
+    except (ValueError, TypeError):
+        return None
+    if datetime.now() > expires:
+        return None
+    out = dict(rec)
+    out['expires'] = expires
+    return out
+
+def _bt_set(data, token, entry):
+    """Stamp a booking-token entry into data. Caller must save_data(data).
+    Also lazily prunes expired tokens so the blob doesn't grow forever."""
+    store = data.setdefault('_bookingTokens', {})
+    rec = dict(entry)
+    exp = rec.get('expires')
+    if isinstance(exp, datetime):
+        rec['expires'] = exp.isoformat()
+    store[token] = rec
+    _bt_prune(data)
+
+def _bt_del(data, token):
+    """Remove a booking token. Caller must save_data(data)."""
+    if not token: return
+    store = data.get('_bookingTokens') or {}
+    store.pop(token, None)
+
+def _bt_prune(data):
+    """Drop expired booking tokens from data['_bookingTokens'] in place."""
+    store = data.get('_bookingTokens') or {}
+    if not store: return
+    now_iso = datetime.now().isoformat()
+    for k in [k for k, v in list(store.items()) if str(v.get('expires','')) < now_iso]:
+        store.pop(k, None)
+
+def _p2fa_get(data, sid):
+    """Return a pending-2FA entry (with `expires` as datetime) or None."""
+    if not sid: return None
+    rec = (data.get('_pending2fa') or {}).get(sid)
+    if not rec: return None
+    try:
+        expires = datetime.fromisoformat(str(rec.get('expires','')))
+    except (ValueError, TypeError):
+        return None
+    if datetime.now() > expires:
+        return None
+    out = dict(rec)
+    out['expires'] = expires
+    return out
+
+def _p2fa_set(data, sid, entry):
+    """Stamp a pending-2FA entry into data. Caller must save_data(data)."""
+    store = data.setdefault('_pending2fa', {})
+    rec = dict(entry)
+    exp = rec.get('expires')
+    if isinstance(exp, datetime):
+        rec['expires'] = exp.isoformat()
+    store[sid] = rec
+    _p2fa_prune(data)
+
+def _p2fa_del(data, sid):
+    """Remove a pending-2FA entry. Caller must save_data(data)."""
+    if not sid: return
+    store = data.get('_pending2fa') or {}
+    store.pop(sid, None)
+
+def _p2fa_prune(data):
+    """Drop expired pending-2FA entries from data['_pending2fa'] in place."""
+    store = data.get('_pending2fa') or {}
+    if not store: return
+    now_iso = datetime.now().isoformat()
+    for k in [k for k, v in list(store.items()) if str(v.get('expires','')) < now_iso]:
+        store.pop(k, None)
+
+def _ot_get(data, token):
+    """Return an onboarding-token entry (with `expires` as datetime) or None."""
+    if not token: return None
+    rec = (data.get('_onboardTokens') or {}).get(token)
+    if not rec: return None
+    try:
+        expires = datetime.fromisoformat(str(rec.get('expires','')))
+    except (ValueError, TypeError):
+        return None
+    if datetime.now() > expires:
+        return None
+    out = dict(rec)
+    out['expires'] = expires
+    return out
+
+def _ot_set(data, token, entry):
+    """Stamp an onboarding-token entry into data. Caller must save_data(data)."""
+    store = data.setdefault('_onboardTokens', {})
+    rec = dict(entry)
+    exp = rec.get('expires')
+    if isinstance(exp, datetime):
+        rec['expires'] = exp.isoformat()
+    store[token] = rec
+    _ot_prune(data)
+
+def _ot_del(data, token):
+    """Remove an onboarding token. Caller must save_data(data)."""
+    if not token: return
+    store = data.get('_onboardTokens') or {}
+    store.pop(token, None)
+
+def _ot_prune(data):
+    """Drop expired onboarding tokens from data['_onboardTokens'] in place."""
+    store = data.get('_onboardTokens') or {}
+    if not store: return
+    now_iso = datetime.now().isoformat()
+    for k in [k for k, v in list(store.items()) if str(v.get('expires','')) < now_iso]:
+        store.pop(k, None)
 
 # ── Email sending ─────────────────────────────────────────────────────────────
 # Email delivery from the app has been disabled. All outbound email is now
@@ -866,20 +985,18 @@ def onboard_home():
 @app.route('/onboard/<token>')
 def onboard(token):
     """Personalized onboarding link sent by admin."""
-    if token not in _onboard_tokens:
-        return render_template('public/onboard_expired.html')
-    info = _onboard_tokens[token]
-    if datetime.now() > info['expires']:
-        del _onboard_tokens[token]
+    data = get_db()
+    info = _ot_get(data, token)   # filters expired
+    if not info:
         return render_template('public/onboard_expired.html')
     return render_template('public/onboard.html', token=token, info=info, ga_id=GA_MEASUREMENT_ID)
 
 @app.route('/onboard/<token>/submit', methods=['POST'])
 def onboard_submit(token):
-    if token not in _onboard_tokens:
+    data = get_db()
+    if not _ot_get(data, token):
         return jsonify({'ok': False, 'error': 'Link expired'}), 400
 
-    data = get_db()
     form = request.form
 
     # Create pending member
@@ -939,7 +1056,8 @@ def onboard_submit(token):
         f'<p>Log in to your Qbix Centre dashboard to review and activate.</p>'
     )
 
-    del _onboard_tokens[token]
+    _ot_del(data, token)
+    save_data(data)
     return jsonify({'ok': True})
 
 
@@ -978,12 +1096,13 @@ def book_request_code():
                 'Your phone is the ADMIN_PHONE but no Active occupant has it '
                 'on file. Add yourself as a test occupant to enable bypass.'})
         booking_token = secrets.token_urlsafe(32)
-        _booking_tokens[booking_token] = {
+        _bt_set(data, booking_token, {
             'email':        occupant.get('_phone_member_email', ''),
             'name':         occupant.get('_phone_member_name', ''),
             'parentMember': occupant.get('_phone_parent_member', ''),
             'expires':      datetime.now() + timedelta(hours=2),
-        }
+        })
+        save_data(data)
         return jsonify({'ok': True, 'bypass': True, 'bookingToken': booking_token})
 
     # ── Everyone else — test mode block ──────────────────────────────────────
@@ -996,33 +1115,33 @@ def book_verify():
     token = request.json.get('token', '')
     code  = request.json.get('code', '').strip()
 
-    entry = _pending_2fa.get(token)
+    data  = get_db()
+    entry = _p2fa_get(data, token)   # already filters out expired entries
     if not entry:
+        # Could be missing entirely or already-expired; either way prompt resend.
+        _p2fa_del(data, token); save_data(data)
         return jsonify({'ok': False, 'error': 'Invalid or expired session.'})
-    if datetime.now() > entry['expires']:
-        del _pending_2fa[token]
-        return jsonify({'ok': False, 'error': 'Code expired. Please request a new one.'})
     if entry['code'] != code:
         return jsonify({'ok': False, 'error': 'Incorrect code.'})
 
     # Issue booking session token
     booking_token = secrets.token_urlsafe(32)
-    _booking_tokens[booking_token] = {
+    _bt_set(data, booking_token, {
         'email': entry['email'],
         'name':  entry['name'],
         'expires': datetime.now() + timedelta(hours=2),
-    }
-    del _pending_2fa[token]
+    })
+    _p2fa_del(data, token)
+    save_data(data)
     return jsonify({'ok': True, 'bookingToken': booking_token})
 
 @app.route('/book/calendar')
 def book_calendar():
     bt = request.args.get('token', '')
-    entry = _booking_tokens.get(bt)
-    if not entry or datetime.now() > entry['expires']:
-        return redirect(url_for('book_home'))
-
     data = get_db()
+    entry = _bt_get(data, bt)   # filters expired
+    if not entry:
+        return redirect(url_for('book_home'))
     # Sessions are now created by occupant lookup, so the parent member name
     # is stamped on the token. We look up the member record by that name to
     # compute included hours; occupants without a valid parent member can't
@@ -1057,14 +1176,14 @@ def book_slots():
     resource (used by phase-2 UI). Hours-used totals span ALL resources since
     conference room and office bookings share one monthly bucket."""
     bt = request.args.get('token', '')
-    entry = _booking_tokens.get(bt)
+    data  = get_db()
+    entry = _bt_get(data, bt)
     if not entry:
         return jsonify({'ok': False}), 401
 
     year  = int(request.args.get('year',  datetime.now().year))
     month = int(request.args.get('month', datetime.now().month))
     resource_filter = request.args.get('resource_id', '').strip()
-    data  = get_db()
 
     slots = [b for b in data.get('bookings', [])
              if b.get('year') == year and b.get('month') == month
@@ -1095,19 +1214,25 @@ def book_my_bookings():
     member calendar's "My Upcoming Bookings" panel so it doesn't need to
     pull two months of all-resource data and filter client-side."""
     bt = request.args.get('token', '')
-    entry = _booking_tokens.get(bt)
+    data  = get_db()
+    entry = _bt_get(data, bt)
     if not entry:
         return jsonify({'ok': False}), 401
 
-    data       = get_db()
     member_name  = (entry.get('name', '') or '').strip().lower()
     member_email = (entry.get('email', '') or '').strip().lower()
+    parent_member = (entry.get('parentMember', '') or '').strip().lower()
     today_iso  = datetime.now().date().isoformat()
 
     def _is_mine(b):
         if not b: return False
         bn = (b.get('memberName',  '') or '').strip().lower()
         be = (b.get('memberEmail', '') or '').strip().lower()
+        bp = (b.get('parentMember', '') or '').strip().lower()
+        # Match by occupant identity first; also match legacy / member-level
+        # bookings that share this occupant's parent member account so old
+        # admin-created bookings (memberName=company) still show up.
+        if parent_member and (bp == parent_member or bn == parent_member): return True
         if member_name  and bn == member_name:  return True
         if member_email and be == member_email: return True
         return False
@@ -1123,11 +1248,10 @@ def book_my_bookings():
 @app.route('/book/create', methods=['POST'])
 def book_create():
     bt = request.json.get('token', '')
-    entry = _booking_tokens.get(bt)
-    if not entry or datetime.now() > entry['expires']:
-        return jsonify({'ok': False, 'error': 'Session expired'}), 401
-
     data = get_db()
+    entry = _bt_get(data, bt)
+    if not entry:
+        return jsonify({'ok': False, 'error': 'Session expired'}), 401
     # Sessions are issued only to occupants now. The parent member account
     # (occupant.company) is stamped on the token; we look it up here so we
     # can credit hours, enforce limits, and build the confirmation SMS.
@@ -1258,12 +1382,12 @@ def book_create():
 @app.route('/book/cancel', methods=['POST'])
 def book_cancel():
     bt = request.json.get('token', '')
-    entry = _booking_tokens.get(bt)
-    if not entry or datetime.now() > entry['expires']:
+    data = get_db()
+    entry = _bt_get(data, bt)
+    if not entry:
         return jsonify({'ok': False}), 401
 
     booking_id = request.json.get('bookingId', '')
-    data = get_db()
     booking = next((b for b in data.get('bookings', [])
                     if b['id'] == booking_id
                     and b['memberEmail'].lower() == entry['email'].lower()), None)
@@ -1279,12 +1403,12 @@ def book_edit():
     """Member-initiated edit of a future booking. Same conflict + overage gate
     as /book/create, but excludes the booking being edited from the checks."""
     bt = request.json.get('token', '')
-    entry = _booking_tokens.get(bt)
-    if not entry or datetime.now() > entry['expires']:
+    data = get_db()
+    entry = _bt_get(data, bt)
+    if not entry:
         return jsonify({'ok': False, 'error': 'Session expired'}), 401
 
     booking_id = request.json.get('bookingId', '')
-    data = get_db()
     booking = next((b for b in data.get('bookings', [])
                     if b['id'] == booking_id
                     and b.get('memberEmail','').lower() == entry['email'].lower()
@@ -1498,11 +1622,13 @@ def admin_login():
             # Send 2FA code via SMS
             code  = generate_code()
             sid   = secrets.token_urlsafe(16)
-            _pending_2fa[sid] = {
+            data  = get_db()
+            _p2fa_set(data, sid, {
                 'code':    code,
                 'expires': datetime.now() + timedelta(minutes=10),
                 'purpose': 'admin',
-            }
+            })
+            save_data(data)
             session['admin_2fa_sid'] = sid
 
             # Send 2FA code via Twilio SMS
@@ -1516,15 +1642,16 @@ def admin_login():
 
 @app.route('/admin/2fa', methods=['GET', 'POST'])
 def admin_2fa():
-    sid = session.get('admin_2fa_sid')
-    if not sid or sid not in _pending_2fa:
+    sid  = session.get('admin_2fa_sid')
+    data = get_db()
+    if not sid or not _p2fa_get(data, sid):
         return redirect(url_for('admin_login'))
 
     if request.method == 'POST':
         code  = request.form.get('code', '').strip()
-        entry = _pending_2fa.get(sid)
+        entry = _p2fa_get(data, sid)   # already filters expired
 
-        if not entry or datetime.now() > entry['expires']:
+        if not entry:
             flash('Code expired. Please log in again.', 'error')
             return redirect(url_for('admin_login'))
 
@@ -1533,7 +1660,7 @@ def admin_2fa():
             return render_template('admin/2fa.html')
 
         # Success — fully authenticated
-        del _pending_2fa[sid]
+        _p2fa_del(data, sid); save_data(data)
         session.pop('admin_2fa_sid', None)
         session['admin_authenticated'] = True
         session['admin_login_time']    = datetime.now().isoformat()
@@ -1720,11 +1847,13 @@ def generate_onboard_link():
     name  = request.json.get('name', '')
     email = request.json.get('email', '')
     token = secrets.token_urlsafe(16)
-    _onboard_tokens[token] = {
+    data  = get_db()
+    _ot_set(data, token, {
         'name':    name,
         'email':   email,
         'expires': datetime.now() + timedelta(days=7),
-    }
+    })
+    save_data(data)
     link = f'{APP_URL}/onboard/{token}'
 
     # Email the link to the prospect
