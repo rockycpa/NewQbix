@@ -9,8 +9,6 @@ v2 — office detail pages, agreement status, contrast improvements
 import json
 import os
 import secrets
-import hashlib
-import hmac
 import threading
 import time
 import pyotp
@@ -46,7 +44,10 @@ BASE_DIR  = Path(__file__).parent
 BACKUP_DIR = BASE_DIR / 'backups'
 
 # ── Config from environment ───────────────────────────────────────────────────
-ADMIN_USERNAME      = os.environ.get('ADMIN_USERNAME', 'admin')
+# ADMIN_USERNAME / ADMIN_PASSWORD_HASH are no longer used — admin auth is now
+# phone + SMS 2FA against records in DB.users (managed in the Admin tab).
+# ADMIN_PHONE is only consulted on first deploy to bootstrap the initial user
+# record (see load_data()).
 ADMIN_EMAIL         = os.environ.get('ADMIN_EMAIL', 'qbixcentre@outlook.com')
 ADMIN_PHONE         = os.environ.get('ADMIN_PHONE', '4787379107')
 APP_URL             = os.environ.get('APP_URL', 'http://localhost:5000')
@@ -262,6 +263,11 @@ DEFAULT_DATA = {
         "Website",
         "Other"
     ],
+    # Admin users — login by phone + SMS 2FA. Bootstrap on first deploy from
+    # the ADMIN_PHONE env var (see load_data()). All users are full-rights
+    # admins; there is no booking-only tier (occupants book on the public
+    # /book flow with their own phone-based auth).
+    "users": [],
 }
 
 
@@ -358,6 +364,19 @@ def load_data():
             o.setdefault('confHours', 6)
         for p in d.get('occupants', []):
             p.setdefault('dlAttachment', None)
+            p.setdefault('birthday', '')   # ISO YYYY-MM-DD, empty if unknown
+        # Admin users — bootstrap the first record from ADMIN_PHONE on first
+        # deploy so we don't lock anyone out. Subsequent users (backup phone,
+        # second admin) are added through the Admin tab → Users panel.
+        d.setdefault('users', [])
+        if not d['users'] and ADMIN_PHONE:
+            d['users'].append({
+                'id':        '_u' + secrets.token_hex(6),
+                'name':      'Rocky Davidson',
+                'phone':     ADMIN_PHONE,
+                'status':    'Active',
+                'dateAdded': datetime.now().strftime('%Y-%m-%d'),
+            })
         # Migrate: marketingSettings
         ms = d.setdefault('marketingSettings', {})
         ms.setdefault('gbpHealth', {
@@ -583,16 +602,6 @@ def send_sms(to_phone, message):
 
 
 # ── Auth helpers ──────────────────────────────────────────────────────────────
-def hash_password(password):
-    return hashlib.sha256(password.encode()).hexdigest()
-
-def check_password(password):
-    stored = os.environ.get('ADMIN_PASSWORD_HASH', '')
-    if not stored:
-        # First run — accept any password and prompt setup
-        return True
-    return hmac.compare_digest(hash_password(password), stored)
-
 def login_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -1075,63 +1084,68 @@ def book_home():
 
 @app.route('/book/request-code', methods=['POST'])
 def book_request_code():
-    """Phase 7 — phone-number entry point. While Twilio toll-free verification
-    is pending, only ADMIN_PHONE is allowed in: that bypass grants a booking
-    session token immediately, no SMS code step. Every other phone number is
-    rejected with a friendly test-mode message. When Twilio approval clears
-    (Phase 9), this handler swaps to a real lookup-by-phone + send-code flow."""
+    """Phone-number entry point. We look up the phone in OCCUPANTS only
+    (members are companies, not booking entities — see 'Occupants vs members'
+    in QBIX_HANDOFF.md). If found, we text a 6-digit code, stash a server-side
+    pending entry, and return a session id. The client then POSTs that id +
+    the code to /book/verify to receive a booking token."""
     raw_phone = request.json.get('phone', '')
     phone     = _normalize_phone(raw_phone)
     if not phone:
         return jsonify({'ok': False, 'error': 'Please enter a valid 10-digit phone number.'})
 
-    data       = get_db()
-    admin_norm = _normalize_phone(ADMIN_PHONE)
+    data     = get_db()
+    occupant = _member_by_phone(data, phone)
+    if not occupant:
+        # Vague on purpose — don't confirm or deny that a phone is on file.
+        return jsonify({'ok': False, 'error':
+            'We couldn\'t find that phone number on file. Contact the admin '
+            'if you believe this is an error.'})
 
-    # ── Admin testing bypass ──────────────────────────────────────────────────
-    if admin_norm and phone == admin_norm:
-        occupant = _member_by_phone(data, phone)
-        if not occupant:
-            return jsonify({'ok': False, 'error':
-                'Your phone is the ADMIN_PHONE but no Active occupant has it '
-                'on file. Add yourself as a test occupant to enable bypass.'})
-        booking_token = secrets.token_urlsafe(32)
-        _bt_set(data, booking_token, {
-            'email':        occupant.get('_phone_member_email', ''),
-            'name':         occupant.get('_phone_member_name', ''),
-            'parentMember': occupant.get('_phone_parent_member', ''),
-            'expires':      datetime.now() + timedelta(hours=2),
-        })
-        save_data(data)
-        return jsonify({'ok': True, 'bypass': True, 'bookingToken': booking_token})
+    # Issue a session id, stash code + occupant identity in the pending2fa
+    # store so /book/verify can finalize.
+    code = generate_code()
+    sid  = secrets.token_urlsafe(16)
+    _p2fa_set(data, sid, {
+        'code':         code,
+        'expires':      datetime.now() + timedelta(minutes=10),
+        'purpose':      'book',
+        'phone':        phone,
+        'email':        occupant.get('_phone_member_email', ''),
+        'name':         occupant.get('_phone_member_name', ''),
+        'parentMember': occupant.get('_phone_parent_member', ''),
+    })
+    save_data(data)
 
-    # ── Everyone else — test mode block ──────────────────────────────────────
-    return jsonify({'ok': False, 'error':
-        'Phone-based booking login is currently in test mode. '
-        'Please contact the admin to be added as a tester.'})
+    send_sms(phone, f'Qbix Centre booking code: {code}. Expires in 10 minutes.')
+    return jsonify({'ok': True, 'sid': sid, 'phoneTail': phone[-4:]})
 
 @app.route('/book/verify', methods=['POST'])
 def book_verify():
-    token = request.json.get('token', '')
-    code  = request.json.get('code', '').strip()
+    # Accept either {sid, code} (new flow) or the legacy {token, code} payload
+    # so older client builds during deploy don't 500.
+    sid  = request.json.get('sid') or request.json.get('token', '')
+    code = (request.json.get('code') or '').strip()
 
     data  = get_db()
-    entry = _p2fa_get(data, token)   # already filters out expired entries
+    entry = _p2fa_get(data, sid)   # already filters out expired entries
     if not entry:
-        # Could be missing entirely or already-expired; either way prompt resend.
-        _p2fa_del(data, token); save_data(data)
+        _p2fa_del(data, sid); save_data(data)
         return jsonify({'ok': False, 'error': 'Invalid or expired session.'})
     if entry['code'] != code:
         return jsonify({'ok': False, 'error': 'Incorrect code.'})
 
-    # Issue booking session token
+    # Issue booking session token. Carry parentMember so /book/slots etc. can
+    # roll hours up to the right member account without re-deriving from the
+    # occupant on every call.
     booking_token = secrets.token_urlsafe(32)
     _bt_set(data, booking_token, {
-        'email': entry['email'],
-        'name':  entry['name'],
-        'expires': datetime.now() + timedelta(hours=2),
+        'email':        entry.get('email', ''),
+        'name':         entry.get('name', ''),
+        'parentMember': entry.get('parentMember', ''),
+        'expires':      datetime.now() + timedelta(hours=2),
     })
-    _p2fa_del(data, token)
+    _p2fa_del(data, sid)
     save_data(data)
     return jsonify({'ok': True, 'bookingToken': booking_token})
 
@@ -1581,6 +1595,19 @@ def _member_by_phone(data, phone):
             return rec
     return None
 
+def _user_by_phone(data, phone):
+    """Look up an Active admin user by phone number. Returns the user dict
+    (or None). Used by /admin/login to authenticate by phone + SMS 2FA. Any
+    Active user's phone is a valid login — that's how the backup-phone setup
+    works (Rocky adds a second user record with his Google Voice number, etc.)."""
+    digits = _normalize_phone(phone)
+    if not digits:
+        return None
+    for u in data.get('users', []):
+        if u.get('status') == 'Active' and _normalize_phone(u.get('phone', '')) == digits:
+            return u
+    return None
+
 def _member_phone(data, email, name):
     """Find the SMS-deliverable phone for a member or occupant. Email is checked
     first, then a name match. Returns '' if nothing usable is on file."""
@@ -1610,33 +1637,45 @@ def _member_phone(data, email, name):
 
 @app.route('/admin/login', methods=['GET', 'POST'])
 def admin_login():
-    # Check if already fully authenticated
+    """Phone-based admin login. Any Active record in DB.users can log in:
+    enter phone → we send a 6-digit SMS code → /admin/2fa verifies it.
+    Backup phone = just add a second user with that phone in the Admin tab."""
     if session.get('admin_authenticated'):
         return redirect(url_for('admin_dashboard'))
 
     if request.method == 'POST':
-        username = request.form.get('username', '')
-        password = request.form.get('password', '')
+        raw_phone = request.form.get('phone', '')
+        phone     = _normalize_phone(raw_phone)
+        if not phone:
+            flash('Please enter a valid 10-digit phone number.', 'error')
+            return render_template('admin/login.html')
 
-        if username == ADMIN_USERNAME and check_password(password):
-            # Send 2FA code via SMS
-            code  = generate_code()
-            sid   = secrets.token_urlsafe(16)
-            data  = get_db()
-            _p2fa_set(data, sid, {
-                'code':    code,
-                'expires': datetime.now() + timedelta(minutes=10),
-                'purpose': 'admin',
-            })
-            save_data(data)
-            session['admin_2fa_sid'] = sid
+        data = get_db()
+        user = _user_by_phone(data, phone)
+        if not user:
+            # Vague error on purpose — don't leak which phones are admin users.
+            flash('That phone number is not authorized for admin access.', 'error')
+            return render_template('admin/login.html')
 
-            # Send 2FA code via Twilio SMS
-            send_sms(ADMIN_PHONE, f'Qbix Centre admin login code: {code}. Expires in 10 minutes.')
+        # Send a 6-digit SMS code, stash a server-side pending entry, and
+        # remember the sid + display tail in the Flask session so /admin/2fa
+        # can pick up where we left off.
+        code = generate_code()
+        sid  = secrets.token_urlsafe(16)
+        _p2fa_set(data, sid, {
+            'code':    code,
+            'expires': datetime.now() + timedelta(minutes=10),
+            'purpose': 'admin',
+            'phone':   phone,
+            'userId':  user.get('id', ''),
+            'name':    user.get('name', ''),
+        })
+        save_data(data)
+        session['admin_2fa_sid']  = sid
+        session['admin_2fa_tail'] = phone[-4:]    # for "code sent to ###-####" UX
 
-            return redirect(url_for('admin_2fa'))
-        else:
-            flash('Invalid username or password.', 'error')
+        send_sms(phone, f'Qbix Centre admin login code: {code}. Expires in 10 minutes.')
+        return redirect(url_for('admin_2fa'))
 
     return render_template('admin/login.html')
 
@@ -1646,6 +1685,8 @@ def admin_2fa():
     data = get_db()
     if not sid or not _p2fa_get(data, sid):
         return redirect(url_for('admin_login'))
+
+    tail = session.get('admin_2fa_tail', '')
 
     if request.method == 'POST':
         code  = request.form.get('code', '').strip()
@@ -1657,31 +1698,26 @@ def admin_2fa():
 
         if entry['code'] != code:
             flash('Incorrect code. Please try again.', 'error')
-            return render_template('admin/2fa.html')
+            return render_template('admin/2fa.html', phone_tail=tail)
 
-        # Success — fully authenticated
+        # Success — fully authenticated. Stash who logged in for audit/UX.
         _p2fa_del(data, sid); save_data(data)
-        session.pop('admin_2fa_sid', None)
+        session.pop('admin_2fa_sid',  None)
+        session.pop('admin_2fa_tail', None)
         session['admin_authenticated'] = True
         session['admin_login_time']    = datetime.now().isoformat()
+        session['admin_user_id']       = entry.get('userId', '')
+        session['admin_user_name']     = entry.get('name', '')
         session.permanent = True
 
         return redirect(url_for('admin_dashboard'))
 
-    return render_template('admin/2fa.html')
+    return render_template('admin/2fa.html', phone_tail=tail)
 
 @app.route('/admin/logout')
 def admin_logout():
     session.clear()
     return redirect(url_for('home'))
-
-@app.route('/admin/emergency-login-rocky2026')
-def emergency_login():
-    """Temporary emergency bypass — REMOVE after Twilio is working."""
-    session['admin_authenticated'] = True
-    session['admin_login_time'] = datetime.now().isoformat()
-    session.permanent = True
-    return redirect(url_for('admin_dashboard'))
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -2915,29 +2951,6 @@ def get_analytics_builtin():
 
 
 # ── Setup route (first run only) ─────────────────────────────────────────────
-
-@app.route('/admin/setup', methods=['GET', 'POST'])
-def admin_setup():
-    """First-run setup to set admin password."""
-    if os.environ.get('ADMIN_PASSWORD_HASH'):
-        return redirect(url_for('admin_login'))
-
-    if request.method == 'POST':
-        password = request.form.get('password', '')
-        confirm  = request.form.get('confirm', '')
-        if password != confirm:
-            flash('Passwords do not match.', 'error')
-        elif len(password) < 8:
-            flash('Password must be at least 8 characters.', 'error')
-        else:
-            hashed = hash_password(password)
-            flash(
-                f'Setup complete! Add this to your Railway environment variables: '
-                f'ADMIN_PASSWORD_HASH={hashed}',
-                'success'
-            )
-    return render_template('admin/setup.html')
-
 
 @app.context_processor
 def inject_now():

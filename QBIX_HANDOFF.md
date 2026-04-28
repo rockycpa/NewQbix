@@ -1,5 +1,5 @@
 # Qbix Centre — Project Handoff
-*Last updated: April 25, 2026*
+*Last updated: April 26, 2026*
 
 > **For the next Claude:** Read this top-to-bottom before starting work. The "Recent Decisions" and "Outstanding Issues" sections at the end are the most current.
 
@@ -129,11 +129,33 @@ The orphan scanner (Media tab) compares Cloudinary against `public_id` reference
 
 ### Admin Login
 
-Currently username + password + TOTP 2FA. Will switch to phone + SMS code once Twilio is live.
+Username + password + SMS 2FA via Twilio (the 2FA code is sent to `ADMIN_PHONE`). The 2FA pending-code store lives in the DB blob under `_pending2fa` so it survives deploys / works across gunicorn workers.
 
-### Booking (current state — to be reworked)
+### Booking
 
-Currently in `templates/public/book_home.html` and `book_calendar.html`. Member identifies via email; pending the Twilio switch to phone-based.
+Phone-based login at `/book`. Files: `templates/public/book_home.html` (phone entry), `templates/public/book_calendar.html` (the calendar + booking UI).
+
+**Auth flow.** `/book/request-code` looks up the phone in **occupants only** (members are intentionally not matched — see "Occupants vs members" below). When Twilio toll-free verification clears, a 6-digit SMS code goes out and `/book/verify` issues a session token. Until then, only `ADMIN_PHONE` (4787379107) bypasses the SMS step — that occupant must exist as Active and linked to an Active member.
+
+**Session tokens.** Booking session tokens, 2FA pending codes, and onboarding-link tokens all persist in the JSONB blob (keys: `_bookingTokens`, `_pending2fa`, `_onboardTokens`). They were originally module-level dicts but that broke under multi-worker / dyno-restart scenarios — tokens issued on one worker would 401 on another. The helper functions `_bt_get/_set/_del`, `_p2fa_get/_set/_del`, and `_ot_get/_set/_del` in app.py handle reads/writes; `_get` filters out expired entries; `_set` lazily prunes the store. After deploy, **existing in-flight tokens evaporate** (members must re-login, in-flight onboarding links must be regenerated).
+
+**Occupants vs members.**
+- A *member* is a company / billing account. Hour limits and overage rates live here (`member.confHours` summed from offices).
+- An *occupant* is a person, with `occupant.company` pointing at the parent member's name.
+- All bookings are made *by occupants*. The booking record stamps:
+  - `memberName` — the occupant's name (the booker)
+  - `memberEmail` — the occupant's email
+  - `parentMember` — the member account whose monthly hours bucket this booking draws from
+- Multiple occupants under one member share the same monthly bucket.
+- The helper `_booking_billed_to(b)` returns `b.parentMember or b.memberName`, so legacy bookings (created before this rollup field existed) still credit the right account by name match.
+
+**Scheduling rules.** 15-minute increments, 7am–6pm, two-month visible window (current month + next). Conference room and offices both bookable. Conflict check excludes the booking being edited. Overage gate prompts the user to accept additional charges before saving.
+
+**SMS messages.** Confirmation, 24-hour reminder, edit, and cancel SMS templates are admin-editable in the Booking Settings panel.
+
+**Endpoints.** `/book` (home), `/book/request-code`, `/book/verify`, `/book/calendar`, `/book/slots` (one month of availability + the user's hours-used), `/book/my-bookings` (all of the occupant's upcoming bookings across every resource — single round-trip so the panel doesn't hang on month-by-month polling), `/book/create`, `/book/edit`, `/book/cancel`, plus `/admin/api/booking-create|edit|cancel|bookable-resources` on the admin side.
+
+**Admin side.** Bookings tab has a calendar view + a flat table. The Add/Edit Booking modal's "Occupant" picker shows occupants only (members are not bookable directly). Saving an admin booking validates that the occupant is Active and linked to an Active member account; otherwise returns a clear error.
 
 ---
 
@@ -185,8 +207,46 @@ Has email, phone, status (Active/Pending/Archived), conf hours, agreements. Phon
 { "id": "_abc123", "name": "", "email": "", "phone": "", "subject": "", "message": "", "timestamp": "", "read": false }
 ```
 
-### Booking (existing)
-Conference room booking record — date, start/end time, member, title. Used by `book_calendar.html`. Member identification by email currently.
+### Booking
+```json
+{
+  "id": "_abc123",
+  "memberName":   "Rolando Davidson",       // the occupant who booked
+  "memberEmail":  "rolando@example.com",
+  "parentMember": "Davidson Companies LLC",  // member account hours roll up to
+  "resourceType": "conference_room|office",
+  "resourceId":   "conference_room|<office id>",
+  "date":         "2026-05-06",
+  "year":         2026, "month": 5,
+  "start":        "07:00", "end": "07:15",
+  "title":        "Meeting",
+  "status":       "confirmed|cancelled",
+  "createdAt":    "...",
+  "createdBy":    "admin (when applicable)",
+  "overageHours": 0.25,                      // present only when this booking incurred overage
+  "overageRate":  25,
+  "overageCharge": 6.25
+}
+```
+
+Use the helper `_booking_billed_to(b)` (returns `b.parentMember or b.memberName`) anywhere you're aggregating hours. Direct `b.memberName == ...` comparisons miss legacy rows and split occupant bookings off the parent member's bucket.
+
+### Booking Settings
+```json
+{
+  "smsConfirmationTemplate": "...",
+  "smsReminderTemplate":     "...",
+  "smsEditTemplate":         "...",
+  "smsCancelTemplate":       "...",
+  "overageRatePerHour":      25,
+  "overageWarningMessage":   "...",
+  "optInDisclosure":         "..."
+}
+```
+
+### Internal token stores (do not edit by hand)
+
+`_bookingTokens`, `_pending2fa`, `_onboardTokens` — see "Booking" architectural note.
 
 ---
 
@@ -210,28 +270,62 @@ Conference room booking record — date, start/end time, member, title. Used by 
 1. **AWS SES retired.** All outbound app email is gone. `send_email()` is a stub no-op.
 2. **Notify → Outlook workflow.** Admin uses Notify to assemble recipients, then formats in Outlook with Quick Parts/Templates. Rich text editing inside the app was considered and explicitly rejected — Outlook handles it better.
 3. **No app-side rich text editor.** Keeps things simple.
-4. **Phone-based auth coming, not yet live.** When Twilio toll-free verification completes, login (member AND admin) switches to phone + SMS code. Members without phone numbers on file just won't be able to self-serve until Rocky adds them.
+4. **Phone-based auth coming, not yet live.** When Twilio toll-free verification completes, login (member AND admin) switches to phone + SMS code. Members without phone numbers on file just won't be able to self-serve until Rocky adds them. Admin login already uses SMS 2FA.
 5. **Public browsing stays open.** Only the booking action is gated behind login.
-6. **Members-only booking.** Non-members hit a wall with a "contact us about membership" message.
-7. **No rate limiting needed yet.** Volume is low; non-members never reach SMS code phase.
+6. **Occupants book, members get billed.** Phone lookup at `/book` matches occupants only — never members directly. Bookings stamp `parentMember` so the occupant's hours roll up to their company's monthly bucket. The admin Add Booking picker also lists occupants only. This keeps multi-occupant companies clean: every occupant under one member shares the same hour pool.
+7. **Tokens persist in DB.** Booking session tokens, 2FA codes, and onboarding-link tokens all live in the JSONB blob, not module-level dicts. Required because Railway can run multiple workers / restart the dyno mid-session.
+8. **No rate limiting needed yet.** Volume is low; non-members never reach SMS code phase.
 
 ---
 
 ## Outstanding Issues
 
-1. **Twilio toll-free verification** — pending. When it goes live, build the SMS code login flow.
+1. **Twilio toll-free verification** — pending. When it goes live, switch `/book/request-code` from the test-mode block to a real SMS-code path; admin login will need no change (already SMS).
 2. **Rotate AWS SES IAM keys** — Rocky to delete user `ses-smtp-user.20260401-160520` in AWS Console (those keys were committed to GitHub before being removed).
-3. **Delete leftover Railway env vars** — SMTP_PASS, SMTP_HOST, SMTP_PORT, SMTP_USER, SENDGRID_API_KEY, FROM_EMAIL, FROM_NAME if any still exist.
-4. **Domain pointing** — still on WordPress/GoDaddy. After pointing to Railway: update `APP_URL`, submit sitemap.
-5. **Cancel WhatSpot ($192/yr)** — after new booking system confirmed working.
-6. **Cancel GoDaddy** — after domain pointed.
-7. **JSON-LD geo coordinates** — currently approximate (32.9, -83.7); update with exact from Google Maps.
-8. **Backfill member phone numbers** — needed before SMS login goes live.
-9. **Verify GA_MEASUREMENT_ID is in Railway** — was not visible in environment variable list during last review.
+3. **Rotate Twilio Auth Token** — has been parked from earlier session.
+4. **Delete leftover Railway env vars** — SMTP_PASS, SMTP_HOST, SMTP_PORT, SMTP_USER, SENDGRID_API_KEY, FROM_EMAIL, FROM_NAME if any still exist.
+5. **Domain pointing** — still on WordPress/GoDaddy. After pointing to Railway: update `APP_URL`, submit sitemap.
+6. **Cancel WhatSpot ($192/yr)** — after new booking system confirmed working.
+7. **Cancel GoDaddy** — after domain pointed.
+8. **JSON-LD geo coordinates** — currently approximate (32.9, -83.7); update with exact from Google Maps.
+9. **Backfill occupant phone numbers** — needed before SMS booking-login goes live (the lookup is occupants-only now, not members).
+10. **Verify GA_MEASUREMENT_ID is in Railway** — was not visible in environment variable list during last review.
+11. **Confirm Rolando is set up correctly** — must be an Active occupant with phone 4787379107, `company` field pointing at an Active member, for the admin bypass login to work end-to-end.
 
 ---
 
 ## Recent Completed Work
+
+### April 26, 2026 session — Booking module
+**Phases 1–8 — initial build**
+- Resource model on bookings (`resourceType`, `resourceId`); both conference room and offices bookable through one calendar
+- 15-minute increments, 7am–6pm, two-month visible window (current + next)
+- Hours-remaining display in header; overage gate with admin-configurable rate and warning message
+- Member-side edit/cancel for future bookings; admin "create on behalf of" with full picker
+- Booking Settings panel (admin) with editable SMS templates: confirmation, reminder, edit, cancel
+- Admin calendar view of bookings (with conflict-aware Add Booking from a clicked cell)
+- Refresh after admin booking save (`loadAdminData()` was a silent no-op — fixed: endpoint returns DB directly, not wrapped in `{data: ...}`)
+
+**Round 1 polish**
+- Add Booking modal: Start/End on the same row (Start first, End second)
+- Member calendar widened to 1700px max, day cell padding bumped, day-number font 16/600
+- Pip font 12px, padding 3×6, weight 500 — was painfully small before
+- "My Upcoming Bookings" panel rebuilt around new `/book/my-bookings` endpoint (single round-trip across all resources, replaces sequential month-by-month polling)
+
+**Round 2 — occupants-only model**
+- `_member_by_phone` matches occupants only; returns occupant record stamped with `_phone_member_name`, `_phone_member_email`, `_phone_parent_member`
+- Booking session token carries `parentMember`; `book_calendar` looks up the parent member by name (not by entry email)
+- New helper `_booking_billed_to(b)` → `b.parentMember or b.memberName` (legacy fallback)
+- `book_create`, `_apply_booking_edit`, `get_member_hours_used`, `send_monthly_usage` all updated to roll hours up to the parent member
+- `/book/slots` keys hours-used / hours-included off the parent member account (was incorrectly keyed off the occupant)
+- `/admin/api/bookable-resources` returns occupants only; admin Add/Edit Booking modal label/picker/placeholder all switched to "Occupant"
+- `admin_create_booking` validates the occupant is Active and linked to an Active member; rejects with a helpful error otherwise
+
+**Round 3 — bug fixes from Rocky's testing**
+- `templates/public/book_calendar.html`: `{% block extra_js %}` was nested inside `{% block content %}`, causing Jinja to render the `<script>` block twice → `Identifier 'TOKEN' has already been declared` and silent failure of `loadMyBookings`/`loadSlots`/click handlers. Fixed block structure.
+- Booking session tokens, 2FA codes, and onboarding tokens migrated from module-level dicts (`_booking_tokens`, `_pending_2fa`, `_onboard_tokens`) to DB-backed stores (`_bookingTokens`, `_pending2fa`, `_onboardTokens` in the JSONB blob) so they survive deploys and are visible to all gunicorn workers. New helpers `_bt_*`, `_p2fa_*`, `_ot_*` in app.py. **All in-flight tokens / pending onboarding links from before the deploy are invalidated.**
+- `/book/my-bookings._is_mine` also matches on `parentMember` so legacy bookings whose `memberName` is the company name (rather than the occupant name) still show up in the occupant's upcoming-bookings panel.
+- Auto-refresh after confirm/edit/cancel is now reliable (it was already wired but unreachable due to the Jinja-duplicate-script issue above).
 
 ### April 25, 2026 session
 - Mobile nav crunching fix (S24 Ultra)
@@ -252,7 +346,7 @@ Conference room booking record — date, start/end time, member, title. Used by 
 
 ## Build Queue — What's Next
 
-1. **Booking section overhaul** ← next focus. The current implementation is email-based and predates the Notify/Twilio decisions. Rocky wants to start working through it. The auth piece waits for Twilio, but the calendar/availability/hours-tracking pieces can move now.
+1. **Twilio SMS auth turn-on** — when toll-free verification clears: enable the real `/book/verify` flow (right now only `ADMIN_PHONE` bypass works). Backfill member/occupant phone numbers as needed; remove the test-mode block in `book_request_code`.
 2. **Conference Room public page** — `/conference-room` for SEO (people search "meeting space Macon")
 3. **Marketing Campaign Tracker** — manual log: platform, dates, spend, impressions, inquiries, conversions
 4. **House Guidelines Document** — `/guidelines` page or downloadable PDF

@@ -41,7 +41,7 @@
 
 {% block extra_js %}
 <script>
-let _token = '';
+let _sid = '';
 
 // Light formatting only — strip non-digits and pretty-print as the user types.
 function formatPhone(el){
@@ -65,17 +65,13 @@ async function requestCode(){
   });
   const result = await r.json();
 
-  if(result.ok && result.bypass){
-    // Admin testing bypass — straight into the calendar.
-    window.location = '/book/calendar?token=' + result.bookingToken;
-    return;
-  }
   if(result.ok){
-    // Real Twilio flow (post-Phase-9): show the code-entry step.
-    _token = result.token;
+    _sid = result.sid;
     document.getElementById('step-phone').classList.add('hidden');
     document.getElementById('step-code').classList.remove('hidden');
-    document.getElementById('code-msg').textContent = `We sent a 6-digit code to ${raw}. It expires in 10 minutes.`;
+    const tail = result.phoneTail ? ' ending in ' + result.phoneTail : '';
+    document.getElementById('code-msg').textContent =
+      'We sent a 6-digit code to your phone' + tail + '. It expires in 10 minutes.';
     document.getElementById('verify-code').focus();
     return;
   }
@@ -92,7 +88,7 @@ async function verifyCode(){
 
   const r = await fetch('/book/verify',{
     method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({token:_token, code})
+    body:JSON.stringify({sid:_sid, code})
   });
   const result = await r.json();
 
@@ -109,7 +105,7 @@ function resetToPhone(){
   document.getElementById('step-code').classList.add('hidden');
   document.getElementById('req-btn').disabled=false;
   document.getElementById('req-btn').textContent='Send Verification Code';
-  _token='';
+  _sid='';
 }
 </script>
 {% endblock %}

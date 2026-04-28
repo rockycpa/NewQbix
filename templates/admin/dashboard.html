@@ -267,6 +267,7 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
     <button class="nb notify-btn" onclick="showPage('notify',this)">&#128226; Notify</button>
     <button class="nb" onclick="showPage('newsletter',this)" style="background:rgba(155,126,212,.15);color:var(--purple);border:1px solid rgba(155,126,212,.3)">&#128240; Newsletter</button>
     <button class="nb" onclick="showPage('bookings',this);renderBookingCalendar()">&#128197; Bookings</button>
+    <button class="nb" onclick="showPage('admin',this);renderUsers()">&#128737; Admin</button>
   </nav>
   <div class="hstats">
     <a href="/admin/logout" style="font-size:12px;color:var(--txt2);margin-left:8px">Sign out</a>
@@ -1012,6 +1013,17 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
 <!-- OCCUPANTS -->
 <div class="page" id="page-occupants">
   <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:3px"><div class="pg-title">Occupants <button class="help-btn" onclick="openHelp('help-occupants')" title="Help">?</button></div><button onclick="loadData()" style="background:var(--sur2);border:1px solid var(--acc);border-radius:6px;color:var(--acc);padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;font-family:'IBM Plex Sans',sans-serif">&#8635; Refresh</button></div><div class="pg-sub">Click any row to view or edit</div>
+
+  <!-- Upcoming birthdays — this month + next month, populated by renderUpcomingBirthdays() -->
+  <div class="card" id="bday-card" style="margin-bottom:14px;padding:14px 18px;display:none">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+      <span style="font-size:18px">&#127874;</span>
+      <span style="font-size:15px;font-weight:700;color:var(--txt)">Upcoming Birthdays</span>
+      <span style="font-size:11px;color:var(--txt3)" id="bday-sub"></span>
+    </div>
+    <div id="bday-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px"></div>
+  </div>
+
   <div class="tb">
     <input class="sb" type="text" placeholder="Search name, company, office..." oninput="filterOccupants(this.value)">
     <button class="fb on" id="of-active" onclick="setOccF('Active',this)">Active</button>
@@ -1022,7 +1034,7 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
     <button class="btn-add" onclick="openOccupantForm(null)">+ Add Occupant</button>
   </div>
   <div class="card"><div class="tw"><table>
-    <thead><tr><th style="width:44px">Photo</th><th style="cursor:pointer" onclick="sortOccupants('name')">Name <span id="os-name">↕</span></th><th style="cursor:pointer" onclick="sortOccupants('company')">Company <span id="os-company">↕</span></th><th>Office</th><th>Phone</th><th>Email</th><th>Status</th><th>End Date</th><th>Driver's License</th></tr></thead>
+    <thead><tr><th style="width:44px">Photo</th><th style="cursor:pointer" onclick="sortOccupants('name')">Name <span id="os-name">↕</span></th><th style="cursor:pointer" onclick="sortOccupants('company')">Company <span id="os-company">↕</span></th><th>Office</th><th>Phone</th><th>Email</th><th>Birthday</th><th>Status</th><th>End Date</th><th>Driver's License</th></tr></thead>
     <tbody id="occ-tbody"></tbody>
   </table></div></div>
 </div>
@@ -1352,6 +1364,29 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
       <tbody id="bookings-tbody"></tbody>
     </table>
   </div></div>
+</div>
+
+<!-- ADMIN -->
+<div class="page" id="page-admin">
+  <div class="pg-title">&#128737; Admin <button class="help-btn" onclick="openHelp('help-admin')" title="Help">?</button></div>
+  <div class="pg-sub">System-level settings &mdash; manage who can sign in to this dashboard</div>
+
+  <div class="card" style="margin-top:14px;padding:18px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:10px">
+      <div>
+        <div style="font-size:16px;font-weight:700;color:var(--txt)">&#128100; Admin Users</div>
+        <div style="font-size:12px;color:var(--txt3);margin-top:2px">All users have full rights. Login is phone &middot; SMS 2FA &mdash; any Active user's phone works. Add a backup phone (e.g. your Google Voice) by adding a second user record.</div>
+      </div>
+      <button class="btn-add" onclick="openUserForm(null)">+ Add User</button>
+    </div>
+    <div class="tw" style="margin-top:12px"><table>
+      <thead><tr><th>Name</th><th>Phone</th><th>Status</th><th>Date Added</th><th style="width:140px">Actions</th></tr></thead>
+      <tbody id="users-tbody"></tbody>
+    </table></div>
+    <div style="margin-top:14px;padding:12px 14px;background:var(--sur2);border-radius:8px;font-size:12px;color:var(--txt3);line-height:1.6">
+      <strong style="color:var(--acc)">&#9888; Heads up:</strong> If you deactivate or delete the only Active user (yourself), you'll lock yourself out. Always add a backup user before removing your own access.
+    </div>
+  </div>
 </div>
 
 </main>
@@ -2518,7 +2553,7 @@ function drillBack(){
   loadAnalytics(true);
 }
 
-function refreshAll(){ buildWebsite(); buildMarketing(); renderOffices(); renderMembers(); renderOccupants(); renderWaitlist(); buildNotify(); buildBookingsTab(); buildNewsletterHistory(); loadContactMessages(); loadBookableResources(); loadBookingSettings(); }
+function refreshAll(){ buildWebsite(); buildMarketing(); renderOffices(); renderMembers(); renderOccupants(); renderWaitlist(); buildNotify(); buildBookingsTab(); buildNewsletterHistory(); loadContactMessages(); loadBookableResources(); loadBookingSettings(); renderUsers(); renderUpcomingBirthdays(); }
 
 // === OFFICES ===
 let ofFilter='all',ofSearch='';
@@ -2896,10 +2931,88 @@ function renderOccupants(){
       +'<td class="mono">'+(o.office?'Office '+o.office:'-')+'</td>'
       +'<td class="mono" style="font-size:12px">'+(o.phone||'-')+'</td>'
       +'<td style="font-size:12px">'+(o.email?'<a href="mailto:'+o.email+'" style="color:var(--blue)">'+o.email+'</a>':'-')+'</td>'
+      +'<td class="mono" style="font-size:12px;color:var(--txt2)">'+fmtBirthday(o.birthday)+'</td>'
       +'<td><span class="badge '+(o.status==='Active'?'bg':o.status==='Pending'?'ba':'br')+'">'+o.status+'</span></td>'
       +'<td class="mono" style="color:'+(o.endDate?'var(--red)':'var(--txt3)')+';font-size:12px">'+(o.endDate||'-')+'</td>'
       +'<td style="padding:5px 10px">'+dlCell+'</td></tr>';
-  }).join('')||'<tr><td colspan="9" style="color:var(--txt3);text-align:center;padding:20px">No occupants found</td></tr>';
+  }).join('')||'<tr><td colspan="10" style="color:var(--txt3);text-align:center;padding:20px">No occupants found</td></tr>';
+}
+
+// Birthday helpers — store ISO YYYY-MM-DD, display mm/dd/yy. The +T12 trick
+// avoids the "shift back a day in EST" issue when JS parses a bare date string.
+function fmtBirthday(iso){
+  if(!iso) return '-';
+  try{
+    const d=new Date(iso+'T12:00:00');
+    if(isNaN(d)) return iso;
+    const mm=String(d.getMonth()+1).padStart(2,'0');
+    const dd=String(d.getDate()).padStart(2,'0');
+    const yy=String(d.getFullYear()).slice(-2);
+    return mm+'/'+dd+'/'+yy;
+  }catch(e){ return iso; }
+}
+function birthdayAge(iso, asOf){
+  if(!iso) return null;
+  try{
+    const d=new Date(iso+'T12:00:00'); if(isNaN(d)) return null;
+    const t=asOf||new Date();
+    let age=t.getFullYear()-d.getFullYear();
+    const mDiff=t.getMonth()-d.getMonth();
+    if(mDiff<0||(mDiff===0 && t.getDate()<d.getDate())) age--;
+    return age>=0&&age<130 ? age : null;
+  }catch(e){ return null; }
+}
+function renderUpcomingBirthdays(){
+  const card=document.getElementById('bday-card'); if(!card) return;
+  const now=new Date();
+  const thisMonth=now.getMonth()+1;       // 1-12
+  const nextMonth=(thisMonth%12)+1;
+  const monthNames=['January','February','March','April','May','June',
+                    'July','August','September','October','November','December'];
+
+  // Pull active occupants with a birthday on file. Filter by month, sort by day.
+  const pickFor=mo=>(DB.occupants||[])
+    .filter(o=>o.status==='Active' && o.birthday)
+    .map(o=>{
+      const d=new Date(o.birthday+'T12:00:00');
+      return isNaN(d) ? null : {o, mo:d.getMonth()+1, day:d.getDate()};
+    })
+    .filter(x=>x && x.mo===mo)
+    .sort((a,b)=>a.day-b.day);
+
+  const tm=pickFor(thisMonth), nm=pickFor(nextMonth);
+  if(!tm.length && !nm.length){ card.style.display='none'; return; }
+  card.style.display='block';
+
+  const todayDay=now.getDate();
+  const renderCol=(label, items, isThisMonth)=>{
+    const rows=items.length
+      ? items.map(({o,day})=>{
+          const age=birthdayAge(o.birthday, new Date(now.getFullYear(),
+                                                       isThisMonth?thisMonth-1:thisMonth,
+                                                       day));
+          const isToday = isThisMonth && day===todayDay;
+          const dayBadge='<span style="display:inline-block;min-width:34px;text-align:center;font-weight:700;color:'+(isToday?'var(--acc)':'var(--txt2)')+';font-family:IBM Plex Mono,monospace;font-size:13px">'+String(day).padStart(2,'0')+'</span>';
+          return '<div onclick="openOccMo(\''+esc(o.id)+'\')" style="display:flex;align-items:center;gap:10px;padding:8px 6px;border-bottom:1px solid var(--bdr);cursor:pointer;border-radius:4px" onmouseover="this.style.background=\'var(--sur2)\'" onmouseout="this.style.background=\'transparent\'">'
+            +dayBadge
+            +'<div style="flex:1;min-width:0">'
+              +'<div style="font-size:13px;color:var(--txt);font-weight:600">'+(o.name||'')+(isToday?' <span style="font-size:10px;color:var(--acc);font-weight:700;letter-spacing:.06em">TODAY</span>':'')+'</div>'
+              +'<div style="font-size:11px;color:var(--txt3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(o.company||'')+(o.office?' &middot; Office '+o.office:'')+'</div>'
+            +'</div>'
+            +(age!=null?'<div style="font-size:11px;color:var(--txt3);white-space:nowrap">turning '+(age+1)+'</div>':'')
+          +'</div>';
+        }).join('')
+      : '<div style="color:var(--txt3);font-size:12px;padding:10px 6px">None this month</div>';
+    return '<div>'
+      +'<div style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--txt3);font-weight:700;margin-bottom:4px;padding-bottom:6px;border-bottom:2px solid var(--bdr)">'+label+'</div>'
+      +rows
+    +'</div>';
+  };
+
+  document.getElementById('bday-sub').textContent=monthNames[thisMonth-1]+' &middot; '+monthNames[nextMonth-1];
+  document.getElementById('bday-grid').innerHTML=
+    renderCol(monthNames[thisMonth-1], tm, true)
+   +renderCol(monthNames[nextMonth-1], nm, false);
 }
 function filterOccupants(q){occSearch=q;renderOccupants();}
 function setOccF(f,btn){occFilter=f;document.querySelectorAll('#of-active,#of-pending,#of-archive,#of-all').forEach(b=>b.classList.remove('on'));btn.classList.add('on');renderOccupants();}
@@ -2914,6 +3027,12 @@ function openOccMo(id){
   h+='<div class="di"><label>Office</label><value class="mono">'+(o.office?'Office '+o.office:'-')+'</value></div>';
   h+='<div class="di"><label>Phone</label><value class="mono">'+(o.phone||'-')+'</value></div>';
   h+='<div class="di"><label>Email</label><value style="font-size:12px">'+eml(o.email)+'</value></div>';
+  if(o.birthday){
+    const age=birthdayAge(o.birthday);
+    h+='<div class="di"><label>Birthday</label><value class="mono">'+fmtBirthday(o.birthday)+(age!=null?' <span style="color:var(--txt3);font-size:11px">(age '+age+')</span>':'')+'</value></div>';
+  } else {
+    h+='<div class="di"><label>Birthday</label><value style="color:var(--txt3)">-</value></div>';
+  }
   h+='<div class="di full"><label>Member Company</label><value style="cursor:pointer;color:var(--acc)" id="occ-co-link">'+o.company+' &#8599;</value></div>';
   if(o.endDate)h+='<div class="di full"><label>End Date</label><value style="color:var(--red)">'+o.endDate+'</value></div>';
   h+='<div class="divr"></div><div class="di full"><label>Driver\'s License</label>';
@@ -3109,6 +3228,7 @@ function openOccupantForm(id){
     +'<div class="fl"><label>Office Number</label><select id="f-office">'+oOpts+'</select></div>'
     +'<div class="fl"><label>Phone</label><input id="f-phone" value="'+(p.phone||'')+'"></div>'
     +'<div class="fl"><label>Email</label><input id="f-email" type="email" value="'+(p.email||'')+'"></div>'
+    +'<div class="fl"><label>Birthday</label><input id="f-birthday" type="date" value="'+(p.birthday||'')+'"><div style="font-size:11px;color:var(--txt3);margin-top:4px">Optional &mdash; used for the upcoming-birthdays list.</div></div>'
     +statusButtons(p.status||'Active',false)
     +'<div class="fl"><label>End Date</label><input id="f-endDate" value="'+(p.endDate||'')+'" placeholder="e.g. 7/31/2026"></div>'
     +'<div class="sect-title">Face Photo</div>'
@@ -3155,12 +3275,33 @@ async function submitForm(){
     const existing=formId?getOccById(formId):{dlAttachment:null,facePhoto:null};
     const facePhoto=window._pendingFacePhoto||existing.facePhoto||null;
     window._pendingFacePhoto=null;
-    const obj={id:formId||uid(),name,company,office:document.getElementById('f-office').value,phone:document.getElementById('f-phone').value.trim(),email:document.getElementById('f-email').value.trim(),status:document.getElementById('f-status').value,endDate:document.getElementById('f-endDate').value.trim(),dlAttachment:pendingFiles.length?pendingFiles[0]:(existing.dlAttachment||null),facePhoto};
+    const obj={id:formId||uid(),name,company,office:document.getElementById('f-office').value,phone:document.getElementById('f-phone').value.trim(),email:document.getElementById('f-email').value.trim(),birthday:(document.getElementById('f-birthday')?.value||'').trim(),status:document.getElementById('f-status').value,endDate:document.getElementById('f-endDate').value.trim(),dlAttachment:pendingFiles.length?pendingFiles[0]:(existing.dlAttachment||null),facePhoto};
     if(formId){const i=DB.occupants.findIndex(x=>x.id===formId);DB.occupants[i]=obj;}else DB.occupants.push(obj);
   } else if(formType==='waitlist'){
     const name=document.getElementById('f-name').value.trim();if(!name){alert('Name required.');return;}
     const obj={id:formId||uid(),name,phone:document.getElementById('f-phone').value.trim(),date:document.getElementById('f-date').value,leadSource:document.getElementById('f-leadsource')?.value||'',comment:document.getElementById('f-comment').value.trim()};
     if(formId){const i=DB.waitlist.findIndex(x=>x.id===formId);DB.waitlist[i]=obj;}else DB.waitlist.push(obj);
+  } else if(formType==='user'){
+    const name=document.getElementById('f-name').value.trim();
+    const phoneRaw=document.getElementById('f-phone').value.trim();
+    const phoneDigits=phoneRaw.replace(/\D/g,'').replace(/^1(\d{10})$/,'$1');
+    if(!name){alert('Name required.');return;}
+    if(phoneDigits.length!==10){alert('Phone must be a 10-digit US number.');return;}
+    // Reject duplicates — same phone on a different user record would make
+    // login ambiguous (and would let a former user keep access if you only
+    // edited the new record).
+    const dup=(DB.users||[]).find(x=>x.id!==formId && (x.phone||'').replace(/\D/g,'').replace(/^1(\d{10})$/,'$1')===phoneDigits);
+    if(dup){alert('That phone number is already assigned to '+dup.name+'.');return;}
+    const existing=formId?(DB.users||[]).find(x=>x.id===formId):{};
+    const obj={
+      id:        formId||uid(),
+      name,
+      phone:     phoneDigits,
+      status:    document.getElementById('f-status').value,
+      dateAdded: existing.dateAdded || new Date().toISOString().slice(0,10),
+    };
+    if(!DB.users) DB.users=[];
+    if(formId){const i=DB.users.findIndex(x=>x.id===formId);DB.users[i]=obj;}else DB.users.push(obj);
   }
   closeForm();refreshAll();await saveData();toast('Saved &#10003;');
 }
@@ -3217,8 +3358,46 @@ function askDelete(type,id,label){
   document.getElementById('conf-msg').textContent='Delete "'+label+'"? This cannot be undone.';
   document.getElementById('conf-ok').textContent='Delete';
   document.getElementById('conf-ok').style.background='var(--red)';
-  confirmCallback=async()=>{if(type==='office')DB.offices=DB.offices.filter(x=>x.id!==id);if(type==='member')DB.members=DB.members.filter(x=>x.id!==id);if(type==='occupant')DB.occupants=DB.occupants.filter(x=>x.id!==id);if(type==='waitlist')DB.waitlist=DB.waitlist.filter(x=>x.id!==id);closeConf();refreshAll();await saveData();toast('Deleted','var(--red)');};
+  confirmCallback=async()=>{if(type==='office')DB.offices=DB.offices.filter(x=>x.id!==id);if(type==='member')DB.members=DB.members.filter(x=>x.id!==id);if(type==='occupant')DB.occupants=DB.occupants.filter(x=>x.id!==id);if(type==='waitlist')DB.waitlist=DB.waitlist.filter(x=>x.id!==id);if(type==='user')DB.users=(DB.users||[]).filter(x=>x.id!==id);closeConf();refreshAll();await saveData();toast('Deleted','var(--red)');};
   document.getElementById('conf-modal').classList.add('open');
+}
+
+// === ADMIN USERS ===
+function _fmtUserPhone(p){
+  const d=(p||'').replace(/\D/g,'');
+  if(d.length===10) return '('+d.slice(0,3)+') '+d.slice(3,6)+'-'+d.slice(6);
+  if(d.length===11&&d[0]==='1') return '('+d.slice(1,4)+') '+d.slice(4,7)+'-'+d.slice(7);
+  return p||'-';
+}
+function renderUsers(){
+  const tb=document.getElementById('users-tbody'); if(!tb) return;
+  const list=(DB.users||[]).slice().sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  tb.innerHTML=list.map(u=>{
+    const badge=u.status==='Active'
+      ? '<span class="badge bg">Active</span>'
+      : '<span class="badge br">Inactive</span>';
+    return '<tr>'
+      +'<td><strong>'+(u.name||'')+'</strong></td>'
+      +'<td class="mono" style="font-size:13px">'+_fmtUserPhone(u.phone)+'</td>'
+      +'<td>'+badge+'</td>'
+      +'<td class="mono" style="color:var(--txt3);font-size:12px">'+(u.dateAdded||'-')+'</td>'
+      +'<td style="white-space:nowrap">'
+        +'<button class="btn-sm" onclick="openUserForm(\''+esc(u.id)+'\')">Edit</button> '
+        +'<button class="btn-sm del" onclick="askDelete(\'user\',\''+esc(u.id)+'\',\''+esc(u.name||'')+'\')">Delete</button>'
+      +'</td></tr>';
+  }).join('')||'<tr><td colspan="5" style="color:var(--txt3);text-align:center;padding:20px">No users yet. Add one to enable admin login.</td></tr>';
+}
+function openUserForm(id){
+  formType='user'; formId=id;
+  const u=id?(DB.users||[]).find(x=>x.id===id):{};
+  document.getElementById('form-title').textContent=id?'Edit User':'Add User';
+  document.getElementById('form-body').innerHTML='<div class="fg">'
+    +'<div class="fl full"><label>Full Name *</label><input id="f-name" value="'+(u.name||'')+'" placeholder="First Last" autofocus></div>'
+    +'<div class="fl full"><label>Phone Number *</label><input id="f-phone" value="'+(u.phone||'')+'" placeholder="(478) 555-1234" type="tel" inputmode="tel">'
+      +'<div style="font-size:11px;color:var(--txt3);margin-top:4px">SMS 2FA codes will be sent to this number.</div></div>'
+    +statusButtons(u.status||'Active',false)
+    +'</div>';
+  document.getElementById('form-modal').classList.add('open');
 }
 function confirmAction(){if(confirmCallback){confirmCallback();confirmCallback=null;}}
 function closeConf(){document.getElementById('conf-modal').classList.remove('open');}
