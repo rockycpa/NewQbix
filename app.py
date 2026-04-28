@@ -211,6 +211,136 @@ def send_email(to_email, to_name, subject, body_html):
     )
     return False
 
+# ── Newsletter prompt defaults ───────────────────────────────────────────────
+# These are the starting point. Once a deploy seeds them into DB.newsletterSettings,
+# the admin can edit them in the Newsletter Settings panel and saves are persistent.
+# Editing here only affects fresh deploys / "Reset to Default" clicks.
+#
+# Available placeholders in prompts (substituted before sending to Claude):
+#   {wordCount}        target word count for this draft
+#   {customNotes}      free-text notes the admin entered for this issue (may be empty)
+#   {context}          rolling Qbix stats line (occupied/vacant/active members/month)
+#   {seoKeywords}      comma-separated SEO keyword list (5)
+#   {month}            current month + year, e.g. "April 2026"
+#   {memberCount}      active member count
+#   {vacantCount}      vacant office count
+# Spotlight-only:
+#   {member}           selected member account name
+#   {featuredOccupant} the person being profiled
+#   {tenure}           rounded tenure, e.g. "4+ years"
+#   {offices}          comma-separated office numbers under this member
+#   {occupants}        formatted "Sarah (Office 22), Mark (Office 25)" string
+#   {intake}           the member's freeform intake response (paste-in)
+NEWSLETTER_DEFAULTS = {
+    'monthlyUpdate': {
+        'wordCount': 220,
+        'prompt': (
+            'Write a warm, friendly, professional monthly newsletter for Qbix Centre, '
+            'a coworking space in Macon, Georgia. Target ~{wordCount} words.\n\n'
+            'Manager notes for this issue: {customNotes}\n\n'
+            'Background context (weave in lightly only where natural — do not pad with '
+            'marketing language): {context}\n\n'
+            'Structure: a warm 1-2 sentence opener, a 1-2 paragraph community/news '
+            'snapshot, and a friendly closing. Naturally weave 1-2 SEO keywords from '
+            'this list where they fit organically — do not force them: {seoKeywords}.\n\n'
+            'Hard rules:\n'
+            '- Stay close to {wordCount} words.\n'
+            '- Do not invent details not provided.\n'
+            '- Avoid marketing puffery: "embodies", "valued member", "passionate about", '
+            '"thriving community", "amazing".\n'
+            '- HTML for email: <p>, <strong>, <ul>/<li> only. No markdown.\n'
+        ),
+    },
+    'memberSpotlight': {
+        'wordCount': 250,
+        'prompt': (
+            'Write a Member Spotlight for the Qbix Centre newsletter.\n\n'
+            'Subject of the spotlight: {featuredOccupant} of {member}.\n'
+            'Tenure at Qbix: {tenure}.\n'
+            'Office(s): {offices}.\n'
+            'Other occupants under this member: {occupants}.\n\n'
+            'Member intake response (use these as the member\'s own words — do not '
+            'paraphrase or embellish):\n'
+            '{intake}\n\n'
+            'Manager notes: {customNotes}\n\n'
+            'Output structure:\n'
+            '1. A 2-3 sentence intro naming {featuredOccupant}, their role, and what '
+            'their company does (pull from the intake).\n'
+            '2. A short, scannable section reflecting the intake answers. If the intake '
+            'uses topic labels (Fun Fact, Fuel, The Why, etc.) keep them as section '
+            'headers; otherwise weave the answers naturally.\n'
+            '3. A 1-2 sentence "where to find them" line naming {featuredOccupant}\'s '
+            'office, then any other occupants by first name with their offices '
+            '(e.g. "joined in the office by Sarah and Mark in 22 and 25").\n'
+            '4. A one-sentence closing inviting members to say hi or help with the Ask '
+            'if one was given.\n\n'
+            'Hard rules:\n'
+            '- Target ~{wordCount} words.\n'
+            '- Do not invent details not in the intake. If a topic is missing, omit that line.\n'
+            '- Do NOT use generic praise: "embodies", "standout member", "collaborative '
+            'spirit", "valued member", "professionalism", "willing to engage", '
+            '"integral part of our community", "dedicated professional", "amazing work", '
+            '"passionate about", "thrives".\n'
+            '- Do NOT pad with Qbix marketing language. Mention Qbix only where the '
+            'intake itself references it.\n'
+            '- HTML for email: <p>, <strong>, <ul>/<li> only. No markdown.\n'
+        ),
+    },
+    'community': {
+        'wordCount': 220,
+        'prompt': (
+            'Write a warm community-focused newsletter for Qbix Centre about local '
+            'north Macon business news and happenings relevant to our professional '
+            'tenant community. Target ~{wordCount} words.\n\n'
+            'Manager notes on what to cover: {customNotes}\n\n'
+            'Background context: {context}\n\n'
+            'Structure: 3-4 short paragraphs touching on themes like local business, '
+            'networking, professional growth, or community.\n\n'
+            'Hard rules:\n'
+            '- Tone: conversational, neighbor-to-neighbor, like a community insider '
+            'sharing news.\n'
+            '- Stay close to {wordCount} words.\n'
+            '- Avoid marketing puffery and corporate-speak.\n'
+            '- HTML for email: <p>, <strong>, <ul>/<li> only. No markdown.\n'
+        ),
+    },
+    'availability': {
+        'wordCount': 200,
+        'prompt': (
+            'Write a friendly availability/promotional newsletter for Qbix Centre. '
+            'Target ~{wordCount} words.\n\n'
+            'Currently {vacantCount} office(s) vacant. Manager notes: {customNotes}\n\n'
+            'Background context: {context}\n\n'
+            'Structure: 2-3 paragraphs highlighting available office space and '
+            'membership options. Include a clear, friendly call to action to schedule '
+            'a tour.\n\n'
+            'Hard rules:\n'
+            '- Tone: welcoming and professional, not pushy.\n'
+            '- Stay close to {wordCount} words.\n'
+            '- HTML for email: <p>, <strong>, <ul>/<li> only. No markdown.\n'
+        ),
+    },
+    'spotlightIntakeEmail': {
+        'subject': 'Member Spotlight in our next Qbix Centre newsletter — a few quick questions',
+        'body': (
+            'Hi {firstName},\n\n'
+            'I\'d love to feature you in our next Qbix Centre newsletter as the Member '
+            'Spotlight! Could you share a few quick answers so we can introduce the '
+            'Qbix community to you in a more personal way?\n\n'
+            '* The Basics: Your name, role, and what your company does in one sentence.\n'
+            '* The Fun Fact: Something most people wouldn\'t guess about you.\n'
+            '* The Fuel: What energizes you outside of work.\n'
+            '* The Why: Why you chose Qbix Centre as your professional home.\n'
+            '* The Switch: If you could open a different kind of business, what would it be?\n'
+            '* The Ask: Something the Qbix community could help you with — a referral, '
+            'expertise, or an introduction.\n\n'
+            'Reply when you have a few minutes — no rush. Thank you!\n\n'
+            'Rocky Davidson\n'
+            'Qbix Centre'
+        ),
+    },
+}
+
 # ── Default data ──────────────────────────────────────────────────────────────
 DEFAULT_DATA = {
     "offices": [
@@ -396,6 +526,14 @@ def load_data():
                 or d['users'][0]
             )
             promote['isPrimary'] = True
+        # Newsletter settings — editable prompt templates and word counts per type,
+        # plus the Spotlight intake-email template. Backfill any missing keys from
+        # NEWSLETTER_DEFAULTS so adding a new type later picks up its default.
+        ns = d.setdefault('newsletterSettings', {})
+        for key, default in NEWSLETTER_DEFAULTS.items():
+            existing = ns.setdefault(key, {})
+            for sub_key, sub_val in default.items():
+                existing.setdefault(sub_key, sub_val)
         # Migrate: marketingSettings
         ms = d.setdefault('marketingSettings', {})
         ms.setdefault('gbpHealth', {
@@ -2211,6 +2349,75 @@ ul.clauses li{{margin-bottom:7px;line-height:1.55;font-size:9.5pt}}
 
 
 
+# ── Newsletter helpers ───────────────────────────────────────────────────────
+# Map the newsletter "type" string the UI sends to the settings key in
+# DB.newsletterSettings.
+_NL_TYPE_KEY = {
+    'Monthly Update':    'monthlyUpdate',
+    'Member Spotlight':  'memberSpotlight',
+    'Community':         'community',
+    'Availability':      'availability',
+}
+
+def _format_tenure(start_str):
+    """Round a member's start date to a friendly tenure string. Examples:
+       '10/1/2021' (5 years) → '4+ years'
+       '1/1/2026' (3 months) → 'since January 2026'
+       Empty/unparsable      → '' (template will just substitute empty)."""
+    if not start_str:
+        return ''
+    # Try a few common formats: '10/1/2021', '2021-10-01', 'October 1, 2021'.
+    fmts = ('%m/%d/%Y', '%-m/%-d/%Y', '%m/%d/%y', '%Y-%m-%d', '%B %d, %Y')
+    dt = None
+    for f in fmts:
+        try:
+            dt = datetime.strptime(start_str.strip(), f)
+            break
+        except ValueError:
+            continue
+    if not dt:
+        return start_str    # let the raw string through if we can't parse
+    today = datetime.now()
+    years = (today - dt).days / 365.25
+    if years < 1:
+        return f"since {dt.strftime('%B %Y')}"
+    full = int(years)       # round down: 4.6 → 4
+    return f"{full}+ year" + ('s' if full != 1 else '')
+
+def _spotlight_context(data, member_name, featured_id):
+    """Pull offices + occupants for the selected member, formatted for the prompt.
+       Returns (offices_str, occupants_str). occupants_str excludes the featured
+       occupant; if there are no others, returns ''."""
+    offices = sorted(
+        (o.get('num','') for o in data.get('offices', [])
+         if o.get('member') == member_name and o.get('num')),
+        key=lambda n: (len(n), n)
+    )
+    offices_str = ', '.join(offices) if offices else ''
+
+    others = []
+    for o in data.get('occupants', []):
+        if (o.get('company') == member_name
+                and o.get('status') == 'Active'
+                and o.get('id') != featured_id):
+            first = (o.get('name','') or '').split()[0] if o.get('name') else ''
+            office = o.get('office','')
+            if first and office:
+                others.append(f"{first} (Office {office})")
+            elif first:
+                others.append(first)
+    occupants_str = ', '.join(others) if others else ''
+    return offices_str, occupants_str
+
+
+@app.route('/admin/api/newsletter-defaults')
+@login_required
+def newsletter_defaults():
+    """Return NEWSLETTER_DEFAULTS so the dashboard's Reset-to-Default buttons
+    can restore one prompt (or all of them) without redeploying."""
+    return jsonify({'ok': True, 'defaults': NEWSLETTER_DEFAULTS})
+
+
 @app.route('/admin/api/generate-newsletter', methods=['POST'])
 @login_required
 def generate_newsletter():
@@ -2223,94 +2430,80 @@ def generate_newsletter():
     vac    = len([o for o in data['offices'] if o['status'] == 'Vacant'])
     month  = datetime.now().strftime('%B %Y')
 
-    # SEO keywords — weave 2-3 naturally
-    seo_kws = data.get('marketingSettings', {}).get('seoKeywords', [])
-    kw_note = ''
-    if seo_kws:
-        sample = seo_kws[:5]
-        kw_note = f' Naturally weave in 2-3 of these SEO keywords where they fit organically (do not force them): {", ".join(sample)}.'
+    seo_kws       = data.get('marketingSettings', {}).get('seoKeywords', [])
+    seo_sample    = ', '.join(seo_kws[:5]) if seo_kws else ''
 
     context = (
-        f"Qbix Centre is a professional coworking space in Macon, Georgia at 500A Northside Crossing. "
-        f"Current stats: {occ} offices occupied, {vac} vacant, {len(active)} active members. "
-        f"Month: {month}. "
-        f"Amenities: 24/7 access, AT&T Fiber, Starbucks coffee, furnished offices, conference room, free parking."
-        + kw_note
+        f"Qbix Centre is a professional coworking space in Macon, Georgia at 500A "
+        f"Northside Crossing. Current stats: {occ} offices occupied, {vac} vacant, "
+        f"{len(active)} active members. Month: {month}. Amenities: 24/7 access, "
+        f"AT&T Fiber, Starbucks coffee, furnished offices, conference room, free parking."
     )
 
     req_body     = request.json or {}
     custom_notes = req_body.get('notes', '')
     nl_type      = req_body.get('nlType', 'Monthly Update')
-    spotlight    = req_body.get('spotlight', {})  # {name, profession, tenure, personalNote}
+    spotlight    = req_body.get('spotlight', {})  # {memberName, featuredOccupantId, featuredOccupantName, intake}
+
+    # Resolve the editable template + word count for this type, falling back to
+    # NEWSLETTER_DEFAULTS so a misconfigured key never 500s the request.
+    settings_key = _NL_TYPE_KEY.get(nl_type, 'monthlyUpdate')
+    nl_settings  = data.get('newsletterSettings', {}).get(settings_key, {})
+    template     = nl_settings.get('prompt', NEWSLETTER_DEFAULTS[settings_key]['prompt'])
+    word_count   = nl_settings.get('wordCount', NEWSLETTER_DEFAULTS[settings_key]['wordCount'])
+
+    # Build placeholder map for str.format. Spotlight-only fields default to ''
+    # for non-spotlight types; the template just substitutes empty strings.
+    placeholders = {
+        'wordCount':    word_count,
+        'customNotes':  custom_notes or '(none)',
+        'context':      context,
+        'seoKeywords':  seo_sample,
+        'month':        month,
+        'memberCount':  len(active),
+        'vacantCount':  vac,
+        'member':       '',
+        'featuredOccupant': '',
+        'tenure':       '',
+        'offices':      '',
+        'occupants':    '',
+        'intake':       '',
+    }
+
+    if nl_type == 'Member Spotlight':
+        member_name  = spotlight.get('memberName', '') or ''
+        featured_id  = spotlight.get('featuredOccupantId', '') or ''
+        featured_nm  = spotlight.get('featuredOccupantName', '') or ''
+        intake_text  = spotlight.get('intake', '') or '(no intake response provided)'
+
+        # Derive tenure from the member record's start date.
+        member = next((m for m in data.get('members', [])
+                       if m.get('name') == member_name), None)
+        tenure_str = _format_tenure(member.get('start', '')) if member else ''
+        offices_str, occupants_str = _spotlight_context(data, member_name, featured_id)
+
+        placeholders.update({
+            'member':            member_name or '(unknown member)',
+            'featuredOccupant':  featured_nm or '(unnamed)',
+            'tenure':            tenure_str or '(tenure unknown)',
+            'offices':           offices_str or '(none on file)',
+            'occupants':         occupants_str or '(no other occupants)',
+            'intake':            intake_text,
+        })
+
+    # Substitute. We use str.format_map with a SafeDict so any unrecognized
+    # placeholder in the user-edited template doesn't blow up the request —
+    # it just stays as-is in the prompt.
+    class _SafeDict(dict):
+        def __missing__(self, k): return '{' + k + '}'
+    try:
+        prompt = template.format_map(_SafeDict(placeholders))
+    except Exception as e:
+        return jsonify({'ok': False, 'error': f'Prompt template error: {e}'}), 400
 
     try:
         import urllib.request
         import json as json_mod
-
-        base = 'Format as clean HTML for email using <p>, <strong>, <ul>/<li> tags only. Do not use markdown. Do not invent details not provided.'
-
-        if nl_type == 'Member Spotlight':
-            name        = spotlight.get('name', 'our member')
-            profession  = spotlight.get('profession', '')
-            tenure      = spotlight.get('tenure', '')
-            personal    = spotlight.get('personalNote', '')
-            prompt = (
-                f'Write a warm, engaging Member Spotlight feature article for the Qbix Centre newsletter. '
-                f'This is a profile of one of our members. '
-                f'Member name: {name}. '
-                + (f'Profession/business: {profession}. ' if profession else '')
-                + (f'How long at Qbix: {tenure}. ' if tenure else '')
-                + (f'Personal note from manager: {personal}. ' if personal else '')
-                + f'Structure: warm intro paragraph welcoming them to the spotlight, 2-3 paragraphs about their work and presence in the Qbix community, a friendly closing encouraging members to connect with them. '
-                + f'Tone: warm, personal, community-focused. Do not invent details beyond what is provided. '
-                + f'Background context (weave in lightly): {context}. {base}'
-            )
-
-        elif nl_type == 'Community':
-            if custom_notes.strip():
-                prompt = (
-                    f'Write a warm community-focused newsletter for Qbix Centre about local north Macon business news and happenings relevant to our professional tenant community. '
-                    f'Manager notes on what to cover: {custom_notes}. '
-                    f'3-4 paragraphs. Conversational, neighbor-to-neighbor tone — like a community insider sharing news. '
-                    f'Context: {context}. {base}'
-                )
-            else:
-                prompt = (
-                    f'Write a warm community-focused newsletter for Qbix Centre about the north Macon professional community. '
-                    f'3-4 paragraphs touching on themes like local business, networking, professional growth, and community. '
-                    f'Tone: conversational, warm, community insider. '
-                    f'Context: {context}. {base}'
-                )
-
-        elif nl_type == 'Availability':
-            if custom_notes.strip():
-                prompt = (
-                    f'Write a professional but friendly availability/promotional newsletter for Qbix Centre. '
-                    f'Manager notes: {custom_notes}. '
-                    f'Highlight available office space and membership options. Include a clear call to action to schedule a tour. '
-                    f'Tone: welcoming and professional, not pushy. 2-3 paragraphs. '
-                    f'Context: {context}. {base}'
-                )
-            else:
-                prompt = (
-                    f'Write a professional but friendly availability newsletter for Qbix Centre. '
-                    f'{vac} office(s) currently available. Mention flexible membership options (private office, flex membership, virtual address). '
-                    f'Include a call to action to schedule a tour or reach out. Tone: welcoming, not pushy. 2-3 paragraphs. '
-                    f'Context: {context}. {base}'
-                )
-
-        else:  # Monthly Update (default)
-            if custom_notes.strip():
-                intro  = 'Write a warm, friendly, professional monthly newsletter for Qbix Centre. '
-                focus  = 'The manager has provided specific content to cover — this is the main focus of the newsletter. Cover it fully: ' + custom_notes + ' '
-                outro  = 'Add a brief welcoming opener and a friendly closing. Background context (weave in naturally): ' + context + '. ' + base
-                prompt = intro + focus + outro
-            else:
-                prompt = (
-                    'Write a warm, friendly, professional monthly newsletter for Qbix Centre. '
-                    '3-4 short paragraphs: welcoming opener, community snapshot, friendly closing. '
-                    'Context: ' + context + '. ' + base
-                )
 
         payload = {
             'model': 'claude-haiku-4-5-20251001',

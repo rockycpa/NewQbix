@@ -1098,6 +1098,23 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
 <!-- NEWSLETTER -->
 <div class="page" id="page-newsletter">
   <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:3px"><div class="pg-title">&#128240; Newsletter <button class="help-btn" onclick="openHelp('help-newsletter')" title="Help">?</button></div><button onclick="loadData()" style="background:var(--sur2);border:1px solid var(--acc);border-radius:6px;color:var(--acc);padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;font-family:'IBM Plex Sans',sans-serif">&#8635; Refresh</button></div><div class="pg-sub">AI-assisted monthly newsletter &mdash; ~3 cents per draft</div>
+
+  <!-- Newsletter settings (collapsible). Edit the AI prompt + word count for
+       each newsletter type. Saves persist in DB.newsletterSettings. -->
+  <details class="card" style="margin-bottom:14px;padding:14px 18px" id="nl-settings-card">
+    <summary style="cursor:pointer;font-weight:700;font-size:15px;color:var(--txt);user-select:none">&#9881; Newsletter Settings <span style="font-weight:400;color:var(--txt3);font-size:12px;margin-left:6px">prompt templates &middot; word counts &middot; spotlight intake email</span></summary>
+    <div style="margin-top:14px">
+      <div style="font-size:12px;color:var(--txt3);margin-bottom:14px;line-height:1.6">
+        Tweak the AI prompt and word count for each newsletter type. Available placeholders are listed under each box &mdash; the system substitutes them before sending to Claude. Hit <strong>Save Newsletter Settings</strong> when done.
+      </div>
+      <div id="nl-settings-body"></div>
+      <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">
+        <button onclick="saveNewsletterSettings()" class="btn-save" style="padding:9px 18px">&#128190; Save Newsletter Settings</button>
+        <button onclick="resetAllNewsletterDefaults()" style="background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;padding:9px 14px;color:var(--txt2);cursor:pointer;font-family:inherit;font-size:13px">&#8635; Reset All to Defaults</button>
+      </div>
+    </div>
+  </details>
+
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start">
     <div class="card">
       <div class="ct">Generate Draft</div>
@@ -1115,25 +1132,27 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
 
       <!-- MEMBER SPOTLIGHT INTAKE (hidden unless type = Member Spotlight) -->
       <div id="nl-spotlight-fields" style="display:none;background:var(--sur2);border:1px solid var(--bdr);border-radius:9px;padding:14px;margin-bottom:12px">
-        <div style="font-size:13px;font-weight:600;color:var(--txt);margin-bottom:10px">&#11088; Spotlight Details</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:6px">
+          <div style="font-size:13px;font-weight:600;color:var(--txt)">&#11088; Spotlight Details</div>
+          <button type="button" onclick="emailSpotlightIntake()" id="nl-spot-email-btn" style="background:var(--blue);color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:11px;font-weight:600;cursor:pointer;font-family:'IBM Plex Sans',sans-serif">&#128231; Email Intake to Member</button>
+        </div>
         <div style="display:grid;gap:8px">
-          <div>
-            <label style="font-size:12px;color:var(--txt2);display:block;margin-bottom:3px">Member Name *</label>
-            <input id="nl-spot-name" type="text" placeholder="e.g. Jane Smith / Pinnacle Accounting" style="width:100%;background:var(--sur);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;padding:7px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box">
-          </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
             <div>
-              <label style="font-size:12px;color:var(--txt2);display:block;margin-bottom:3px">Profession / Business</label>
-              <input id="nl-spot-profession" type="text" placeholder="e.g. CPA, Real Estate Agent" style="width:100%;background:var(--sur);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;padding:7px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box">
+              <label style="font-size:12px;color:var(--txt2);display:block;margin-bottom:3px">Member *</label>
+              <select id="nl-spot-member" onchange="onSpotlightMemberChange()" style="width:100%;background:var(--sur);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;padding:7px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box"></select>
             </div>
             <div>
-              <label style="font-size:12px;color:var(--txt2);display:block;margin-bottom:3px">How Long at Qbix</label>
-              <input id="nl-spot-tenure" type="text" placeholder="e.g. 2 years, since Sept 2023" style="width:100%;background:var(--sur);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;padding:7px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box">
+              <label style="font-size:12px;color:var(--txt2);display:block;margin-bottom:3px">Featured Occupant *</label>
+              <select id="nl-spot-occupant" style="width:100%;background:var(--sur);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;padding:7px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box"></select>
             </div>
           </div>
+          <!-- Auto-pulled summary (read-only) -->
+          <div id="nl-spot-summary" style="font-size:11px;color:var(--txt3);line-height:1.6;padding:8px 10px;background:var(--sur);border:1px solid var(--bdr);border-radius:6px;display:none"></div>
           <div>
-            <label style="font-size:12px;color:var(--txt2);display:block;margin-bottom:3px">Personal Note (fun fact, hobby, something to highlight)</label>
-            <textarea id="nl-spot-personal" placeholder="e.g. Recently expanded her team, plays in a local band on weekends..." style="width:100%;min-height:60px;background:var(--sur);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;padding:7px 10px;font-family:'IBM Plex Sans',sans-serif;resize:vertical;box-sizing:border-box"></textarea>
+            <label style="font-size:12px;color:var(--txt2);display:block;margin-bottom:3px">Intake Response</label>
+            <textarea id="nl-spot-intake" placeholder="Paste the member's response to the intake questions here. Claude will use these as the member's own words. Don't worry about formatting — copy/paste the email body and the AI handles it." style="width:100%;min-height:160px;background:var(--sur);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;padding:8px 10px;font-family:'IBM Plex Sans',sans-serif;resize:vertical;box-sizing:border-box;line-height:1.5"></textarea>
+            <div style="font-size:11px;color:var(--txt3);margin-top:4px">Tip: Click <em>Email Intake to Member</em> above to send the questions, then paste their reply here.</div>
           </div>
         </div>
       </div>
@@ -2435,9 +2454,13 @@ function setNlType(type, btn){
   _nlType = type;
   document.querySelectorAll('#nl-type-btns .fb').forEach(b=>b.classList.remove('on'));
   btn.classList.add('on');
-  // Show/hide spotlight fields
+  // Show/hide spotlight fields. When entering Spotlight mode, populate the
+  // member dropdown — DB.members is already loaded.
   const sf = document.getElementById('nl-spotlight-fields');
-  if(sf) sf.style.display = type === 'Member Spotlight' ? 'block' : 'none';
+  if(sf){
+    sf.style.display = type === 'Member Spotlight' ? 'block' : 'none';
+    if(type === 'Member Spotlight') populateSpotlightMembers();
+  }
   // Update notes label
   const lbl = document.getElementById('nl-notes-label');
   if(lbl){
@@ -2454,18 +2477,219 @@ function setNlType(type, btn){
   if(catEl) catEl.value = type;
 }
 
+// === SPOTLIGHT FORM ===
+function populateSpotlightMembers(){
+  const sel = document.getElementById('nl-spot-member'); if(!sel) return;
+  const prev = sel.value;
+  const active = (DB.members||[]).filter(m=>m.status==='Active')
+    .slice().sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  sel.innerHTML = '<option value="">— Select a member —</option>'
+    + active.map(m=>'<option value="'+esc(m.name)+'">'+esc(m.name)+'</option>').join('');
+  if(prev) sel.value = prev;
+  onSpotlightMemberChange();
+}
+function onSpotlightMemberChange(){
+  const memberName = (document.getElementById('nl-spot-member')||{}).value || '';
+  const occSel = document.getElementById('nl-spot-occupant');
+  const summary = document.getElementById('nl-spot-summary');
+  if(!memberName){
+    if(occSel) occSel.innerHTML = '<option value="">— Select a member first —</option>';
+    if(summary){ summary.style.display='none'; summary.innerHTML=''; }
+    return;
+  }
+  // Active occupants under this member, sorted by name.
+  const occs = (DB.occupants||[])
+    .filter(o => o.company === memberName && o.status === 'Active')
+    .sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  if(occSel){
+    occSel.innerHTML = occs.length
+      ? '<option value="">— Select —</option>'
+        + occs.map(o=>'<option value="'+esc(o.id)+'" data-name="'+esc(o.name)+'">'+esc(o.name)+(o.office?' — Office '+esc(o.office):'')+'</option>').join('')
+      : '<option value="">(no active occupants on file)</option>';
+  }
+  // Auto-pulled summary: tenure + offices + occupants list.
+  const member = (DB.members||[]).find(m=>m.name===memberName);
+  const start  = member ? (member.start||'') : '';
+  const tenure = formatTenureRounded(start);
+  const offices = (DB.offices||[])
+    .filter(o => o.member === memberName).map(o=>o.num).filter(Boolean);
+  const occList = occs.map(o=>(o.name||'').split(' ')[0] + (o.office?' (Office '+o.office+')':'')).join(', ');
+  if(summary){
+    summary.innerHTML =
+      '<div><strong>Tenure:</strong> '+esc(tenure || 'unknown')+'</div>'
+     +'<div><strong>Offices:</strong> '+(offices.length?esc(offices.join(', ')):'<em>none on file</em>')+'</div>'
+     +'<div><strong>Occupants:</strong> '+(occList?esc(occList):'<em>none</em>')+'</div>'
+     +'<div style="margin-top:4px;font-style:italic;color:var(--txt3)">These auto-pull into the AI prompt.</div>';
+    summary.style.display = 'block';
+  }
+}
+function formatTenureRounded(s){
+  if(!s) return '';
+  // Try a few common date formats. Return raw string if unparsable.
+  const tryParse = (str)=>{
+    const fmts = [
+      /^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/,   // m/d/yy or m/d/yyyy
+      /^(\d{4})-(\d{1,2})-(\d{1,2})$/,        // yyyy-mm-dd
+    ];
+    let m = str.match(fmts[0]);
+    if(m){ let yr=+m[3]; if(yr<100) yr += yr<50?2000:1900; return new Date(yr, +m[1]-1, +m[2]); }
+    m = str.match(fmts[1]);
+    if(m) return new Date(+m[1], +m[2]-1, +m[3]);
+    const d = new Date(str); return isNaN(d) ? null : d;
+  };
+  const d = tryParse(s.trim()); if(!d) return s;
+  const now = new Date();
+  const years = (now - d) / (1000*60*60*24*365.25);
+  if(years < 1) return 'since ' + d.toLocaleDateString('en-US',{month:'long',year:'numeric'});
+  const full = Math.floor(years);
+  return full + '+ year' + (full!==1?'s':'');
+}
+function emailSpotlightIntake(){
+  const memberName = (document.getElementById('nl-spot-member')||{}).value || '';
+  const occSel = document.getElementById('nl-spot-occupant');
+  const occOpt = occSel && occSel.selectedOptions && occSel.selectedOptions[0];
+  if(!memberName){ toast('Pick a Member first.','var(--red)'); return; }
+  if(!occOpt || !occSel.value){ toast('Pick a Featured Occupant first.','var(--red)'); return; }
+  // Look up the occupant's email.
+  const occ = (DB.occupants||[]).find(o=>o.id===occSel.value);
+  if(!occ){ toast('Occupant record not found.','var(--red)'); return; }
+  if(!occ.email){
+    if(!confirm('No email on file for '+(occ.name||'this occupant')+'. Open a blank Outlook draft anyway so you can fill in the address?')) return;
+  }
+  const tpl = (DB.newsletterSettings||{}).spotlightIntakeEmail || {};
+  const firstName = (occ.name||'').split(' ')[0] || 'there';
+  const subject = (tpl.subject || 'Member Spotlight — a few quick questions');
+  const body    = (tpl.body    || '').replace(/\{firstName\}/g, firstName)
+                                     .replace(/\{memberName\}/g, memberName);
+  const url = 'mailto:'+encodeURIComponent(occ.email||'')
+    +'?subject='+encodeURIComponent(subject)
+    +'&body='+encodeURIComponent(body);
+  window.open(url);
+}
+
+// === NEWSLETTER SETTINGS PANEL ===
+const _NL_TYPE_LABELS = {
+  monthlyUpdate:   {label:'Monthly Update',   icon:'\u{1F4C5}',
+    placeholders:'{wordCount} {customNotes} {context} {seoKeywords} {month} {memberCount} {vacantCount}'},
+  memberSpotlight: {label:'Member Spotlight', icon:'\u{2B50}',
+    placeholders:'{wordCount} {customNotes} {member} {featuredOccupant} {tenure} {offices} {occupants} {intake}'},
+  community:       {label:'Community',        icon:'\u{1F3D8}',
+    placeholders:'{wordCount} {customNotes} {context} {month}'},
+  availability:    {label:'Availability',     icon:'\u{1F4CD}',
+    placeholders:'{wordCount} {customNotes} {context} {vacantCount}'},
+};
+function buildNewsletterSettings(){
+  const wrap=document.getElementById('nl-settings-body'); if(!wrap) return;
+  const ns=DB.newsletterSettings||{};
+  const html = Object.keys(_NL_TYPE_LABELS).map(key=>{
+    const def = _NL_TYPE_LABELS[key];
+    const cfg = ns[key] || {};
+    const wc  = cfg.wordCount  != null ? cfg.wordCount : '';
+    const pr  = cfg.prompt     || '';
+    return '<div style="border:1px solid var(--bdr);border-radius:9px;padding:12px 14px;margin-bottom:10px;background:var(--sur2)">'
+      +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:6px">'
+        +'<div style="font-weight:700;color:var(--txt);font-size:14px">'+def.icon+' '+esc(def.label)+'</div>'
+        +'<button onclick="resetNewsletterDefault(\''+key+'\')" style="background:transparent;border:1px solid var(--bdr);color:var(--txt2);border-radius:5px;padding:3px 10px;font-size:11px;cursor:pointer;font-family:inherit">&#8635; Reset to Default</button>'
+      +'</div>'
+      +'<div style="display:flex;gap:10px;align-items:center;margin-bottom:8px">'
+        +'<label style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--txt3);font-weight:600">Target words</label>'
+        +'<input type="number" id="nls-wc-'+key+'" value="'+wc+'" min="50" max="800" style="width:90px;background:var(--sur);border:1px solid var(--bdr);border-radius:5px;color:var(--txt);padding:5px 8px;font-family:inherit;font-size:13px">'
+      +'</div>'
+      +'<textarea id="nls-prompt-'+key+'" style="width:100%;min-height:160px;background:var(--sur);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:12px;padding:8px 10px;font-family:IBM Plex Mono,monospace;resize:vertical;box-sizing:border-box;line-height:1.5">'+esc(pr).replace(/&#39;/g,"'")+'</textarea>'
+      +'<div style="font-size:10px;color:var(--txt3);margin-top:5px">Placeholders available: <code style="background:var(--sur);padding:1px 4px;border-radius:3px">'+def.placeholders+'</code></div>'
+    +'</div>';
+  }).join('');
+
+  // Spotlight intake email — separate, simpler block.
+  const sie = (ns.spotlightIntakeEmail || {});
+  const intakeBlock = '<div style="border:1px solid var(--bdr);border-radius:9px;padding:12px 14px;margin-top:14px;background:var(--sur2)">'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:6px">'
+      +'<div style="font-weight:700;color:var(--txt);font-size:14px">&#128231; Spotlight Intake Email</div>'
+      +'<button onclick="resetIntakeDefault()" style="background:transparent;border:1px solid var(--bdr);color:var(--txt2);border-radius:5px;padding:3px 10px;font-size:11px;cursor:pointer;font-family:inherit">&#8635; Reset to Default</button>'
+    +'</div>'
+    +'<div style="font-size:11px;color:var(--txt3);margin-bottom:6px">The email Rocky sends to a member when inviting them for the spotlight. Used by the <em>Email Intake to Member</em> button.</div>'
+    +'<input id="nls-intake-subj" placeholder="Subject" value="'+esc(sie.subject||'')+'" style="width:100%;background:var(--sur);border:1px solid var(--bdr);border-radius:5px;color:var(--txt);padding:6px 10px;font-family:inherit;font-size:13px;margin-bottom:8px;box-sizing:border-box">'
+    +'<textarea id="nls-intake-body" style="width:100%;min-height:200px;background:var(--sur);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:12px;padding:8px 10px;font-family:IBM Plex Mono,monospace;resize:vertical;box-sizing:border-box;line-height:1.5">'+esc(sie.body||'').replace(/&#39;/g,"'")+'</textarea>'
+    +'<div style="font-size:10px;color:var(--txt3);margin-top:5px">Placeholders: <code style="background:var(--sur);padding:1px 4px;border-radius:3px">{firstName} {memberName}</code></div>'
+  +'</div>';
+
+  wrap.innerHTML = html + intakeBlock;
+}
+async function saveNewsletterSettings(){
+  if(!DB.newsletterSettings) DB.newsletterSettings={};
+  Object.keys(_NL_TYPE_LABELS).forEach(key=>{
+    const wc=Number(document.getElementById('nls-wc-'+key).value)||0;
+    const pr=document.getElementById('nls-prompt-'+key).value;
+    DB.newsletterSettings[key]={wordCount:wc, prompt:pr};
+  });
+  DB.newsletterSettings.spotlightIntakeEmail={
+    subject: document.getElementById('nls-intake-subj').value,
+    body:    document.getElementById('nls-intake-body').value,
+  };
+  await saveData();
+  toast('Newsletter settings saved &#10003;');
+}
+async function resetNewsletterDefault(key){
+  if(!confirm('Reset the '+(_NL_TYPE_LABELS[key].label)+' prompt to its default? This wipes your edits to that one prompt.')) return;
+  const r = await fetch('/admin/api/newsletter-defaults');
+  const result = await r.json();
+  if(!result.ok || !result.defaults || !result.defaults[key]){ toast('Could not load default','var(--red)'); return; }
+  if(!DB.newsletterSettings) DB.newsletterSettings={};
+  DB.newsletterSettings[key] = {
+    wordCount: result.defaults[key].wordCount,
+    prompt:    result.defaults[key].prompt,
+  };
+  buildNewsletterSettings();
+  await saveData();
+  toast(_NL_TYPE_LABELS[key].label+' reset to default');
+}
+async function resetIntakeDefault(){
+  if(!confirm('Reset the Spotlight Intake Email to its default?')) return;
+  const r = await fetch('/admin/api/newsletter-defaults');
+  const result = await r.json();
+  if(!result.ok || !result.defaults || !result.defaults.spotlightIntakeEmail){ toast('Could not load default','var(--red)'); return; }
+  if(!DB.newsletterSettings) DB.newsletterSettings={};
+  DB.newsletterSettings.spotlightIntakeEmail = result.defaults.spotlightIntakeEmail;
+  buildNewsletterSettings();
+  await saveData();
+  toast('Intake email reset to default');
+}
+async function resetAllNewsletterDefaults(){
+  if(!confirm('Reset ALL newsletter prompts and the intake email to defaults? This wipes every customization.')) return;
+  const r = await fetch('/admin/api/newsletter-defaults');
+  const result = await r.json();
+  if(!result.ok){ toast('Could not load defaults','var(--red)'); return; }
+  DB.newsletterSettings = JSON.parse(JSON.stringify(result.defaults));
+  buildNewsletterSettings();
+  await saveData();
+  toast('All newsletter settings reset to defaults');
+}
+
 async function generateNewsletter(){
   const btn=document.getElementById('nl-gen-btn');
+  // For Spotlight, require Member + Featured Occupant + intake before firing.
+  if(_nlType === 'Member Spotlight'){
+    const memberSel  = document.getElementById('nl-spot-member');
+    const occSel     = document.getElementById('nl-spot-occupant');
+    const intakeText = (document.getElementById('nl-spot-intake')||{}).value || '';
+    if(!memberSel || !memberSel.value){ toast('Pick a Member first.','var(--red)'); return; }
+    if(!occSel    || !occSel.value)   { toast('Pick a Featured Occupant.','var(--red)'); return; }
+    if(!intakeText.trim()){
+      if(!confirm('No intake response yet. Generate anyway? The draft will be very thin.')) return;
+    }
+  }
   btn.disabled=true; btn.textContent='Generating...';
   try{
+    const occSel = document.getElementById('nl-spot-occupant');
+    const occOpt = occSel && occSel.selectedOptions && occSel.selectedOptions[0];
     const payload = {
-      notes: document.getElementById('nl-notes').value,
+      notes:  document.getElementById('nl-notes').value,
       nlType: _nlType,
       spotlight: {
-        name:        (document.getElementById('nl-spot-name')     ||{}).value||'',
-        profession:  (document.getElementById('nl-spot-profession')||{}).value||'',
-        tenure:      (document.getElementById('nl-spot-tenure')   ||{}).value||'',
-        personalNote:(document.getElementById('nl-spot-personal') ||{}).value||'',
+        memberName:           (document.getElementById('nl-spot-member')  ||{}).value||'',
+        featuredOccupantId:   (occSel||{}).value||'',
+        featuredOccupantName: occOpt ? occOpt.dataset.name || occOpt.textContent : '',
+        intake:               (document.getElementById('nl-spot-intake') ||{}).value||'',
       }
     };
     const r=await fetch('/admin/api/generate-newsletter',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
@@ -2695,7 +2919,7 @@ function drillBack(){
   loadAnalytics(true);
 }
 
-function refreshAll(){ buildWebsite(); buildMarketing(); renderOffices(); renderMembers(); renderOccupants(); renderWaitlist(); buildNotify(); buildBookingsTab(); buildNewsletterHistory(); loadContactMessages(); loadBookableResources(); loadBookingSettings(); renderUsers(); renderUpcomingBirthdays(); }
+function refreshAll(){ buildWebsite(); buildMarketing(); renderOffices(); renderMembers(); renderOccupants(); renderWaitlist(); buildNotify(); buildBookingsTab(); buildNewsletterHistory(); loadContactMessages(); loadBookableResources(); loadBookingSettings(); renderUsers(); renderUpcomingBirthdays(); buildNewsletterSettings(); }
 
 // === OFFICES ===
 let ofFilter='all',ofSearch='';
