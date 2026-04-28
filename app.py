@@ -368,6 +368,9 @@ def load_data():
         # Admin users — bootstrap the first record from ADMIN_PHONE on first
         # deploy so we don't lock anyone out. Subsequent users (backup phone,
         # second admin) are added through the Admin tab → Users panel.
+        # Exactly one user holds isPrimary=True at any time. The primary admin
+        # cannot be deleted or deactivated through the UI; the role must be
+        # transferred to another Active user first ("Make Primary" button).
         d.setdefault('users', [])
         if not d['users'] and ADMIN_PHONE:
             d['users'].append({
@@ -375,8 +378,24 @@ def load_data():
                 'name':      'Rocky Davidson',
                 'phone':     ADMIN_PHONE,
                 'status':    'Active',
+                'isPrimary': True,
                 'dateAdded': datetime.now().strftime('%Y-%m-%d'),
             })
+        # Backfill isPrimary on existing user records and ensure exactly one
+        # primary. If none yet, promote the user matching ADMIN_PHONE; failing
+        # that, the first Active user; failing that, the first user.
+        for u in d['users']:
+            u.setdefault('isPrimary', False)
+        if d['users'] and not any(u.get('isPrimary') for u in d['users']):
+            admin_norm = ''.join(filter(str.isdigit, ADMIN_PHONE or ''))[-10:]
+            promote = (
+                next((u for u in d['users']
+                      if ''.join(filter(str.isdigit, u.get('phone',''))).endswith(admin_norm)
+                      and u.get('status') == 'Active'), None)
+                or next((u for u in d['users'] if u.get('status') == 'Active'), None)
+                or d['users'][0]
+            )
+            promote['isPrimary'] = True
         # Migrate: marketingSettings
         ms = d.setdefault('marketingSettings', {})
         ms.setdefault('gbpHealth', {

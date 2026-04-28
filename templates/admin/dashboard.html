@@ -1380,11 +1380,11 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
       <button class="btn-add" onclick="openUserForm(null)">+ Add User</button>
     </div>
     <div class="tw" style="margin-top:12px"><table>
-      <thead><tr><th>Name</th><th>Phone</th><th>Status</th><th>Date Added</th><th style="width:140px">Actions</th></tr></thead>
+      <thead><tr><th>Name</th><th>Phone</th><th>Status</th><th>Date Added</th><th style="width:240px">Actions</th></tr></thead>
       <tbody id="users-tbody"></tbody>
     </table></div>
     <div style="margin-top:14px;padding:12px 14px;background:var(--sur2);border-radius:8px;font-size:12px;color:var(--txt3);line-height:1.6">
-      <strong style="color:var(--acc)">&#9888; Heads up:</strong> If you deactivate or delete the only Active user (yourself), you'll lock yourself out. Always add a backup user before removing your own access.
+      <strong style="color:var(--acc)">&#11088; Primary admin protection:</strong> One user is always designated <strong>Primary</strong> (gold badge). The primary admin can't be deleted or deactivated &mdash; that's the safety net so you can't accidentally lock yourself out. To remove or deactivate the current primary, first click <em>Make Primary</em> on another Active user to transfer the role.
     </div>
   </div>
 </div>
@@ -3285,6 +3285,7 @@ async function submitForm(){
     const name=document.getElementById('f-name').value.trim();
     const phoneRaw=document.getElementById('f-phone').value.trim();
     const phoneDigits=phoneRaw.replace(/\D/g,'').replace(/^1(\d{10})$/,'$1');
+    const status=document.getElementById('f-status').value;
     if(!name){alert('Name required.');return;}
     if(phoneDigits.length!==10){alert('Phone must be a 10-digit US number.');return;}
     // Reject duplicates — same phone on a different user record would make
@@ -3293,11 +3294,17 @@ async function submitForm(){
     const dup=(DB.users||[]).find(x=>x.id!==formId && (x.phone||'').replace(/\D/g,'').replace(/^1(\d{10})$/,'$1')===phoneDigits);
     if(dup){alert('That phone number is already assigned to '+dup.name+'.');return;}
     const existing=formId?(DB.users||[]).find(x=>x.id===formId):{};
+    // Block deactivating the primary admin — same protection as deletion.
+    if(existing.isPrimary && status!=='Active'){
+      alert('The primary admin must stay Active. Click "Make Primary" on another user to transfer the role first, then you can deactivate this account.');
+      return;
+    }
     const obj={
       id:        formId||uid(),
       name,
       phone:     phoneDigits,
-      status:    document.getElementById('f-status').value,
+      status:    status,
+      isPrimary: !!existing.isPrimary,
       dateAdded: existing.dateAdded || new Date().toISOString().slice(0,10),
     };
     if(!DB.users) DB.users=[];
@@ -3354,6 +3361,15 @@ function removeExistingPhoto(idx){
 // === DELETE ===
 let confirmCallback=null;
 function askDelete(type,id,label){
+  // Defense in depth — the primary admin button is hidden in renderUsers,
+  // but if anything ever calls askDelete('user', primaryId), block it here.
+  if(type==='user'){
+    const u=(DB.users||[]).find(x=>x.id===id);
+    if(u && u.isPrimary){
+      toast('Primary admin can\'t be deleted. Transfer Primary to another user first.','var(--red)',5000);
+      return;
+    }
+  }
   document.getElementById('conf-title').textContent='Delete Record?';
   document.getElementById('conf-msg').textContent='Delete "'+label+'"? This cannot be undone.';
   document.getElementById('conf-ok').textContent='Delete';
@@ -3371,27 +3387,73 @@ function _fmtUserPhone(p){
 }
 function renderUsers(){
   const tb=document.getElementById('users-tbody'); if(!tb) return;
-  const list=(DB.users||[]).slice().sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  const list=(DB.users||[]).slice().sort((a,b)=>{
+    // Primary always first, then alphabetical
+    if((a.isPrimary?1:0)!==(b.isPrimary?1:0)) return (b.isPrimary?1:0)-(a.isPrimary?1:0);
+    return (a.name||'').localeCompare(b.name||'');
+  });
   tb.innerHTML=list.map(u=>{
-    const badge=u.status==='Active'
+    const statusBadge=u.status==='Active'
       ? '<span class="badge bg">Active</span>'
       : '<span class="badge br">Inactive</span>';
+    const primaryBadge=u.isPrimary
+      ? ' <span class="badge" style="background:rgba(212,168,67,.18);color:var(--acc);border:1px solid rgba(212,168,67,.4);font-size:10px;letter-spacing:.06em">&#11088; PRIMARY</span>'
+      : '';
+    // Make Primary button — only on Active non-primary users (you can't hand
+    // the role to an inactive account).
+    const makeBtn=(!u.isPrimary && u.status==='Active')
+      ? '<button class="btn-sm" onclick="makeUserPrimary(\''+esc(u.id)+'\')" style="background:rgba(212,168,67,.12);border-color:rgba(212,168,67,.4);color:var(--acc)">Make Primary</button> '
+      : '';
+    // Delete is hidden entirely on the primary user — the rule says the
+    // primary must transfer the role first, so the button just shouldn't
+    // appear in that state.
+    const delBtn=u.isPrimary
+      ? '<span style="color:var(--txt3);font-size:11px;font-style:italic">Transfer Primary first</span>'
+      : '<button class="btn-sm del" onclick="askDelete(\'user\',\''+esc(u.id)+'\',\''+esc(u.name||'')+'\')">Delete</button>';
     return '<tr>'
-      +'<td><strong>'+(u.name||'')+'</strong></td>'
+      +'<td><strong>'+(u.name||'')+'</strong>'+primaryBadge+'</td>'
       +'<td class="mono" style="font-size:13px">'+_fmtUserPhone(u.phone)+'</td>'
-      +'<td>'+badge+'</td>'
+      +'<td>'+statusBadge+'</td>'
       +'<td class="mono" style="color:var(--txt3);font-size:12px">'+(u.dateAdded||'-')+'</td>'
       +'<td style="white-space:nowrap">'
         +'<button class="btn-sm" onclick="openUserForm(\''+esc(u.id)+'\')">Edit</button> '
-        +'<button class="btn-sm del" onclick="askDelete(\'user\',\''+esc(u.id)+'\',\''+esc(u.name||'')+'\')">Delete</button>'
+        +makeBtn
+        +delBtn
       +'</td></tr>';
   }).join('')||'<tr><td colspan="5" style="color:var(--txt3);text-align:center;padding:20px">No users yet. Add one to enable admin login.</td></tr>';
+}
+async function makeUserPrimary(id){
+  if(!DB.users) return;
+  const target=DB.users.find(u=>u.id===id);
+  if(!target){ toast('User not found','var(--red)'); return; }
+  if(target.status!=='Active'){ toast('Only Active users can be primary.','var(--red)'); return; }
+  const current=DB.users.find(u=>u.isPrimary);
+  // Confirm the swap before mutating anything.
+  document.getElementById('conf-title').textContent='Transfer Primary Admin?';
+  document.getElementById('conf-msg').innerHTML=
+    'Make <strong>'+(target.name||'')+'</strong> the primary admin?'
+    +(current && current.id!==target.id
+        ? '<br><br>The primary role will move from <strong>'+(current.name||'')+'</strong>. Their account stays Active &mdash; only the primary designation changes.'
+        : '');
+  document.getElementById('conf-ok').textContent='Make Primary';
+  document.getElementById('conf-ok').style.background='var(--acc)';
+  confirmCallback=async()=>{
+    DB.users.forEach(u=>u.isPrimary=false);
+    target.isPrimary=true;
+    closeConf(); refreshAll(); await saveData();
+    toast('Primary admin: '+(target.name||''));
+  };
+  document.getElementById('conf-modal').classList.add('open');
 }
 function openUserForm(id){
   formType='user'; formId=id;
   const u=id?(DB.users||[]).find(x=>x.id===id):{};
+  const primaryNote=u.isPrimary
+    ? '<div class="fl full" style="background:rgba(212,168,67,.08);border:1px solid rgba(212,168,67,.4);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--acc);line-height:1.6">&#11088; <strong>Primary Admin.</strong> Name and phone are editable. Status must stay Active until the role is transferred to another user.</div>'
+    : '';
   document.getElementById('form-title').textContent=id?'Edit User':'Add User';
   document.getElementById('form-body').innerHTML='<div class="fg">'
+    +primaryNote
     +'<div class="fl full"><label>Full Name *</label><input id="f-name" value="'+(u.name||'')+'" placeholder="First Last" autofocus></div>'
     +'<div class="fl full"><label>Phone Number *</label><input id="f-phone" value="'+(u.phone||'')+'" placeholder="(478) 555-1234" type="tel" inputmode="tel">'
       +'<div style="font-size:11px;color:var(--txt3);margin-top:4px">SMS 2FA codes will be sent to this number.</div></div>'
