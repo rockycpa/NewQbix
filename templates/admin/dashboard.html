@@ -1276,7 +1276,7 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
   <div class="pg-title">&#128197; Bookings <button class="help-btn" onclick="openHelp('help-bookings')" title="Help">?</button></div><div class="pg-sub">All upcoming bookings (conference room + offices)</div>
   <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;flex-wrap:wrap">
     <button class="btn-add" onclick="openBookingModal(null)" style="margin-left:0">+ Add Booking</button>
-    <button class="btn-add" onclick="sendMonthlyUsage()" style="background:var(--purple);margin-left:0">&#128231; Send Monthly Usage Emails</button>
+    <button class="btn-add" onclick="openMonthlyUsageModal()" style="background:var(--purple);margin-left:0">&#128231; Monthly Usage &mdash; Outlook Drafts</button>
   </div>
 
   <details class="card" style="margin-bottom:16px;padding:14px 18px" id="booking-settings-card">
@@ -1492,6 +1492,32 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
     <div id="review-modal-body"></div>
   </div>
 </div>
+
+<!-- Monthly usage → Outlook drafts -->
+<div class="mo" id="usage-modal" onclick="closeMo(event,'usage-modal')">
+  <div class="mo-box" style="max-width:880px;padding:0">
+    <div class="mo-hdr">
+      <span>&#128231; Monthly Usage &mdash; Outlook Drafts</span>
+      <button class="mo-close" onclick="document.getElementById('usage-modal').classList.remove('open')">&#x2715;</button>
+    </div>
+    <div style="padding:18px 22px">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px">
+        <label style="font-size:12px;color:var(--txt2);text-transform:uppercase;letter-spacing:.06em;font-weight:600">Month:</label>
+        <select id="usage-month" onchange="loadUsageRows()" style="padding:7px 10px;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-family:inherit;font-size:13px"></select>
+        <select id="usage-year" onchange="loadUsageRows()" style="padding:7px 10px;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-family:inherit;font-size:13px"></select>
+        <button onclick="loadUsageRows()" style="padding:7px 12px;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt2);cursor:pointer;font-family:inherit;font-size:12px">&#8635; Refresh</button>
+        <div style="flex:1"></div>
+        <button onclick="copyAllUsageEmails()" style="padding:7px 12px;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);cursor:pointer;font-family:inherit;font-size:12px">&#128203; Copy All Emails</button>
+        <button onclick="openAllUsageDrafts()" style="padding:7px 12px;background:var(--purple);color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:600">&#128241; Open All Drafts</button>
+      </div>
+      <div style="font-size:12px;color:var(--txt3);margin-bottom:14px;line-height:1.6">
+        Each <strong>Compose</strong> button opens an Outlook draft with the recipient, subject, and body pre-filled. Format with Outlook Quick Parts as usual, then send. <em>App-side email is disabled by design</em> &mdash; this matches the Notify workflow.
+      </div>
+      <div id="usage-rows" style="max-height:60vh;overflow-y:auto;border:1px solid var(--bdr);border-radius:8px"></div>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js"></script>
@@ -2134,13 +2160,129 @@ async function saveBookingSettings(){
   } catch(e){ toast('Save failed','#dc2626'); }
 }
 
-async function sendMonthlyUsage(){
-  const now=new Date();
-  const r=await fetch('/admin/api/send-monthly-usage',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({month:now.getMonth()+1,year:now.getFullYear()})});
-  const result=await r.json();
-  if(result.ok) toast('Monthly usage emails sent to '+result.sent+' members');
-  else toast('Error: '+result.error,'var(--red)');
+// Monthly usage → Outlook draft modal. App-side email is gone; we compute
+// per-member usage server-side, render the rows here, and let the admin open
+// one Outlook draft at a time (or all at once).
+let _usageRows = [];
+function openMonthlyUsageModal(){
+  // Default month: previous calendar month (typical end-of-month workflow).
+  const now = new Date();
+  const target = new Date(now.getFullYear(), now.getMonth()-1, 1);
+  buildUsageMonthYearPickers(target.getFullYear(), target.getMonth()+1);
+  document.getElementById('usage-modal').classList.add('open');
+  loadUsageRows();
 }
+function buildUsageMonthYearPickers(yr, mo){
+  const months=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const ms=document.getElementById('usage-month');
+  const ys=document.getElementById('usage-year');
+  ms.innerHTML=months.map((m,i)=>'<option value="'+(i+1)+'" '+((i+1)===mo?'selected':'')+'>'+m+'</option>').join('');
+  // Year picker: current year and previous two years.
+  const thisYear=new Date().getFullYear();
+  ys.innerHTML=[thisYear,thisYear-1,thisYear-2].map(y=>'<option value="'+y+'" '+(y===yr?'selected':'')+'>'+y+'</option>').join('');
+}
+async function loadUsageRows(){
+  const month=Number(document.getElementById('usage-month').value);
+  const year =Number(document.getElementById('usage-year').value);
+  const body=document.getElementById('usage-rows');
+  body.innerHTML='<div style="padding:30px;text-align:center;color:var(--txt3)">Loading…</div>';
+  try{
+    const r=await fetch('/admin/api/send-monthly-usage',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({month, year})
+    });
+    const result=await r.json();
+    if(!result.ok){ body.innerHTML='<div style="padding:30px;text-align:center;color:var(--red)">Error: '+(result.error||'unknown')+'</div>'; return; }
+    _usageRows = result.rows || [];
+    renderUsageRows(result.monthName);
+  } catch(e){
+    body.innerHTML='<div style="padding:30px;text-align:center;color:var(--red)">Could not load usage data.</div>';
+  }
+}
+function renderUsageRows(monthName){
+  const body=document.getElementById('usage-rows');
+  if(!_usageRows.length){
+    body.innerHTML='<div style="padding:30px;text-align:center;color:var(--txt3)">No bookings in '+(monthName||'this month')+'.</div>';
+    return;
+  }
+  body.innerHTML=_usageRows.map((row,idx)=>{
+    const overBadge = row.hoursOver>0
+      ? '<span class="badge" style="background:rgba(217,96,96,.15);color:var(--red);border:1px solid rgba(217,96,96,.3);margin-left:6px">+'+row.hoursOver.toFixed(2).replace(/\.?0+$/,'')+' over</span>'
+      : '';
+    const emailLabel=row.memberEmail||'<span style="color:var(--red)">no email on file</span>';
+    const composeBtn = row.memberEmail
+      ? '<button onclick="composeUsageDraft('+idx+')" style="padding:7px 14px;background:var(--blue);color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:600">&#9998; Compose in Outlook</button>'
+      : '<span style="font-size:11px;color:var(--txt3);font-style:italic">add email on Member record</span>';
+    return '<div style="border-bottom:1px solid var(--bdr);padding:14px 16px">'
+      +'<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">'
+        +'<div style="flex:1;min-width:200px">'
+          +'<div style="font-weight:700;color:var(--txt);font-size:14px">'+esc(row.memberName)+overBadge+'</div>'
+          +'<div style="font-size:12px;color:var(--txt3);margin-top:2px">'+emailLabel+'</div>'
+        +'</div>'
+        +'<div style="font-family:IBM Plex Mono,monospace;font-size:13px;color:var(--txt2);white-space:nowrap">'
+          +row.hoursUsed.toFixed(2).replace(/\.?0+$/,'')+' / '+row.hoursIncluded+' hrs'
+        +'</div>'
+        +'<div>'+composeBtn+'</div>'
+      +'</div>'
+      +'<details style="margin-top:8px"><summary style="cursor:pointer;font-size:11px;color:var(--txt3)">'+row.bookings.length+' booking'+(row.bookings.length===1?'':'s')+'</summary>'
+        +'<ul style="margin:6px 0 0 18px;padding:0;font-size:11px;color:var(--txt2);line-height:1.7">'
+        +row.bookings.map(b=>'<li>'+esc(b.date)+' '+esc(b.start)+'&ndash;'+esc(b.end)+' &middot; '+esc(b.space)+(b.title?' &middot; '+esc(b.title):'')+(b.bookedBy&&b.bookedBy!==row.memberName?' <span style="color:var(--txt3)">(by '+esc(b.bookedBy)+')</span>':'')+'</li>').join('')
+        +'</ul></details>'
+    +'</div>';
+  }).join('');
+}
+function _usageMonthName(){
+  const month=Number(document.getElementById('usage-month').value);
+  const year =Number(document.getElementById('usage-year').value);
+  return new Date(year, month-1, 1).toLocaleDateString('en-US',{month:'long',year:'numeric'});
+}
+function _usageBodyFor(row){
+  const monthName=_usageMonthName();
+  const lines=row.bookings.map(b=>'  '+b.date+' '+b.start+'-'+b.end+' '+b.space+(b.title?' ('+b.title+')':'')).join('\n');
+  const overText = row.hoursOver>0
+    ? '\nHours over: '+row.hoursOver.toFixed(2).replace(/\.?0+$/,'')
+    : '';
+  return 'Hi '+row.memberName+',\n\n'
+    +'Here is your conference room usage summary for '+monthName+'.\n\n'
+    +'Bookings:\n'+lines+'\n\n'
+    +'Total hours used: '+row.hoursUsed.toFixed(2).replace(/\.?0+$/,'')+' of '+row.hoursIncluded+' included hours\n'
+    +'Hours remaining this month: '+row.hoursRemaining.toFixed(2).replace(/\.?0+$/,'')
+    +overText+'\n\n'
+    +'Thank you for being part of the Qbix Centre community.\n\n'
+    +'— Qbix Centre Management';
+}
+function composeUsageDraft(idx){
+  const row=_usageRows[idx]; if(!row || !row.memberEmail) return;
+  const subject='Your Qbix Centre Conference Room Summary — '+_usageMonthName();
+  const url='mailto:'+encodeURIComponent(row.memberEmail)
+    +'?subject='+encodeURIComponent(subject)
+    +'&body='+encodeURIComponent(_usageBodyFor(row));
+  window.open(url);
+}
+function openAllUsageDrafts(){
+  const withEmail=_usageRows.filter(r=>r.memberEmail);
+  if(!withEmail.length){ toast('No members with email on file.','var(--red)'); return; }
+  if(withEmail.length>5 && !confirm('Open '+withEmail.length+' Outlook draft windows? You can also click Compose one at a time instead.')) return;
+  // Stagger window.open by ~250ms each so the OS doesn't suppress them.
+  withEmail.forEach((row,i)=>{
+    const subject='Your Qbix Centre Conference Room Summary — '+_usageMonthName();
+    const url='mailto:'+encodeURIComponent(row.memberEmail)
+      +'?subject='+encodeURIComponent(subject)
+      +'&body='+encodeURIComponent(_usageBodyFor(row));
+    setTimeout(()=>window.open(url), i*250);
+  });
+  toast('Opening '+withEmail.length+' drafts in Outlook…');
+}
+function copyAllUsageEmails(){
+  const emails=_usageRows.filter(r=>r.memberEmail).map(r=>r.memberEmail);
+  if(!emails.length){ toast('No emails on file.','var(--red)'); return; }
+  navigator.clipboard.writeText(emails.join('; '))
+    .then(()=>toast('&#128203; '+emails.length+' email'+(emails.length===1?'':'s')+' copied'))
+    .catch(()=>{ alert(emails.join('\n')); });
+}
+
+// Legacy name kept for the existing button binding.
+function sendMonthlyUsage(){ openMonthlyUsageModal(); }
 
 function buildNewsletterHistory(){
   const posts=(DB.newsletter||[]).slice().reverse();

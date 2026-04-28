@@ -26,6 +26,30 @@
 .time-btn:hover{border-color:var(--navy);background:var(--light)}
 .time-btn.selected{background:var(--navy);color:#fff;border-color:var(--navy)}
 .time-btn.unavailable{opacity:.4;cursor:default;background:#f3f4f6}
+
+/* Calendar / List view toggle */
+.view-toggle{display:inline-flex;background:#fff;border:1px solid var(--border);border-radius:8px;padding:3px;gap:2px}
+.view-toggle button{background:none;border:none;padding:6px 14px;border-radius:6px;font-size:13px;font-weight:500;color:var(--txt2);cursor:pointer;font-family:inherit}
+.view-toggle button.active{background:var(--navy);color:#fff}
+.slot-pip .pip-name{font-weight:400;opacity:.85;margin-left:2px}
+
+/* List view */
+.book-list{background:#fff;border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+.book-list-row{display:grid;grid-template-columns:1.4fr 1.1fr 1.4fr 1.1fr 1fr;gap:12px;padding:12px 16px;border-bottom:1px solid var(--border);font-size:14px;align-items:center}
+.book-list-row:last-child{border-bottom:none}
+.book-list-row.head{background:var(--light);font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--txt2);font-weight:600}
+.book-list-row.mine{background:#f0fdf4}
+.book-list-row .col-date{font-weight:500;color:var(--navy)}
+.book-list-row .col-time{font-family:'IBM Plex Mono',monospace;font-size:13px}
+.book-list-row .col-space{color:var(--txt2)}
+.book-list-row .col-member{color:var(--txt)}
+.book-list-row .col-title{color:var(--txt2);font-style:italic}
+@media(max-width:720px){
+  .book-list-row{grid-template-columns:1fr 1fr;gap:6px;font-size:13px}
+  .book-list-row.head{display:none}
+  .book-list-row .col-date{grid-column:1/-1;font-size:13px}
+  .book-list-row .col-time{font-size:12px}
+}
 </style>
 {% endblock %}
 
@@ -59,19 +83,45 @@
         <span><span id="hours-used">0</span> / <span id="hours-included">0</span> hours used &middot; <span id="hours-remaining" style="font-weight:500;color:var(--navy)">0</span> remaining</span>
       </div>
 
-      <div class="cal-header">
-        <button class="cal-nav" onclick="prevMonth()" id="cal-prev">◀</button>
-        <div style="font-family:'Playfair Display',serif;font-size:20px;color:var(--navy)" id="cal-title"></div>
-        <button class="cal-nav" onclick="nextMonth()" id="cal-next">▶</button>
+      <!-- View toggle: calendar grid vs upcoming-list. List view spans all
+           resources for the next 60 days; resource picker is hidden in that
+           mode since it isn't relevant. -->
+      <div style="display:flex;justify-content:center;margin-bottom:12px">
+        <div class="view-toggle" role="tablist">
+          <button id="vt-cal" class="active" onclick="setView('cal')">📅 Calendar</button>
+          <button id="vt-list" onclick="setView('list')">☰ List</button>
+        </div>
       </div>
-      <div class="cal-grid" id="cal-grid">
-        <div class="cal-day-label">Mon</div>
-        <div class="cal-day-label">Tue</div>
-        <div class="cal-day-label">Wed</div>
-        <div class="cal-day-label">Thu</div>
-        <div class="cal-day-label">Fri</div>
-        <div class="cal-day-label">Sat</div>
-        <div class="cal-day-label">Sun</div>
+
+      <div id="view-cal-wrap">
+        <div class="cal-header">
+          <button class="cal-nav" onclick="prevMonth()" id="cal-prev">◀</button>
+          <div style="font-family:'Playfair Display',serif;font-size:20px;color:var(--navy)" id="cal-title"></div>
+          <button class="cal-nav" onclick="nextMonth()" id="cal-next">▶</button>
+        </div>
+        <div class="cal-grid" id="cal-grid">
+          <div class="cal-day-label">Mon</div>
+          <div class="cal-day-label">Tue</div>
+          <div class="cal-day-label">Wed</div>
+          <div class="cal-day-label">Thu</div>
+          <div class="cal-day-label">Fri</div>
+          <div class="cal-day-label">Sat</div>
+          <div class="cal-day-label">Sun</div>
+        </div>
+      </div>
+
+      <div id="view-list-wrap" style="display:none">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <div style="font-family:'Playfair Display',serif;font-size:20px;color:var(--navy)">Upcoming Bookings</div>
+          <div style="font-size:12px;color:var(--txt2)" id="list-count">&nbsp;</div>
+        </div>
+        <div class="book-list">
+          <div class="book-list-row head">
+            <div>Date</div><div>Time</div><div>Space</div><div>Booked By</div><div>Title</div>
+          </div>
+          <div id="book-list-body"></div>
+        </div>
+        <p style="font-size:12px;color:var(--txt2);margin-top:10px">Showing all bookings from today through the end of next month.</p>
       </div>
     </div>
 
@@ -316,7 +366,8 @@ function renderCalendar(){
     let html = `<div class="day-num">${d}</div><div class="day-slots">`;
     dayBookings.forEach(b => {
       const isMe = isMine(b);
-      html += `<div class="slot-pip ${isMe?'mine':'taken'}">${b.start}&ndash;${b.end}</div>`;
+      const who = pipName(b);   // first name, escaped
+      html += `<div class="slot-pip ${isMe?'mine':'taken'}" title="${pipTitle(b)}">${b.start}&ndash;${b.end}${who?` <span class="pip-name">· ${who}</span>`:''}</div>`;
     });
     html += '</div>';
     cell.innerHTML = html;
@@ -408,6 +459,7 @@ async function submitBooking(payload){
     if(btn){ btn.disabled=false; btn.textContent='Confirm Booking'; }
     loadSlots();
     loadMyBookings();
+    invalidateList();
   } else if(result.overage){
     // Stash the booking and pop the warning modal — user must accept or cancel.
     pendingBooking = payload;
@@ -511,6 +563,7 @@ async function submitEdit(payload){
     pendingBooking = null;
     loadSlots();
     loadMyBookings();
+    invalidateList();
   } else if(result.overage){
     pendingBooking = {...payload, _isEdit:true};
     showOverageModal(result);
@@ -564,8 +617,14 @@ async function cancelMyBooking(id){
     body:JSON.stringify({token:TOKEN, bookingId:id})
   });
   const result = await r.json();
-  if(result.ok){ toast('Booking cancelled'); loadSlots(); loadMyBookings(); }
+  if(result.ok){ toast('Booking cancelled'); loadSlots(); loadMyBookings(); invalidateList(); }
   else toast(result.error || 'Could not cancel.','#dc2626');
+}
+
+// Invalidate cached list and re-render if currently in list view.
+function invalidateList(){
+  listBookings = null;
+  if(viewMode === 'list') loadAndRenderList();
 }
 
 function prevMonth(){
@@ -581,6 +640,103 @@ function nextMonth(){
   currentMonth++;
   if(currentMonth > 12){ currentMonth=1; currentYear++; }
   loadSlots();
+}
+
+// ── HTML escape (used in pip names + list rows) ──────────────────────────────
+function escHtml(s){
+  return String(s||'')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+// First name only — keeps calendar pips narrow. For "Rolando Davidson" → "Rolando".
+function firstName(full){
+  return String(full||'').trim().split(/\s+/)[0] || '';
+}
+function pipName(b){
+  // Prefer the booker's name (occupant). Hover-title carries the full info.
+  return escHtml(firstName(b.memberName));
+}
+function pipTitle(b){
+  const parts = [b.memberName, b.title || 'Meeting',
+                 resourceLabelFor(b.resourceId)].filter(Boolean);
+  return escHtml(parts.join(' · '));
+}
+
+// ── List view ────────────────────────────────────────────────────────────────
+let listBookings = null;        // cached, all resources, two-month window
+let viewMode = 'cal';
+
+function setView(mode){
+  viewMode = mode;
+  document.getElementById('vt-cal').classList.toggle('active', mode==='cal');
+  document.getElementById('vt-list').classList.toggle('active', mode==='list');
+  document.getElementById('view-cal-wrap').style.display  = mode==='cal'  ? 'block' : 'none';
+  document.getElementById('view-list-wrap').style.display = mode==='list' ? 'block' : 'none';
+  // Resource picker / hours summary only matter in calendar mode. Both are
+  // inline-styled display:flex; restore that explicitly when showing.
+  document.getElementById('resource-select').closest('div').style.display = mode==='cal' ? 'flex' : 'none';
+  document.getElementById('hours-summary').style.display                  = mode==='cal' ? 'flex' : 'none';
+  if(mode==='cal'){
+    // Hide whatever booking panel was open — list mode would have left it stale.
+    document.getElementById('booking-panel').style.display = 'none';
+    document.getElementById('success-panel').style.display = 'none';
+  } else {
+    loadAndRenderList();
+  }
+}
+
+async function loadAndRenderList(){
+  // Fetch all bookings for current month + next month across every resource,
+  // then filter to today-and-later. Two parallel calls; cached after first run.
+  const body = document.getElementById('book-list-body');
+  body.innerHTML = '<div class="book-list-row" style="grid-template-columns:1fr;color:var(--txt2);font-style:italic">Loading…</div>';
+  try{
+    const m1 = `year=${MIN_YEAR}&month=${MIN_MONTH}`;
+    const m2 = `year=${MAX_YEAR}&month=${MAX_MONTH}`;
+    const [r1, r2] = await Promise.all([
+      fetch(`/book/slots?token=${TOKEN}&${m1}`).then(r=>r.json()),
+      fetch(`/book/slots?token=${TOKEN}&${m2}`).then(r=>r.json()),
+    ]);
+    const merged = [
+      ...((r1.ok?r1.slots:[])||[]),
+      ...((r2.ok?r2.slots:[])||[]),
+    ];
+    const today = new Date(); today.setHours(0,0,0,0);
+    listBookings = merged
+      .filter(b => b.status !== 'cancelled')
+      .filter(b => {
+        const dt = new Date(b.date + 'T12:00:00');
+        return !isNaN(dt) && dt >= today;
+      })
+      .sort((a,b) => (a.date+a.start).localeCompare(b.date+b.start));
+    renderList();
+  } catch(e){
+    body.innerHTML = '<div class="book-list-row" style="grid-template-columns:1fr;color:#b91c1c">Could not load upcoming bookings.</div>';
+  }
+}
+
+function renderList(){
+  const body  = document.getElementById('book-list-body');
+  const count = document.getElementById('list-count');
+  const list  = listBookings || [];
+  count.textContent = list.length ? (list.length + (list.length===1?' booking':' bookings')) : '';
+  if(!list.length){
+    body.innerHTML = '<div class="book-list-row" style="grid-template-columns:1fr;color:var(--txt2);font-style:italic;padding:20px;text-align:center">No upcoming bookings.</div>';
+    return;
+  }
+  body.innerHTML = list.map(b => {
+    const dt = new Date(b.date + 'T12:00:00');
+    const dateStr = isNaN(dt) ? b.date
+      : dt.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+    const isMe = isMine(b);
+    return `<div class="book-list-row${isMe?' mine':''}">
+      <div class="col-date">${escHtml(dateStr)}</div>
+      <div class="col-time">${escHtml(b.start)}–${escHtml(b.end)}</div>
+      <div class="col-space">${escHtml(resourceLabelFor(b.resourceId))}</div>
+      <div class="col-member">${escHtml(b.memberName||'')}</div>
+      <div class="col-title">${escHtml(b.title||'Meeting')}</div>
+    </div>`;
+  }).join('');
 }
 
 // Initial load: fire both fetches in parallel so the upcoming-bookings

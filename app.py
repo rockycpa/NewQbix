@@ -2735,19 +2735,22 @@ def admin_edit_booking():
 @app.route('/admin/api/send-monthly-usage', methods=['POST'])
 @login_required
 def send_monthly_usage():
+    """Compute per-member usage for a given month and return the rows so the
+    admin UI can open Outlook drafts for each. App-side email is disabled
+    (Notify → Outlook workflow), so this endpoint no longer sends — it just
+    hands back the data the dashboard needs to compose drafts."""
     data  = get_db()
-    month = request.json.get('month', datetime.now().month)
-    year  = request.json.get('year',  datetime.now().year)
-
-    active_with_email = [m for m in data['members']
-                         if m['status'] == 'Active' and m.get('email')]
-    sent = 0
+    month = int(request.json.get('month', datetime.now().month))
+    year  = int(request.json.get('year',  datetime.now().year))
     month_name = datetime(year, month, 1).strftime('%B %Y')
 
-    for member in active_with_email:
-        # Count their bookings that month — bookings billed to this member
-        # account, including any made by occupants under it (those stamp
-        # `parentMember`; legacy bookings fall back to `memberName`).
+    rows = []
+    for member in data.get('members', []):
+        if member.get('status') != 'Active':
+            continue
+        # Bookings billed to this member account, including any made by occupants
+        # under it (those stamp `parentMember`; legacy bookings fall back to
+        # `memberName`).
         member_bookings = [
             b for b in data.get('bookings', [])
             if _booking_billed_to(b) == member['name']
@@ -2755,8 +2758,9 @@ def send_monthly_usage():
             and b.get('month') == month
             and b.get('status') != 'cancelled'
         ]
+        if not member_bookings:
+            continue   # skip members with no usage that month
 
-        # Calculate hours used
         total_minutes = 0
         for b in member_bookings:
             try:
@@ -2765,33 +2769,39 @@ def send_monthly_usage():
                 total_minutes += int((e - s).total_seconds() / 60)
             except Exception:
                 pass
-        hours_used     = round(total_minutes / 60, 1)
-        included       = hours_included(data, member['name'])
+        hours_used      = round(total_minutes / 60, 2)
+        included        = hours_included(data, member['name'])
         hours_remaining = max(0, included - hours_used)
+        hours_over      = max(0, hours_used - included)
 
-        if hours_used == 0 and not member_bookings:
-            # Skip members who didn't use the room
-            continue
+        rows.append({
+            'memberName':     member['name'],
+            'memberEmail':    member.get('email', ''),
+            'hoursUsed':      hours_used,
+            'hoursIncluded':  included,
+            'hoursRemaining': hours_remaining,
+            'hoursOver':      hours_over,
+            'bookings': [
+                {
+                    'date':  b['date'],
+                    'start': b['start'],
+                    'end':   b['end'],
+                    'title': b.get('title', 'Meeting'),
+                    'space': resource_label(data, b.get('resourceId', 'conference_room')),
+                    'bookedBy': b.get('memberName', ''),
+                }
+                for b in sorted(member_bookings, key=lambda x: (x['date'], x['start']))
+            ],
+        })
 
-        booking_list = ''.join(
-            f'<li>{b["date"]} {b["start"]}–{b["end"]}: {b.get("title","Meeting")}</li>'
-            for b in member_bookings
-        )
-
-        send_email(
-            member['email'], member['name'],
-            f'Your Qbix Centre Conference Room Summary — {month_name}',
-            f'<p>Hi {member["name"]},</p>'
-            f'<p>Here\'s a cheerful summary of your conference room use in {month_name}! 🎉</p>'
-            f'<ul>{booking_list}</ul>'
-            f'<p><b>Total hours used:</b> {hours_used} of your {included} included hours</p>'
-            f'<p><b>Hours remaining this month:</b> {hours_remaining}</p>'
-            f'<p>Thank you for being part of the Qbix Centre community. See you next month!</p>'
-            f'<p style="color:#666;font-size:12px">Questions? Reply to this email or call (478) 216-2876</p>',
-        )
-        sent += 1
-
-    return jsonify({'ok': True, 'sent': sent})
+    rows.sort(key=lambda r: r['memberName'].lower())
+    return jsonify({
+        'ok':        True,
+        'month':     month,
+        'year':      year,
+        'monthName': month_name,
+        'rows':      rows,
+    })
 
 
 # ── Analytics API ────────────────────────────────────────────────────────────
