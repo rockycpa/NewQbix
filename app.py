@@ -2501,6 +2501,32 @@ def generate_newsletter():
     except Exception as e:
         return jsonify({'ok': False, 'error': f'Prompt template error: {e}'}), 400
 
+    # Defensive guard: for Member Spotlight, the {intake} placeholder is
+    # critical — without it the AI has no way to see the member's answers.
+    # If a user edited it out of their template, auto-append the intake to
+    # the end of the prompt so the draft stays usable. Same idea for the
+    # core spotlight context fields.
+    if nl_type == 'Member Spotlight':
+        appended = []
+        if '{intake}' not in template:
+            appended.append(
+                "\n\n--- Member's intake response (use as the member's own words; "
+                "do not paraphrase) ---\n" + placeholders['intake']
+            )
+        if '{featuredOccupant}' not in template and placeholders['featuredOccupant']:
+            appended.append(
+                f"\nFeatured occupant: {placeholders['featuredOccupant']} "
+                f"of {placeholders['member']}."
+            )
+        if '{tenure}' not in template and placeholders['tenure']:
+            appended.append(f"\nTenure at Qbix: {placeholders['tenure']}.")
+        if '{offices}' not in template and placeholders['offices']:
+            appended.append(f"\nOffice(s): {placeholders['offices']}.")
+        if '{occupants}' not in template and placeholders['occupants']:
+            appended.append(f"\nOther occupants under this member: {placeholders['occupants']}.")
+        if appended:
+            prompt = prompt + ''.join(appended)
+
     try:
         import urllib.request
         import json as json_mod

@@ -2617,17 +2617,28 @@ function buildNewsletterSettings(){
 }
 async function saveNewsletterSettings(){
   if(!DB.newsletterSettings) DB.newsletterSettings={};
+  const warnings = [];
   Object.keys(_NL_TYPE_LABELS).forEach(key=>{
     const wc=Number(document.getElementById('nls-wc-'+key).value)||0;
     const pr=document.getElementById('nls-prompt-'+key).value;
     DB.newsletterSettings[key]={wordCount:wc, prompt:pr};
+    // Soft check for the placeholders that REALLY matter per type.
+    // The backend auto-appends missing context for Spotlight so the draft
+    // never breaks, but the user benefits from knowing about it.
+    if(key==='memberSpotlight' && !/\{intake\}/.test(pr)){
+      warnings.push('Member Spotlight prompt is missing {intake} — Claude won\'t see the member\'s answers unless you add it. (System will auto-append for now, but better to add it where you want it.)');
+    }
   });
   DB.newsletterSettings.spotlightIntakeEmail={
     subject: document.getElementById('nls-intake-subj').value,
     body:    document.getElementById('nls-intake-body').value,
   };
   await saveData();
-  toast('Newsletter settings saved &#10003;');
+  if(warnings.length){
+    toast('Saved &#10003; &mdash; '+warnings[0],'var(--acc)',8000);
+  } else {
+    toast('Newsletter settings saved &#10003;');
+  }
 }
 async function resetNewsletterDefault(key){
   if(!confirm('Reset the '+(_NL_TYPE_LABELS[key].label)+' prompt to its default? This wipes your edits to that one prompt.')) return;
