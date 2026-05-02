@@ -2856,19 +2856,21 @@ function openSendNewsletterModal(){
         + (noE>0 ? '<div style="font-size:11px;color:var(--txt3);margin-top:4px">'+noE+' active occupant'+(noE===1?'':'s')+' have no email on file and will be skipped.</div>' : '');
     }
   }
-  // Decide the checkbox default. When editing a post that is ALREADY
-  // published (draft:false), auto-tick and lock — un-publishing from this
-  // flow would silently remove the post from /news, and there's no other
-  // sensible way to interpret "send via Outlook" on a live post than
-  // "teaser email pointing back at the live post." For new posts and
-  // existing drafts, the checkbox starts unchecked so Rocky picks per-send.
+  // Default the checkbox to CHECKED every time — teaser+link is the
+  // recommended path (kinder to spam filters, drives traffic to the
+  // website, and lets recipients see photos and full formatting). Rocky
+  // can untick if he specifically wants the full newsletter in the email
+  // body for a given send.
+  // When editing a post that is ALREADY published (draft:false), also LOCK
+  // the checkbox — un-publishing from this flow would silently remove the
+  // post from /news. The lock hint below the checkbox explains why.
   const editId = document.getElementById('nl-draft-area').dataset.editId;
   const existing = editId ? (DB.newsletter||[]).find(x=>x.id===editId) : null;
   const alreadyPublished = !!(existing && !existing.draft);
 
   const cb = document.getElementById('send-nl-publish');
   if(cb){
-    cb.checked  = alreadyPublished;
+    cb.checked  = true;
     cb.disabled = alreadyPublished;
   }
   // Hint label: explain why the checkbox is locked when editing a live post
