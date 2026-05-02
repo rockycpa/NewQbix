@@ -1163,7 +1163,11 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
         <textarea id="nl-notes" placeholder="e.g. 'We just got new chairs in the kitchenette' or 'Spring is here — encourage use of the conference room'" style="min-height:90px"></textarea>
       </div>
 
-      <button onclick="generateNewsletter()" class="btn-save" style="width:100%" id="nl-gen-btn">&#10024; Generate Draft with AI</button>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <button onclick="generateNewsletter()" class="btn-save" id="nl-gen-btn">&#10024; Generate Draft with AI</button>
+        <button onclick="composeManually()" id="nl-manual-btn" style="background:var(--sur2);border:1px solid var(--acc);border-radius:7px;color:var(--acc);font-family:'IBM Plex Sans',sans-serif;font-size:14px;font-weight:700;padding:10px 14px;cursor:pointer">&#9998; Write My Own &mdash; No AI</button>
+      </div>
+      <div style="font-size:11px;color:var(--txt3);margin-top:6px;text-align:center">Use AI for a head start, or write the whole thing yourself.</div>
 
       <div id="nl-draft-area" style="display:none;margin-top:16px">
         <div class="compose-field">
@@ -1218,7 +1222,7 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
           <button onclick="saveDraft()" class="n-btn n-copy" style="border:1px solid var(--bdr)">&#128204; Save as Draft</button>
           <button onclick="openSchedulePicker()" class="n-btn" style="background:var(--blue);color:#fff">&#128337; Schedule</button>
           <button onclick="publishNewsletter(false)" class="n-btn" style="background:var(--purple);color:#fff">&#128190; Save to Website</button>
-          <button onclick="publishNewsletter(true)" class="n-btn n-email">&#128231; Save &amp; Email Members</button>
+          <button onclick="openSendNewsletterModal()" class="n-btn n-email">&#128231; Send via Outlook</button>
         </div>
 
         <!-- SOCIAL POSTS GENERATOR -->
@@ -1268,6 +1272,31 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
 </div>
 
 <!-- SCHEDULE PICKER MODAL -->
+<!-- Send Newsletter via Outlook modal -->
+<div class="mo" id="send-newsletter-modal" onclick="closeMo(event,'send-newsletter-modal')" style="z-index:310">
+  <div class="mi" style="max-width:480px">
+    <button class="mx" onclick="document.getElementById('send-newsletter-modal').classList.remove('open')">&#x2715;</button>
+    <div class="mt">&#128231; Send Newsletter via Outlook</div>
+    <div style="font-size:13px;color:var(--txt2);margin-bottom:14px;line-height:1.6">
+      Outlook will open with the subject filled in, all <strong>Active Occupants</strong> in BCC, and the body pasted as plain text. Format and review in Outlook before clicking Send there.
+    </div>
+    <div id="send-nl-recipient-summary" style="background:var(--sur2);border:1px solid var(--bdr);border-radius:7px;padding:11px 14px;margin-bottom:14px;font-size:13px;color:var(--txt)">
+      <!-- populated by openSendNewsletterModal() -->
+    </div>
+    <label style="display:flex;align-items:flex-start;gap:9px;background:var(--sur2);border:1px solid var(--bdr);border-radius:7px;padding:11px 14px;margin-bottom:18px;cursor:pointer">
+      <input type="checkbox" id="send-nl-publish" style="margin-top:3px;flex-shrink:0;accent-color:var(--acc)">
+      <span style="font-size:13px;color:var(--txt);line-height:1.5">
+        <strong>Also publish to the website</strong><br>
+        <span style="font-size:12px;color:var(--txt3)">When checked, the newsletter also appears on the public News page so non-recipients can find it. When unchecked, it stays in your draft history and only goes out by email.</span>
+      </span>
+    </label>
+    <div style="display:flex;justify-content:flex-end;gap:8px;padding-top:14px;border-top:1px solid var(--bdr)">
+      <button onclick="document.getElementById('send-newsletter-modal').classList.remove('open')" style="background:var(--sur2);border:1px solid var(--bdr);border-radius:7px;color:var(--txt2);font-family:'IBM Plex Sans',sans-serif;font-size:13px;padding:8px 18px;cursor:pointer">Cancel</button>
+      <button onclick="sendNewsletterViaOutlook()" style="background:var(--grn);border:none;border-radius:7px;color:#fff;font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:600;padding:8px 22px;cursor:pointer">&#128231; Open in Outlook</button>
+    </div>
+  </div>
+</div>
+
 <div class="mo" id="schedule-modal" onclick="closeMo(event,'schedule-modal')" style="z-index:310">
   <div class="mi" style="max-width:420px">
     <button class="mx" onclick="document.getElementById('schedule-modal').classList.remove('open')">&#x2715;</button>
@@ -2674,6 +2703,180 @@ async function resetAllNewsletterDefaults(){
   buildNewsletterSettings();
   await saveData();
   toast('All newsletter settings reset to defaults');
+}
+
+// Open the editor empty — no AI call. Lets Rocky write a newsletter from scratch.
+function composeManually(){
+  const now = new Date();
+  const typeLabel = _nlType === 'Monthly Update' ? 'Newsletter' : (_nlType || 'Newsletter');
+  const subjEl = document.getElementById('nl-subject');
+  const bodyEl = document.getElementById('nl-body');
+  const draftArea = document.getElementById('nl-draft-area');
+  // Don't clobber an in-progress draft
+  if(draftArea.style.display !== 'block'){
+    if(subjEl && !subjEl.value) subjEl.value = `Qbix Centre — ${now.toLocaleDateString('en-US',{month:'long',year:'numeric'})} ${typeLabel}`;
+    if(bodyEl) bodyEl.value = '';
+  }
+  draftArea.style.display = 'block';
+  // Sync category picker to current type so the post lands in the right bucket
+  const catEl = document.getElementById('nl-category');
+  if(catEl && _nlType) catEl.value = _nlType;
+  initQuill();
+  initNlPhotoUploads();
+  // Only reset photos for a fresh compose, not when re-opening an in-progress draft
+  if(!draftArea.dataset.editId){ resetNlPhotos(); }
+  // If Quill already has content (e.g. user toggled back), don't blow it away.
+  // Otherwise, focus the empty editor so cursor lands in the body.
+  setTimeout(()=>{
+    if(nlQuill){
+      const existing = (nlQuill.getText()||'').trim();
+      if(!existing){ nlQuill.setText(''); }
+      nlQuill.focus();
+    }
+  }, 80);
+  toast('Compose your newsletter, then Save or Send.');
+}
+
+// Open the "Send via Outlook" confirmation modal. Validates inputs, shows
+// recipient summary, and lets the user toggle the optional website publish.
+function openSendNewsletterModal(){
+  // Sync Quill content to hidden field so the validator sees it
+  if(nlQuill) document.getElementById('nl-body').value = nlQuill.root.innerHTML;
+  const subject = (document.getElementById('nl-subject').value||'').trim();
+  const body    = (document.getElementById('nl-body').value||'').trim();
+  if(!subject || !body){ toast('Subject and body required','var(--red)'); return; }
+
+  const occs   = (DB.occupants||[]).filter(o=>o.status==='Active');
+  const withE  = occs.filter(o=>o.email);
+  const noE    = occs.length - withE.length;
+  const summary = document.getElementById('send-nl-recipient-summary');
+  if(summary){
+    if(!withE.length){
+      summary.style.background = 'rgba(217,96,96,.1)';
+      summary.style.borderColor = 'var(--red)';
+      summary.style.color = 'var(--red)';
+      summary.innerHTML = '&#9888; No Active Occupants have an email address on file. Add at least one before sending.';
+    } else {
+      summary.style.background = 'var(--sur2)';
+      summary.style.borderColor = 'var(--bdr)';
+      summary.style.color = 'var(--txt)';
+      summary.innerHTML = '&#128100; <strong>'+withE.length+' Active Occupant'+(withE.length===1?'':'s')+'</strong> will be BCC&apos;d.'
+        + (noE>0 ? '<div style="font-size:11px;color:var(--txt3);margin-top:4px">'+noE+' active occupant'+(noE===1?'':'s')+' have no email on file and will be skipped.</div>' : '');
+    }
+  }
+  // Default the publish checkbox to off; Rocky toggles per-newsletter
+  const cb = document.getElementById('send-nl-publish');
+  if(cb) cb.checked = false;
+  document.getElementById('send-newsletter-modal').classList.add('open');
+}
+
+// Strip Quill HTML to plaintext suitable for a mailto: body. Preserves
+// paragraph and list breaks so Outlook receives readable text that Rocky
+// can format further with Quick Parts.
+function _newsletterHtmlToPlain(html){
+  if(!html) return '';
+  // Normalize block-level breaks first
+  let s = html
+    .replace(/<\s*br\s*\/?>/gi, '\n')
+    .replace(/<\/(p|div|h[1-6]|li|tr|blockquote)\s*>/gi, '\n')
+    .replace(/<li[^>]*>/gi, '• ')
+    .replace(/<\/(ul|ol)\s*>/gi, '\n');
+  const tmp = document.createElement('div');
+  tmp.innerHTML = s;
+  let text = tmp.textContent || tmp.innerText || '';
+  // Collapse 3+ blank lines into 2
+  text = text.replace(/\n{3,}/g, '\n\n').trim();
+  return text;
+}
+
+// Save the newsletter (publishing to site or just to draft history) and hand
+// off to Outlook with all Active Occupants in BCC. No app email is sent —
+// Rocky finalizes and sends from Outlook.
+async function sendNewsletterViaOutlook(){
+  if(nlQuill) document.getElementById('nl-body').value = nlQuill.root.innerHTML;
+  const subject = (document.getElementById('nl-subject').value||'').trim();
+  const bodyHtml = (document.getElementById('nl-body').value||'').trim();
+  const category = (document.getElementById('nl-category')||{}).value || _nlType || 'Monthly Update';
+  if(!subject || !bodyHtml){ toast('Subject and body required','var(--red)'); return; }
+
+  const publishToSite = !!(document.getElementById('send-nl-publish')||{}).checked;
+  const occs  = (DB.occupants||[]).filter(o=>o.status==='Active' && o.email);
+  if(!occs.length){ toast('No active occupants with email on file','var(--red)'); return; }
+  // Dedupe emails (case-insensitive) just in case
+  const seen = new Set();
+  const emails = occs.map(o=>o.email.trim()).filter(e=>{
+    const k = e.toLowerCase();
+    if(seen.has(k)) return false;
+    seen.add(k); return true;
+  });
+
+  // Save first so the post is in history before Outlook opens. We reuse
+  // the existing publish endpoint when "Also publish to website" is checked
+  // (sets draft:false). Otherwise we use saveDraft() which keeps draft:true
+  // — out of the public site but visible in admin history.
+  document.getElementById('send-newsletter-modal').classList.remove('open');
+  try{
+    if(publishToSite){
+      // publishNewsletter(false) publishes to /news (draft:false) without
+      // calling the legacy send_email stub — avoids the misleading
+      // "sent to 0 members" toast. We stamp sent:true ourselves below
+      // since Outlook is doing the delivery.
+      await publishNewsletter(false);
+    } else {
+      // Save as a draft so it stays out of /news but still appears in admin
+      // history. Photos handled inline.
+      window._nlPendingHero    = nlHeroPhoto;
+      window._nlPendingGallery = [...nlGalleryPhotos];
+      await saveDraft();
+    }
+    // After save, find the post and stamp sent:true + photos + category
+    const editId = document.getElementById('nl-draft-area').dataset.editId;
+    let post = null;
+    if(editId){
+      post = (DB.newsletter||[]).find(x=>x.id===editId);
+    } else {
+      // publishNewsletter() clears editId on success — fall back to the
+      // most recent post by date as a best-effort match.
+      post = (DB.newsletter||[]).slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''))[0];
+    }
+    if(post){
+      if(!publishToSite){
+        // saveDraft() doesn't attach photos; do it now
+        if(window._nlPendingHero) post.heroPhoto = window._nlPendingHero;
+        else delete post.heroPhoto;
+        if(window._nlPendingGallery && window._nlPendingGallery.length) post.galleryPhotos = window._nlPendingGallery;
+        else delete post.galleryPhotos;
+        post.category = category;
+      }
+      post.sent = true; // best-effort: handed off to Outlook
+      await saveData();
+      buildNewsletterHistory();
+    }
+  } catch(e){
+    toast('Save failed: '+e.message,'var(--red)');
+    return;
+  }
+
+  // Build and open mailto:. mailto: URLs have a length cap in some clients
+  // (~2000 chars). Active occupant rosters at Qbix scale won't hit that, but
+  // we warn if the assembled URL is unusually long.
+  const plainBody = _newsletterHtmlToPlain(bodyHtml);
+  const mailto = 'mailto:?bcc=' + encodeURIComponent(emails.join(','))
+               + '&subject=' + encodeURIComponent(subject)
+               + '&body='    + encodeURIComponent(plainBody);
+  if(mailto.length > 1900){
+    toast('Recipient list is long — if Outlook does not open, copy the BCC list from Notify instead.','var(--acc)');
+  }
+  window.open(mailto);
+
+  toast('Outlook opening with '+emails.length+' BCC recipient'+(emails.length===1?'':'s')+(publishToSite ? ' &mdash; also published to website' : ''));
+
+  // Clean up the editor for the next newsletter
+  if(nlQuill){ nlQuill.setText(''); }
+  resetNlPhotos();
+  document.getElementById('nl-draft-area').style.display = 'none';
+  document.getElementById('nl-draft-area').dataset.editId = '';
+  document.getElementById('nl-notes').value = '';
 }
 
 async function generateNewsletter(){
