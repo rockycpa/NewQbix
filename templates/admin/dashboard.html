@@ -2792,17 +2792,23 @@ function _newsletterHtmlToPlain(html){
 // Save the newsletter (publishing to site or just to draft history) and hand
 // off to Outlook with all Active Occupants in BCC. No app email is sent —
 // Rocky finalizes and sends from Outlook.
+//
+// CRITICAL ORDERING: window.open(mailto) MUST fire synchronously inside the
+// click handler, BEFORE any await. Browsers (Edge especially) consume the
+// user-gesture token across awaits, so a window.open() called after a save
+// round-trip is silently swallowed as a popup. Build mailto first, fire it,
+// THEN do the save asynchronously.
 async function sendNewsletterViaOutlook(){
   if(nlQuill) document.getElementById('nl-body').value = nlQuill.root.innerHTML;
-  const subject = (document.getElementById('nl-subject').value||'').trim();
+  const subject  = (document.getElementById('nl-subject').value||'').trim();
   const bodyHtml = (document.getElementById('nl-body').value||'').trim();
   const category = (document.getElementById('nl-category')||{}).value || _nlType || 'Monthly Update';
   if(!subject || !bodyHtml){ toast('Subject and body required','var(--red)'); return; }
 
   const publishToSite = !!(document.getElementById('send-nl-publish')||{}).checked;
-  const occs  = (DB.occupants||[]).filter(o=>o.status==='Active' && o.email);
+  const occs = (DB.occupants||[]).filter(o=>o.status==='Active' && o.email);
   if(!occs.length){ toast('No active occupants with email on file','var(--red)'); return; }
-  // Dedupe emails (case-insensitive) just in case
+  // Dedupe emails (case-insensitive)
   const seen = new Set();
   const emails = occs.map(o=>o.email.trim()).filter(e=>{
     const k = e.toLowerCase();
@@ -2810,11 +2816,21 @@ async function sendNewsletterViaOutlook(){
     seen.add(k); return true;
   });
 
-  // Save first so the post is in history before Outlook opens. We reuse
-  // the existing publish endpoint when "Also publish to website" is checked
-  // (sets draft:false). Otherwise we use saveDraft() which keeps draft:true
-  // — out of the public site but visible in admin history.
+  // Build mailto: synchronously
+  const plainBody = _newsletterHtmlToPlain(bodyHtml);
+  const mailto = 'mailto:?bcc=' + encodeURIComponent(emails.join(','))
+               + '&subject=' + encodeURIComponent(subject)
+               + '&body='    + encodeURIComponent(plainBody);
+  if(mailto.length > 1900){
+    toast('Recipient list is long — if Outlook does not open, copy the BCC list from Notify instead.','var(--acc)');
+  }
+
+  // Close modal and FIRE Outlook IMMEDIATELY — still inside the user gesture.
   document.getElementById('send-newsletter-modal').classList.remove('open');
+  window.open(mailto, '_self');
+
+  // Now do the save asynchronously. If this fails, Rocky still has Outlook
+  // open with the newsletter content — the more important half of the flow.
   try{
     if(publishToSite){
       // publishNewsletter(false) publishes to /news (draft:false) without
@@ -2824,20 +2840,20 @@ async function sendNewsletterViaOutlook(){
       await publishNewsletter(false);
     } else {
       // Save as a draft so it stays out of /news but still appears in admin
-      // history. Photos handled inline.
+      // history. Photos handled inline below.
       window._nlPendingHero    = nlHeroPhoto;
       window._nlPendingGallery = [...nlGalleryPhotos];
       await saveDraft();
     }
-    // After save, find the post and stamp sent:true + photos + category
+    // Find the post and stamp sent:true (and photos+category for the draft path)
     const editId = document.getElementById('nl-draft-area').dataset.editId;
     let post = null;
     if(editId){
       post = (DB.newsletter||[]).find(x=>x.id===editId);
     } else {
-      // publishNewsletter() clears editId on success — fall back to the
-      // most recent post by date as a best-effort match.
-      post = (DB.newsletter||[]).slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''))[0];
+      // publishNewsletter() clears editId on success. The new post is the
+      // most recently pushed entry — grab the last array item.
+      post = (DB.newsletter||[]).slice(-1)[0];
     }
     if(post){
       if(!publishToSite){
@@ -2853,21 +2869,9 @@ async function sendNewsletterViaOutlook(){
       buildNewsletterHistory();
     }
   } catch(e){
-    toast('Save failed: '+e.message,'var(--red)');
+    toast('Save failed (Outlook still opened): '+e.message,'var(--red)');
     return;
   }
-
-  // Build and open mailto:. mailto: URLs have a length cap in some clients
-  // (~2000 chars). Active occupant rosters at Qbix scale won't hit that, but
-  // we warn if the assembled URL is unusually long.
-  const plainBody = _newsletterHtmlToPlain(bodyHtml);
-  const mailto = 'mailto:?bcc=' + encodeURIComponent(emails.join(','))
-               + '&subject=' + encodeURIComponent(subject)
-               + '&body='    + encodeURIComponent(plainBody);
-  if(mailto.length > 1900){
-    toast('Recipient list is long — if Outlook does not open, copy the BCC list from Notify instead.','var(--acc)');
-  }
-  window.open(mailto);
 
   toast('Outlook opening with '+emails.length+' BCC recipient'+(emails.length===1?'':'s')+(publishToSite ? ' &mdash; also published to website' : ''));
 
@@ -4759,9 +4763,14 @@ publishNewsletter = async function(send){
   window._nlPendingGallery = [...nlGalleryPhotos];
   
   await _origPublish(send);
-  
-  // Apply photos to the saved post
-  const savedPost = (DB.newsletter||[]).find(x=> editId ? x.id===editId : true);
+
+  // Apply photos to the saved post. For new posts (no editId) the original
+  // publishNewsletter pushes the new entry to the END of DB.newsletter, so
+  // grab the last item — NOT find(x=>true) which would match the FIRST
+  // entry and clobber an unrelated existing post's photos.
+  const savedPost = editId
+    ? (DB.newsletter||[]).find(x=>x.id===editId)
+    : (DB.newsletter||[]).slice(-1)[0];
   if(savedPost){
     if(window._nlPendingHero) savedPost.heroPhoto = window._nlPendingHero;
     else delete savedPost.heroPhoto;
