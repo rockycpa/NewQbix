@@ -134,9 +134,9 @@
       <a href="/offices/{{ o.id }}" class="office-card-photo" aria-label="View details for Office {{ o.num }}">
         {% set hero = o.photos[0] if o.photos else none %}
         {% if hero and hero.url %}
-          <img src="{{ hero.url.replace('/upload/', '/upload/ar_4:3,c_fill,w_600/') }}"
+          <img src="{{ hero.url.replace('/upload/', '/upload/f_auto,q_auto,ar_4:3,c_fill,w_600/') }}"
                alt="{{ hero.alt or 'Office ' + o.num + ' at Qbix Centre' }}"
-               loading="lazy">
+               loading="lazy" decoding="async">
         {% else %}
           <div class="no-photo">📷 Photo coming soon</div>
         {% endif %}
@@ -184,10 +184,10 @@
   <div class="slideshow-wrap" id="slideshow">
     {% for photo in home_gallery %}
     <div class="slide{% if loop.first %} active{% endif %}" data-index="{{ loop.index0 }}">
-      <img src="{{ photo.url.replace('/upload/', '/upload/ar_16:9,c_fill,w_1200/') }}"
+      <img src="{{ photo.url.replace('/upload/', '/upload/f_auto,q_auto,ar_16:9,c_fill,w_1200/') }}"
            alt="{{ photo.alt or 'Qbix Centre office space in north Macon, GA' }}"
-           loading="{% if loop.first %}eager{% else %}lazy{% endif %}"
-           onclick="openLightbox('{{ photo.url }}')">
+           loading="{% if loop.first %}eager{% else %}lazy{% endif %}" decoding="async"
+           onclick="openLightbox('{{ photo.url | cl_optimize(1600) }}')">
     </div>
     {% endfor %}
     <div class="slide-arrows">
@@ -332,8 +332,8 @@
       {% if post.heroPhoto and post.heroPhoto.url %}
       <div class="news-card-photo">
         <a href="/news/{{ post.id }}">
-          <img src="{{ post.heroPhoto.url.replace('/upload/', '/upload/ar_16:9,c_fill,w_600/') }}"
-               alt="{{ post.heroPhoto.alt or post.subject }}" loading="lazy">
+          <img src="{{ post.heroPhoto.url.replace('/upload/', '/upload/f_auto,q_auto,ar_16:9,c_fill,w_600/') }}"
+               alt="{{ post.heroPhoto.alt or post.subject }}" loading="lazy" decoding="async">
         </a>
       </div>
       {% endif %}

@@ -202,17 +202,17 @@
     {% if photos %}
     <div class="od-gallery">
       <div>
-        <img class="main-photo" src="{{ photos[0].url }}" alt="Office {{ office.num }} main photo" onclick="openLb(this.src)">
+        <img class="main-photo" src="{{ photos[0].url | cl_optimize(1200) }}" alt="Office {{ office.num }} main photo" decoding="async" onclick="openLb(this.src)">
       </div>
       {% if photos|length > 1 %}
       <div class="thumb-col">
         {% for photo in photos[1:3] %}
-          <img src="{{ photo.url }}" alt="Office {{ office.num }} photo {{ loop.index+1 }}" onclick="openLb(this.src)">
+          <img src="{{ photo.url | cl_optimize(600) }}" alt="Office {{ office.num }} photo {{ loop.index+1 }}" loading="lazy" decoding="async" onclick="openLb(this.src)">
         {% endfor %}
         {% if photos|length > 3 %}
           <div style="position:relative">
-            <img src="{{ photos[3].url }}" alt="More photos" onclick="openLb(this.src)" style="width:100%;height:200px;object-fit:cover;border-radius:10px;filter:brightness(.5);cursor:pointer;">
-            <div onclick="openLb('{{ photos[3].url }}')" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.3rem;font-weight:700;cursor:pointer;">
+            <img src="{{ photos[3].url | cl_optimize(600) }}" alt="More photos" loading="lazy" decoding="async" onclick="openLb(this.src)" style="width:100%;height:200px;object-fit:cover;border-radius:10px;filter:brightness(.5);cursor:pointer;">
+            <div onclick="openLb('{{ photos[3].url | cl_optimize(1600) }}')" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.3rem;font-weight:700;cursor:pointer;">
               +{{ photos|length - 3 }} more
             </div>
           </div>
@@ -287,7 +287,7 @@
 </style>
 
 <script>
-const _lbPhotos = [{% for p in office.get('photos',[]) %}'{{ p.url }}'{% if not loop.last %},{% endif %}{% endfor %}];
+const _lbPhotos = [{% for p in office.get('photos',[]) %}'{{ p.url | cl_optimize(1600) }}'{% if not loop.last %},{% endif %}{% endfor %}];
 let _lbIdx = 0;
 function openLb(src){
   _lbIdx = _lbPhotos.indexOf(src);

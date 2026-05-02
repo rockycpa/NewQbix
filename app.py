@@ -777,6 +777,33 @@ def inject_globals():
     return {'now': datetime.now()}
 
 
+@app.template_filter('cl_optimize')
+def cloudinary_optimize(url, width=None):
+    """Inject Cloudinary delivery optimizations into an upload URL.
+
+    Adds f_auto (auto-pick WebP/AVIF for modern browsers, fall back to JPEG/PNG)
+    and q_auto (Cloudinary picks the best quality for filesize trade-off). When
+    a width is supplied, also resizes via w_<n>,c_limit so images that fit a
+    smaller layout aren't shipped at their original 4MB upload resolution.
+
+    The transformation is inserted as a SEPARATE chain right after /upload/,
+    so any existing inline transformations on the URL (e.g. ar_16:9,c_fill)
+    are preserved and applied in sequence.
+
+    Returns the URL unchanged if it's not a Cloudinary upload URL.
+    """
+    if not url or 'cloudinary.com' not in url or '/upload/' not in url:
+        return url
+    parts = url.split('/upload/', 1)
+    if len(parts) != 2:
+        return url
+    transforms = ['f_auto', 'q_auto']
+    if width:
+        transforms.append('w_' + str(width))
+        transforms.append('c_limit')  # never upscale beyond the original
+    return parts[0] + '/upload/' + ','.join(transforms) + '/' + parts[1]
+
+
 # ── Health check ──────────────────────────────────────────────────────────────
 @app.route('/health')
 def health():

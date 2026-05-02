@@ -147,7 +147,7 @@
 
         {% set photos = office.get('photos', []) %}
         {% if photos %}
-          <img class="office-photo" src="{{ photos[0].url }}" alt="Office {{ office.num }}">
+          <img class="office-photo" src="{{ photos[0].url | cl_optimize(800) }}" alt="Office {{ office.num }}" loading="lazy" decoding="async">
         {% else %}
           <div class="office-photo-placeholder">🏢</div>
         {% endif %}
