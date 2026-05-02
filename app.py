@@ -2650,7 +2650,16 @@ def publish_newsletter():
     hero_photo      = request.json.get('heroPhoto', None)
     gallery_photos  = request.json.get('galleryPhotos', [])
 
-    post_id = '_' + secrets.token_hex(4)
+    # Allow the client to supply a postId so the email teaser link and the
+    # eventual saved post agree on the URL. Validated to a safe shape and
+    # falls back to a server-generated ID when not provided.
+    client_post_id = (request.json.get('postId') or '').strip()
+    if (client_post_id and client_post_id.startswith('_')
+            and 2 <= len(client_post_id) <= 16
+            and all(c.isalnum() or c == '_' for c in client_post_id)):
+        post_id = client_post_id
+    else:
+        post_id = '_' + secrets.token_hex(4)
 
     if scheduled:
         # Save as a scheduled draft — will auto-publish when time arrives

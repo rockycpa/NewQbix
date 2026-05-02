@@ -1283,19 +1283,26 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
   <div class="mi" style="max-width:480px">
     <button class="mx" onclick="document.getElementById('send-newsletter-modal').classList.remove('open')">&#x2715;</button>
     <div class="mt">&#128231; Send Newsletter via Outlook</div>
-    <div style="font-size:13px;color:var(--txt2);margin-bottom:14px;line-height:1.6">
-      Outlook will open with the subject filled in and all <strong>Active Occupants</strong> in BCC. The formatted version is also copied to your clipboard &mdash; click into the email body in Outlook and press <strong>Ctrl+V</strong> to paste with full formatting. Review and click Send in Outlook.
+    <div style="font-size:13px;color:var(--txt2);margin-bottom:14px;line-height:1.6" id="send-nl-intro">
+      Outlook will open with all <strong>Active Occupants</strong> in BCC.
+      <span id="send-nl-intro-full">The full newsletter goes in the body and the formatted HTML is also copied to your clipboard &mdash; click into the email body in Outlook and press <strong>Ctrl+V</strong> to paste with formatting.</span>
+      <span id="send-nl-intro-teaser" style="display:none">The email is a short teaser with a link to the full post on the website &mdash; lighter on spam filters and lets recipients see the photos and full formatting on qbixcentre.com.</span>
     </div>
     <div id="send-nl-recipient-summary" style="background:var(--sur2);border:1px solid var(--bdr);border-radius:7px;padding:11px 14px;margin-bottom:14px;font-size:13px;color:var(--txt)">
       <!-- populated by openSendNewsletterModal() -->
     </div>
-    <label style="display:flex;align-items:flex-start;gap:9px;background:var(--sur2);border:1px solid var(--bdr);border-radius:7px;padding:11px 14px;margin-bottom:18px;cursor:pointer">
-      <input type="checkbox" id="send-nl-publish" style="margin-top:3px;flex-shrink:0;accent-color:var(--acc)">
+    <label style="display:flex;align-items:flex-start;gap:9px;background:var(--sur2);border:1px solid var(--bdr);border-radius:7px;padding:11px 14px;margin-bottom:14px;cursor:pointer">
+      <input type="checkbox" id="send-nl-publish" onchange="onSendNlPublishToggle()" style="margin-top:3px;flex-shrink:0;accent-color:var(--acc)">
       <span style="font-size:13px;color:var(--txt);line-height:1.5">
-        <strong>Also publish to the website</strong><br>
-        <span style="font-size:12px;color:var(--txt3)">When checked, the newsletter also appears on the public News page so non-recipients can find it. When unchecked, it stays in your draft history and only goes out by email.</span>
+        <strong>Also publish to the website</strong> <span style="color:var(--acc);font-size:11px;font-weight:600;margin-left:4px">(recommended)</span><br>
+        <span style="font-size:12px;color:var(--txt3)">When checked, the full newsletter goes to the public News page and the email becomes a short teaser linking to it. When unchecked, the full newsletter goes in the email body and stays as a draft on the site.</span>
       </span>
     </label>
+    <div id="send-nl-teaser-wrap" style="display:none;margin-bottom:18px">
+      <label style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--txt3);font-weight:700;display:block;margin-bottom:6px">Email body (teaser + link)</label>
+      <textarea id="send-nl-teaser" style="width:100%;min-height:150px;background:var(--sur2);border:1px solid var(--bdr);border-radius:7px;color:var(--txt);font-size:13px;padding:10px 12px;font-family:'IBM Plex Sans',sans-serif;line-height:1.55;resize:vertical;box-sizing:border-box"></textarea>
+      <div style="font-size:11px;color:var(--txt3);margin-top:5px;line-height:1.5">Edit freely. The URL points to where the post will live once you click Open in Outlook. Recipients who click it see the full newsletter with photos.</div>
+    </div>
     <div style="display:flex;justify-content:flex-end;gap:8px;padding-top:14px;border-top:1px solid var(--bdr)">
       <button onclick="document.getElementById('send-newsletter-modal').classList.remove('open')" style="background:var(--sur2);border:1px solid var(--bdr);border-radius:7px;color:var(--txt2);font-family:'IBM Plex Sans',sans-serif;font-size:13px;padding:8px 18px;cursor:pointer">Cancel</button>
       <button onclick="sendNewsletterViaOutlook()" style="background:var(--grn);border:none;border-radius:7px;color:#fff;font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:600;padding:8px 22px;cursor:pointer">&#128231; Open in Outlook</button>
@@ -2743,6 +2750,68 @@ function composeManually(){
   toast('Compose your newsletter, then Save or Send.');
 }
 
+// Pre-generate a post ID per modal open so the teaser link and the
+// eventual saved post agree on the URL. Backend accepts this via postId.
+let _pendingNewsletterPostId = null;
+
+// Pull the first paragraph (or heading) of the body as a teaser, stripped of
+// HTML tags and trimmed to a reasonable length.
+function _generateNewsletterTeaser(html){
+  const tmp = document.createElement('div');
+  tmp.innerHTML = html || '';
+  let firstBlock = tmp.querySelector('p, h1, h2, h3, h4, li');
+  let text = '';
+  if(firstBlock){ text = (firstBlock.textContent || '').trim(); }
+  if(!text){ text = (tmp.textContent || '').trim(); }
+  // Keep teaser readable — cap at ~280 chars on a word boundary
+  if(text.length > 280){
+    text = text.slice(0, 277).replace(/\s+\S*$/, '') + '…';
+  }
+  return text;
+}
+
+// Build the default teaser email body (editable in the modal). Includes a
+// real first-paragraph teaser, a visible URL, and a sign-off.
+function _buildDefaultTeaserBody(html, subject, websiteUrl){
+  const teaser = _generateNewsletterTeaser(html);
+  const lines = [];
+  lines.push('Hi everyone —');
+  lines.push('');
+  lines.push(teaser || ('The ' + (subject || 'latest Qbix Centre newsletter') + ' is live.'));
+  lines.push('');
+  lines.push('Read the full update with photos:');
+  lines.push(websiteUrl);
+  lines.push('');
+  lines.push('— Rocky');
+  lines.push('Qbix Centre');
+  return lines.join('\n');
+}
+
+// Toggle the teaser textarea visibility + intro copy when the publish-to-site
+// checkbox changes.
+function onSendNlPublishToggle(){
+  const checked = !!(document.getElementById('send-nl-publish')||{}).checked;
+  const wrap = document.getElementById('send-nl-teaser-wrap');
+  const introFull   = document.getElementById('send-nl-intro-full');
+  const introTeaser = document.getElementById('send-nl-intro-teaser');
+  if(wrap) wrap.style.display = checked ? 'block' : 'none';
+  if(introFull)   introFull.style.display   = checked ? 'none'   : 'inline';
+  if(introTeaser) introTeaser.style.display = checked ? 'inline' : 'none';
+  if(checked){
+    // Pre-generate ID + prefill teaser textarea
+    if(!_pendingNewsletterPostId){
+      _pendingNewsletterPostId = '_' + Math.random().toString(36).slice(2,9);
+    }
+    const ta = document.getElementById('send-nl-teaser');
+    if(ta && !ta.value.trim()){
+      const bodyHtml = (document.getElementById('nl-body').value||'').trim();
+      const subject  = (document.getElementById('nl-subject').value||'').trim();
+      const url = window.location.origin + '/news/' + _pendingNewsletterPostId;
+      ta.value = _buildDefaultTeaserBody(bodyHtml, subject, url);
+    }
+  }
+}
+
 // Open the "Send via Outlook" confirmation modal. Validates inputs, shows
 // recipient summary, and lets the user toggle the optional website publish.
 function openSendNewsletterModal(){
@@ -2770,9 +2839,16 @@ function openSendNewsletterModal(){
         + (noE>0 ? '<div style="font-size:11px;color:var(--txt3);margin-top:4px">'+noE+' active occupant'+(noE===1?'':'s')+' have no email on file and will be skipped.</div>' : '');
     }
   }
-  // Default the publish checkbox to off; Rocky toggles per-newsletter
+  // Default the publish checkbox to off; Rocky toggles per-newsletter.
+  // Reset teaser state each open — fresh post ID and textarea regenerate
+  // when the checkbox is ticked.
   const cb = document.getElementById('send-nl-publish');
   if(cb) cb.checked = false;
+  _pendingNewsletterPostId = null;
+  const teaserTa = document.getElementById('send-nl-teaser');
+  if(teaserTa) teaserTa.value = '';
+  // Sync the visibility of the teaser block + intro copy to the unchecked state
+  onSendNlPublishToggle();
   document.getElementById('send-newsletter-modal').classList.add('open');
 }
 
@@ -2892,22 +2968,44 @@ async function sendNewsletterViaOutlook(){
     seen.add(k); return true;
   });
 
-  // Build mailto: synchronously
-  const plainBody = _newsletterHtmlToPlain(bodyHtml);
+  // Decide what goes in the email body.
+  //   publishToSite=true  → editable teaser (plain text) with link to website post
+  //   publishToSite=false → full newsletter (plain-text fallback + clipboard HTML)
+  let emailBody, clipboardHtml = null;
+  if(publishToSite){
+    const ta = document.getElementById('send-nl-teaser');
+    emailBody = ((ta && ta.value) || '').trim();
+    if(!emailBody){
+      // Fallback if Rocky cleared the textarea — regenerate from body
+      const url = window.location.origin + '/news/' + (_pendingNewsletterPostId || ('_' + Math.random().toString(36).slice(2,9)));
+      emailBody = _buildDefaultTeaserBody(bodyHtml, subject, url);
+    }
+  } else {
+    emailBody = _newsletterHtmlToPlain(bodyHtml);
+    clipboardHtml = bodyHtml; // for Ctrl+V paste in Outlook
+  }
+
   const mailto = 'mailto:?bcc=' + encodeURIComponent(emails.join(','))
                + '&subject=' + encodeURIComponent(subject)
-               + '&body='    + encodeURIComponent(plainBody);
+               + '&body='    + encodeURIComponent(emailBody);
   if(mailto.length > 1900){
     toast('Recipient list is long — if Outlook does not open, copy the BCC list from Notify instead.','var(--acc)');
   }
 
-  // Close modal, copy the HTML version to clipboard, and FIRE Outlook —
-  // all synchronously, while the user-gesture token is still valid.
-  // mailto: can only carry plain text, so the clipboard step is what lets
-  // Rocky paste the formatted version (Ctrl+V) inside Outlook.
+  // Close modal, kick off clipboard copy (only for full-body mode), and FIRE
+  // Outlook — all synchronously, while the user-gesture token is still valid.
   document.getElementById('send-newsletter-modal').classList.remove('open');
-  const clipPromise = _copyNewsletterHtmlToClipboard(bodyHtml, plainBody);
+  const clipPromise = clipboardHtml
+    ? _copyNewsletterHtmlToClipboard(clipboardHtml, emailBody)
+    : Promise.resolve(false);
   window.open(mailto, '_self');
+
+  // Stash the pre-generated postId so the original publishNewsletter can
+  // pass it through to the backend (so the URL in the email matches the
+  // saved post). Cleared after save.
+  if(publishToSite && _pendingNewsletterPostId){
+    window._nlPendingPostId = _pendingNewsletterPostId;
+  }
 
   // Now do the save asynchronously. If this fails, Rocky still has Outlook
   // open with the newsletter content — the more important half of the flow.
@@ -2950,18 +3048,25 @@ async function sendNewsletterViaOutlook(){
     }
   } catch(e){
     toast('Save failed (Outlook still opened): '+e.message,'var(--red)');
+    delete window._nlPendingPostId;
     return;
   }
+  // Clean up the postId stash regardless of outcome
+  delete window._nlPendingPostId;
+  _pendingNewsletterPostId = null;
 
-  // Wait for the clipboard write to finish so we can tailor the toast
-  let clipOK = false;
-  try { clipOK = await clipPromise; } catch(e){ clipOK = false; }
+  // Toast wording depends on mode
   const recipMsg = emails.length+' BCC recipient'+(emails.length===1?'':'s');
-  const siteMsg  = publishToSite ? ' &mdash; also published to website' : '';
-  if(clipOK){
-    toast('Outlook opening with '+recipMsg+'. Press Ctrl+V in the body for the formatted version.'+siteMsg, 'var(--grn)');
+  if(publishToSite){
+    toast('Outlook opening with '+recipMsg+'. Email is a teaser linking to the new post on the website.', 'var(--grn)');
   } else {
-    toast('Outlook opening with '+recipMsg+siteMsg+'. (Couldn&apos;t copy formatted version &mdash; plain text only.)','var(--acc)');
+    let clipOK = false;
+    try { clipOK = await clipPromise; } catch(e){ clipOK = false; }
+    if(clipOK){
+      toast('Outlook opening with '+recipMsg+'. Press Ctrl+V in the body for the formatted version.', 'var(--grn)');
+    } else {
+      toast('Outlook opening with '+recipMsg+'. (Couldn&apos;t copy formatted version &mdash; plain text only.)','var(--acc)');
+    }
   }
 
   // Clean up the editor for the next newsletter
@@ -3044,7 +3149,13 @@ async function publishNewsletter(send){
     return;
   }
 
-  const r=await fetch('/admin/api/publish-newsletter',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({subject,body,send,category})});
+  // Honor a pre-generated postId from the Send-via-Outlook teaser flow so
+  // the email link and saved post share the same URL. Cleared by the caller.
+  const __pendingPid = window._nlPendingPostId;
+  const __reqBody = __pendingPid
+    ? {subject,body,send,category,postId:__pendingPid}
+    : {subject,body,send,category};
+  const r=await fetch('/admin/api/publish-newsletter',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(__reqBody)});
   const result=await r.json();
   if(result.ok){
     if(!DB.newsletter)DB.newsletter=[];
