@@ -3207,6 +3207,123 @@ def get_analytics_builtin():
         return jsonify({'ok': False, 'error': str(e)}), 500
 
 
+# ── Search Console API ──────────────────────────────────────────────────────
+
+@app.route('/admin/api/searchconsole')
+@login_required
+def get_search_console():
+    """Return Google Search Console search-analytics for the configured site.
+    Accepts ?days=7|28|90. Returns aggregate KPIs plus the top 20 queries by
+    impressions in the date range.
+
+    Required env vars:
+      - GA_SERVICE_ACCOUNT_JSON: same service account JSON used for GA4
+      - SC_SITE_URL: the Search Console property identifier, e.g.
+        'sc-domain:qbixcentre.com' for a domain property.
+    """
+    ga_json = os.environ.get('GA_SERVICE_ACCOUNT_JSON', '')
+    sc_site = os.environ.get('SC_SITE_URL', '')
+
+    if not ga_json or not sc_site:
+        return jsonify({
+            'ok': False,
+            'setup': True,
+            'error': 'GA_SERVICE_ACCOUNT_JSON or SC_SITE_URL not configured'
+        })
+
+    # Parse days parameter (allow 7, 28, 90; default 28 to match Search Console UI)
+    days = request.args.get('days', '28')
+    try:
+        days_int = int(days)
+        if days_int not in (7, 28, 90):
+            days_int = 28
+    except ValueError:
+        days_int = 28
+
+    end_date = datetime_date.today()
+    start_date = end_date - timedelta(days=days_int)
+
+    try:
+        from googleapiclient.discovery import build
+        from google.oauth2 import service_account
+
+        creds_dict = json.loads(ga_json)
+        creds = service_account.Credentials.from_service_account_info(
+            creds_dict,
+            scopes=['https://www.googleapis.com/auth/webmasters.readonly']
+        )
+        # cache_discovery=False keeps gunicorn workers from fighting over the
+        # discovery doc cache file in /tmp.
+        service = build('searchconsole', 'v1', credentials=creds, cache_discovery=False)
+
+        # Aggregate totals (no dimensions = single row totaling everything)
+        totals_resp = service.searchanalytics().query(
+            siteUrl=sc_site,
+            body={
+                'startDate': start_date.isoformat(),
+                'endDate':   end_date.isoformat(),
+                'rowLimit':  1,
+            }
+        ).execute()
+        totals_rows = totals_resp.get('rows', [])
+        if totals_rows:
+            tr = totals_rows[0]
+            total_clicks      = int(tr.get('clicks', 0))
+            total_impressions = int(tr.get('impressions', 0))
+            avg_position      = round(float(tr.get('position', 0)), 1)
+        else:
+            total_clicks      = 0
+            total_impressions = 0
+            avg_position      = 0.0
+
+        # Top queries — Search Console API doesn't support orderBy, so we
+        # fetch up to 100 (default sort is by clicks desc) and re-sort by
+        # impressions client-side, then take top 20.
+        queries_resp = service.searchanalytics().query(
+            siteUrl=sc_site,
+            body={
+                'startDate':  start_date.isoformat(),
+                'endDate':    end_date.isoformat(),
+                'dimensions': ['query'],
+                'rowLimit':   100,
+            }
+        ).execute()
+        all_queries = []
+        for row in queries_resp.get('rows', []):
+            keys = row.get('keys') or ['']
+            all_queries.append({
+                'query':       keys[0],
+                'clicks':      int(row.get('clicks', 0)),
+                'impressions': int(row.get('impressions', 0)),
+                'ctr':         round(float(row.get('ctr', 0)) * 100, 1),
+                'position':    round(float(row.get('position', 0)), 1),
+            })
+        all_queries.sort(key=lambda q: q['impressions'], reverse=True)
+        queries = all_queries[:20]
+
+        return jsonify({
+            'ok':                True,
+            'total_clicks':      total_clicks,
+            'total_impressions': total_impressions,
+            'avg_position':      avg_position,
+            'queries':           queries,
+            'start_date':        start_date.isoformat(),
+            'end_date':          end_date.isoformat(),
+        })
+    except Exception as e:
+        # Surface helpful messages for the most common Search Console issues
+        msg = str(e)
+        if '403' in msg or 'permission' in msg.lower():
+            msg = ('Service account does not have access to this Search Console property. '
+                   'In Search Console, add the service account email as a user of the '
+                   '"' + sc_site + '" property.')
+        elif '404' in msg:
+            msg = ('Search Console property "' + sc_site + '" not found. Check that '
+                   'SC_SITE_URL exactly matches a verified property (use sc-domain: prefix '
+                   'for domain properties).')
+        return jsonify({'ok': False, 'error': msg})
+
+
 # ── Setup route (first run only) ─────────────────────────────────────────────
 
 @app.context_processor
