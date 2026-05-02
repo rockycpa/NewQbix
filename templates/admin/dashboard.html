@@ -1291,13 +1291,17 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
     <div id="send-nl-recipient-summary" style="background:var(--sur2);border:1px solid var(--bdr);border-radius:7px;padding:11px 14px;margin-bottom:14px;font-size:13px;color:var(--txt)">
       <!-- populated by openSendNewsletterModal() -->
     </div>
-    <label style="display:flex;align-items:flex-start;gap:9px;background:var(--sur2);border:1px solid var(--bdr);border-radius:7px;padding:11px 14px;margin-bottom:14px;cursor:pointer">
+    <label style="display:flex;align-items:flex-start;gap:9px;background:var(--sur2);border:1px solid var(--bdr);border-radius:7px;padding:11px 14px;margin-bottom:6px;cursor:pointer">
       <input type="checkbox" id="send-nl-publish" onchange="onSendNlPublishToggle()" style="margin-top:3px;flex-shrink:0;accent-color:var(--acc)">
       <span style="font-size:13px;color:var(--txt);line-height:1.5">
         <strong>Also publish to the website</strong> <span style="color:var(--acc);font-size:11px;font-weight:600;margin-left:4px">(recommended)</span><br>
         <span style="font-size:12px;color:var(--txt3)">When checked, the full newsletter goes to the public News page and the email becomes a short teaser linking to it. When unchecked, the full newsletter goes in the email body and stays as a draft on the site.</span>
       </span>
     </label>
+    <div id="send-nl-publish-hint" style="display:none;font-size:11px;color:var(--acc);margin:0 4px 14px 4px;line-height:1.5">
+      &#128274; Locked because this post is already live on the website. The email will be a teaser linking back to it.
+    </div>
+    <div style="height:8px"></div>
     <div id="send-nl-teaser-wrap" style="display:none;margin-bottom:18px">
       <label style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--txt3);font-weight:700;display:block;margin-bottom:6px">Email body (teaser + link)</label>
       <textarea id="send-nl-teaser" style="width:100%;min-height:150px;background:var(--sur2);border:1px solid var(--bdr);border-radius:7px;color:var(--txt);font-size:13px;padding:10px 12px;font-family:'IBM Plex Sans',sans-serif;line-height:1.55;resize:vertical;box-sizing:border-box"></textarea>
@@ -2852,15 +2856,33 @@ function openSendNewsletterModal(){
         + (noE>0 ? '<div style="font-size:11px;color:var(--txt3);margin-top:4px">'+noE+' active occupant'+(noE===1?'':'s')+' have no email on file and will be skipped.</div>' : '');
     }
   }
-  // Default the publish checkbox to off; Rocky toggles per-newsletter.
-  // Reset teaser state each open — fresh post ID and textarea regenerate
-  // when the checkbox is ticked.
+  // Decide the checkbox default. When editing a post that is ALREADY
+  // published (draft:false), auto-tick and lock — un-publishing from this
+  // flow would silently remove the post from /news, and there's no other
+  // sensible way to interpret "send via Outlook" on a live post than
+  // "teaser email pointing back at the live post." For new posts and
+  // existing drafts, the checkbox starts unchecked so Rocky picks per-send.
+  const editId = document.getElementById('nl-draft-area').dataset.editId;
+  const existing = editId ? (DB.newsletter||[]).find(x=>x.id===editId) : null;
+  const alreadyPublished = !!(existing && !existing.draft);
+
   const cb = document.getElementById('send-nl-publish');
-  if(cb) cb.checked = false;
-  _pendingNewsletterPostId = null;
+  if(cb){
+    cb.checked  = alreadyPublished;
+    cb.disabled = alreadyPublished;
+  }
+  // Hint label: explain why the checkbox is locked when editing a live post
+  const cbHint = document.getElementById('send-nl-publish-hint');
+  if(cbHint){
+    cbHint.style.display = alreadyPublished ? 'block' : 'none';
+  }
+
+  // Use the existing post ID for the teaser URL when editing a live post,
+  // so the link in the email points to the post the recipients will read.
+  _pendingNewsletterPostId = alreadyPublished ? editId : null;
   const teaserTa = document.getElementById('send-nl-teaser');
   if(teaserTa) teaserTa.value = '';
-  // Sync the visibility of the teaser block + intro copy to the unchecked state
+  // Sync the visibility of the teaser block + intro copy to current state
   onSendNlPublishToggle();
   document.getElementById('send-newsletter-modal').classList.add('open');
 }
