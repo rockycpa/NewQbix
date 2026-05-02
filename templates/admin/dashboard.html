@@ -254,7 +254,13 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
 </head>
 <body>
 <header>
-  <div class="logo">Qbix Centre <em>Management Portal</em></div>
+  <div class="logo">
+    Qbix Centre <em>Management Portal</em>
+    <a href="/" target="_blank" rel="noopener" title="View public site (opens in new tab)"
+       style="display:inline-flex;align-items:center;gap:5px;margin-left:12px;background:rgba(212,168,67,.12);border:1px solid var(--acc);border-radius:6px;color:var(--acc);font-family:'IBM Plex Sans',sans-serif;font-size:12px;font-weight:600;padding:4px 10px;text-decoration:none;vertical-align:middle">
+      &#128279; View Public Site &#8599;
+    </a>
+  </div>
   <nav>
     <button class="nb on" onclick="showPage('website',this)">&#9998; Content</button>
     <button class="nb" onclick="showPage('homepage',this);buildHomePage()">&#127968; Home Page</button>
@@ -2770,6 +2776,33 @@ function openSendNewsletterModal(){
   document.getElementById('send-newsletter-modal').classList.add('open');
 }
 
+// Convert Quill's flat-list-with-ql-indent-N markup into HTML with inline
+// styles, so indentation/alignment survive Outlook's CSS-class stripping.
+// Quill's editor stores nested list depth as a class on <li>, not as nested
+// <ul>; same for indented <p>. Email clients ignore <style> blocks but
+// honor inline style="..." attributes, so we inline them here.
+function _quillHtmlToEmailHtml(html){
+  const tmp = document.createElement('div');
+  tmp.innerHTML = html;
+  const markers = ['circle','square','disc','circle','square'];
+  tmp.querySelectorAll('li[class*="ql-indent-"]').forEach(li=>{
+    const m = (li.className||'').match(/ql-indent-(\d+)/);
+    if(!m) return;
+    const n = parseInt(m[1],10);
+    li.style.paddingLeft = (1.5 * n) + 'em';
+    li.style.listStyleType = markers[(n-1) % markers.length] || 'disc';
+  });
+  tmp.querySelectorAll('p[class*="ql-indent-"]').forEach(p=>{
+    const m = (p.className||'').match(/ql-indent-(\d+)/);
+    if(!m) return;
+    p.style.paddingLeft = (3 * parseInt(m[1],10)) + 'em';
+  });
+  tmp.querySelectorAll('.ql-align-center').forEach(e=>{ e.style.textAlign='center'; });
+  tmp.querySelectorAll('.ql-align-right').forEach(e=>{ e.style.textAlign='right'; });
+  tmp.querySelectorAll('.ql-align-justify').forEach(e=>{ e.style.textAlign='justify'; });
+  return tmp.innerHTML;
+}
+
 // Copy newsletter HTML to clipboard so Rocky can Ctrl+V into Outlook for the
 // formatted version (mailto: itself can only carry plain text). Returns a
 // Promise but the call MUST be issued synchronously inside the click handler
@@ -2777,8 +2810,11 @@ function openSendNewsletterModal(){
 function _copyNewsletterHtmlToClipboard(html, plain){
   // Wrap in a minimal HTML envelope so Outlook treats the paste as rich
   // content, not a code snippet. Quill's tags (<p>, <strong>, <ul>, <h1>...)
-  // are preserved; Outlook applies its own email styling on top.
-  const wrapped = '<div style="font-family:Calibri,Arial,sans-serif;font-size:11pt;line-height:1.5">'+html+'</div>';
+  // are preserved; Outlook applies its own email styling on top. We also
+  // inline Quill's ql-indent-N and ql-align-* classes so indentation and
+  // alignment survive Outlook's CSS-class stripping.
+  const inlined = _quillHtmlToEmailHtml(html);
+  const wrapped = '<div style="font-family:Calibri,Arial,sans-serif;font-size:11pt;line-height:1.5">'+inlined+'</div>';
   try{
     if(navigator.clipboard && window.ClipboardItem){
       const item = new ClipboardItem({

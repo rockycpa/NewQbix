@@ -28,8 +28,8 @@
           <h3 style="font-family:'Playfair Display',serif;font-size:22px;color:var(--navy);margin-bottom:10px">
             {{ post.subject }}
           </h3>
-          <div style="color:var(--txt2);font-size:14px;line-height:1.7;max-height:80px;overflow:hidden">
-            {{ post.body | striptags | truncate(200) }}
+          <div style="color:var(--txt2);font-size:14px;line-height:1.7;display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden">
+            {{ post.body | striptags | truncate(500) }}
           </div>
           <div style="margin-top:14px">
             <a href="/news/{{ post.id }}" style="color:var(--gold);font-weight:600;font-size:14px">Read more &rarr;</a>

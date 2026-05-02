@@ -21,6 +21,22 @@
   .nl-body ul,.nl-body ol{margin:0 0 1em 0;padding-left:1.6em}
   .nl-body ul ul,.nl-body ol ol,.nl-body ul ol,.nl-body ol ul{margin-bottom:0}
   .nl-body li{margin:.25em 0}
+  /* Quill exports indented list items as flat <li> with ql-indent-N classes,
+     not nested <ul> tags. These rules give them a real visual indent and
+     vary the bullet marker by depth so nested lists read as nested. */
+  .nl-body li.ql-indent-1{padding-left:1.5em;list-style-type:circle}
+  .nl-body li.ql-indent-2{padding-left:3em;list-style-type:square}
+  .nl-body li.ql-indent-3{padding-left:4.5em;list-style-type:disc}
+  .nl-body li.ql-indent-4{padding-left:6em;list-style-type:circle}
+  .nl-body li.ql-indent-5{padding-left:7.5em;list-style-type:square}
+  /* Quill also uses ql-indent-N on <p> for indented paragraphs */
+  .nl-body p.ql-indent-1{padding-left:3em}
+  .nl-body p.ql-indent-2{padding-left:6em}
+  .nl-body p.ql-indent-3{padding-left:9em}
+  /* Quill alignment classes */
+  .nl-body .ql-align-center{text-align:center}
+  .nl-body .ql-align-right{text-align:right}
+  .nl-body .ql-align-justify{text-align:justify}
   .nl-body strong,.nl-body b{font-weight:700}
   .nl-body em,.nl-body i{font-style:italic}
   .nl-body a{color:var(--gold);text-decoration:underline}
