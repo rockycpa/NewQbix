@@ -2754,24 +2754,37 @@ function composeManually(){
 // eventual saved post agree on the URL. Backend accepts this via postId.
 let _pendingNewsletterPostId = null;
 
-// Pull the first paragraph (or heading) of the body as a teaser, stripped of
-// HTML tags and trimmed to a reasonable length.
+// Walk multiple block-level elements (paragraphs, headings, list items) and
+// concatenate them with paragraph breaks until we have a substantive
+// preview — roughly the first 320 characters of real content. Joining with
+// CRLF (\r\n) so the breaks survive the mailto: handoff to Outlook on
+// Windows, which silently drops bare \n in mailto bodies.
 function _generateNewsletterTeaser(html){
   const tmp = document.createElement('div');
   tmp.innerHTML = html || '';
-  let firstBlock = tmp.querySelector('p, h1, h2, h3, h4, li');
-  let text = '';
-  if(firstBlock){ text = (firstBlock.textContent || '').trim(); }
-  if(!text){ text = (tmp.textContent || '').trim(); }
-  // Keep teaser readable — cap at ~280 chars on a word boundary
-  if(text.length > 280){
-    text = text.slice(0, 277).replace(/\s+\S*$/, '') + '…';
+  const blocks = Array.from(tmp.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li, blockquote'));
+  const chunks = [];
+  let total = 0;
+  for(const el of blocks){
+    const text = (el.textContent || '').trim();
+    if(!text) continue;
+    chunks.push(text);
+    total += text.length;
+    if(total >= 320) break;
   }
-  return text;
+  let teaser = chunks.join('\r\n\r\n').trim();
+  // Cap final length on a word boundary so it doesn't trail off mid-word
+  if(teaser.length > 420){
+    teaser = teaser.slice(0, 417).replace(/\s+\S*$/, '') + '…';
+  }
+  // Fallback if no block elements (very short bodies)
+  if(!teaser){ teaser = (tmp.textContent || '').trim(); }
+  return teaser;
 }
 
 // Build the default teaser email body (editable in the modal). Includes a
-// real first-paragraph teaser, a visible URL, and a sign-off.
+// real first-paragraph teaser, a visible URL, and a sign-off. Uses CRLF
+// joins so newlines survive the mailto: handoff to Outlook on Windows.
 function _buildDefaultTeaserBody(html, subject, websiteUrl){
   const teaser = _generateNewsletterTeaser(html);
   const lines = [];
@@ -2784,7 +2797,7 @@ function _buildDefaultTeaserBody(html, subject, websiteUrl){
   lines.push('');
   lines.push('— Rocky');
   lines.push('Qbix Centre');
-  return lines.join('\n');
+  return lines.join('\r\n');
 }
 
 // Toggle the teaser textarea visibility + intro copy when the publish-to-site
@@ -2980,8 +2993,13 @@ async function sendNewsletterViaOutlook(){
       const url = window.location.origin + '/news/' + (_pendingNewsletterPostId || ('_' + Math.random().toString(36).slice(2,9)));
       emailBody = _buildDefaultTeaserBody(bodyHtml, subject, url);
     }
+    // Normalize line endings to CRLF — Outlook/OWA on Windows silently
+    // strips bare LF in mailto bodies, collapsing the email to one line.
+    emailBody = emailBody.replace(/\r\n/g, '\n').replace(/\n/g, '\r\n');
   } else {
     emailBody = _newsletterHtmlToPlain(bodyHtml);
+    // Same CRLF normalization for the full-body plain-text fallback
+    emailBody = emailBody.replace(/\r\n/g, '\n').replace(/\n/g, '\r\n');
     clipboardHtml = bodyHtml; // for Ctrl+V paste in Outlook
   }
 
