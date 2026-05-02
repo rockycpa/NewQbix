@@ -2,6 +2,34 @@
 {% block title %}{{ post.subject }}{% endblock %}
 
 {% block content %}
+{# Newsletter body typography. Scoped to .nl-body because base.html applies
+   a global *{margin:0;padding:0} reset that flattens headings, lists, and
+   paragraph spacing — which kills Quill-produced formatting. These rules
+   restore standard prose-style typography inside the post body only. #}
+<style>
+  .nl-body{line-height:1.85;font-size:16px;color:var(--txt)}
+  .nl-body p{margin:0 0 1em 0}
+  .nl-body p:last-child{margin-bottom:0}
+  .nl-body h1,.nl-body h2,.nl-body h3,.nl-body h4{
+    color:var(--navy);font-family:'Playfair Display',serif;
+    line-height:1.25;margin:1.4em 0 .5em 0;font-weight:700;
+  }
+  .nl-body h1{font-size:1.7em}
+  .nl-body h2{font-size:1.4em}
+  .nl-body h3{font-size:1.2em}
+  .nl-body h4{font-size:1.05em}
+  .nl-body ul,.nl-body ol{margin:0 0 1em 0;padding-left:1.6em}
+  .nl-body ul ul,.nl-body ol ol,.nl-body ul ol,.nl-body ol ul{margin-bottom:0}
+  .nl-body li{margin:.25em 0}
+  .nl-body strong,.nl-body b{font-weight:700}
+  .nl-body em,.nl-body i{font-style:italic}
+  .nl-body a{color:var(--gold);text-decoration:underline}
+  .nl-body blockquote{
+    margin:1em 0;padding:.5em 1em;border-left:3px solid var(--gold);
+    color:var(--txt2);font-style:italic;
+  }
+  .nl-body img{max-width:100%;height:auto;border-radius:8px;margin:1em 0}
+</style>
 <article style="max-width:800px;margin:0 auto;padding:0 20px">
 
   <div style="margin-top:32px;margin-bottom:24px">
@@ -25,7 +53,7 @@
   {% endif %}
 
   <!-- Body Content -->
-  <div style="line-height:1.85;font-size:16px;color:var(--txt)">
+  <div class="nl-body">
     {{ post.body | safe }}
   </div>
 

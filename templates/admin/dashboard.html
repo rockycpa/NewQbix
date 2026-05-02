@@ -1278,7 +1278,7 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
     <button class="mx" onclick="document.getElementById('send-newsletter-modal').classList.remove('open')">&#x2715;</button>
     <div class="mt">&#128231; Send Newsletter via Outlook</div>
     <div style="font-size:13px;color:var(--txt2);margin-bottom:14px;line-height:1.6">
-      Outlook will open with the subject filled in, all <strong>Active Occupants</strong> in BCC, and the body pasted as plain text. Format and review in Outlook before clicking Send there.
+      Outlook will open with the subject filled in and all <strong>Active Occupants</strong> in BCC. The formatted version is also copied to your clipboard &mdash; click into the email body in Outlook and press <strong>Ctrl+V</strong> to paste with full formatting. Review and click Send in Outlook.
     </div>
     <div id="send-nl-recipient-summary" style="background:var(--sur2);border:1px solid var(--bdr);border-radius:7px;padding:11px 14px;margin-bottom:14px;font-size:13px;color:var(--txt)">
       <!-- populated by openSendNewsletterModal() -->
@@ -2770,6 +2770,46 @@ function openSendNewsletterModal(){
   document.getElementById('send-newsletter-modal').classList.add('open');
 }
 
+// Copy newsletter HTML to clipboard so Rocky can Ctrl+V into Outlook for the
+// formatted version (mailto: itself can only carry plain text). Returns a
+// Promise but the call MUST be issued synchronously inside the click handler
+// for the user-gesture token to authorize clipboard access.
+function _copyNewsletterHtmlToClipboard(html, plain){
+  // Wrap in a minimal HTML envelope so Outlook treats the paste as rich
+  // content, not a code snippet. Quill's tags (<p>, <strong>, <ul>, <h1>...)
+  // are preserved; Outlook applies its own email styling on top.
+  const wrapped = '<div style="font-family:Calibri,Arial,sans-serif;font-size:11pt;line-height:1.5">'+html+'</div>';
+  try{
+    if(navigator.clipboard && window.ClipboardItem){
+      const item = new ClipboardItem({
+        'text/html':  new Blob([wrapped], {type:'text/html'}),
+        'text/plain': new Blob([plain],   {type:'text/plain'})
+      });
+      // Fire and don't await — keeps the user gesture available for window.open
+      return navigator.clipboard.write([item]).catch(()=>false).then(()=>true);
+    }
+  } catch(e){ /* fall through */ }
+  // Fallback: synchronous execCommand path via a hidden contenteditable
+  try{
+    const div = document.createElement('div');
+    div.contentEditable = 'true';
+    div.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0';
+    div.innerHTML = wrapped;
+    document.body.appendChild(div);
+    const range = document.createRange();
+    range.selectNodeContents(div);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    const ok = document.execCommand('copy');
+    sel.removeAllRanges();
+    document.body.removeChild(div);
+    return Promise.resolve(ok);
+  } catch(e){
+    return Promise.resolve(false);
+  }
+}
+
 // Strip Quill HTML to plaintext suitable for a mailto: body. Preserves
 // paragraph and list breaks so Outlook receives readable text that Rocky
 // can format further with Quick Parts.
@@ -2825,8 +2865,12 @@ async function sendNewsletterViaOutlook(){
     toast('Recipient list is long — if Outlook does not open, copy the BCC list from Notify instead.','var(--acc)');
   }
 
-  // Close modal and FIRE Outlook IMMEDIATELY — still inside the user gesture.
+  // Close modal, copy the HTML version to clipboard, and FIRE Outlook —
+  // all synchronously, while the user-gesture token is still valid.
+  // mailto: can only carry plain text, so the clipboard step is what lets
+  // Rocky paste the formatted version (Ctrl+V) inside Outlook.
   document.getElementById('send-newsletter-modal').classList.remove('open');
+  const clipPromise = _copyNewsletterHtmlToClipboard(bodyHtml, plainBody);
   window.open(mailto, '_self');
 
   // Now do the save asynchronously. If this fails, Rocky still has Outlook
@@ -2873,7 +2917,16 @@ async function sendNewsletterViaOutlook(){
     return;
   }
 
-  toast('Outlook opening with '+emails.length+' BCC recipient'+(emails.length===1?'':'s')+(publishToSite ? ' &mdash; also published to website' : ''));
+  // Wait for the clipboard write to finish so we can tailor the toast
+  let clipOK = false;
+  try { clipOK = await clipPromise; } catch(e){ clipOK = false; }
+  const recipMsg = emails.length+' BCC recipient'+(emails.length===1?'':'s');
+  const siteMsg  = publishToSite ? ' &mdash; also published to website' : '';
+  if(clipOK){
+    toast('Outlook opening with '+recipMsg+'. Press Ctrl+V in the body for the formatted version.'+siteMsg, 'var(--grn)');
+  } else {
+    toast('Outlook opening with '+recipMsg+siteMsg+'. (Couldn&apos;t copy formatted version &mdash; plain text only.)','var(--acc)');
+  }
 
   // Clean up the editor for the next newsletter
   if(nlQuill){ nlQuill.setText(''); }
