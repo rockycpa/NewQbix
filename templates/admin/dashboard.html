@@ -3972,6 +3972,17 @@ function openOfficeForm(id){
     +'<button type="button" onclick="openPickerFor(\'office\')" style="background:var(--blue);border:none;border-radius:7px;color:#fff;font-family:\'IBM Plex Sans\',sans-serif;font-size:12px;font-weight:600;padding:8px 14px;cursor:pointer;white-space:nowrap;align-self:stretch">&#128444; Pick from<br>Library</button>'
     +'</div>'
     +'<div id="office-upload-status" style="font-size:12px;color:var(--txt2);margin-top:6px"></div>'
+    +'</div>'
+    +'<div class="sect-title">Floorplan (shown on the booking page when this room is selected)</div>'
+    +'<div class="fl full">'
+    +  '<div id="office-floorplan-preview" style="margin-bottom:10px;'+(o.floorplan?'':'display:none')+'">'
+    +    (o.floorplan?'<div style="display:flex;align-items:flex-start;gap:10px"><img id="office-floorplan-img" src="'+(o.floorplan.url||'')+'" style="max-width:240px;max-height:180px;border-radius:6px;border:2px solid var(--bdr);object-fit:contain;background:#fff"><button type="button" onclick="removeOfficeFloorplan()" style="background:var(--red);border:none;border-radius:50%;width:24px;height:24px;color:#fff;cursor:pointer;font-size:12px;line-height:1">&#x2715;</button></div>':'<div style="display:flex;align-items:flex-start;gap:10px"><img id="office-floorplan-img" src="" style="max-width:240px;max-height:180px;border-radius:6px;border:2px solid var(--bdr);object-fit:contain;background:#fff"><button type="button" onclick="removeOfficeFloorplan()" style="background:var(--red);border:none;border-radius:50%;width:24px;height:24px;color:#fff;cursor:pointer;font-size:12px;line-height:1">&#x2715;</button></div>')
+    +  '</div>'
+    +  '<div style="display:flex;gap:8px;flex-wrap:wrap">'
+    +    '<div class="file-drop" id="office-floorplan-drop" style="flex:1;min-width:200px"><input type="file" accept="image/*,application/pdf" id="office-floorplan-input"><div class="file-drop-txt">&#128203; Drop floorplan image or <span>click to browse</span><br><small>JPG, PNG, or PDF &mdash; one file</small></div></div>'
+    +    '<button type="button" onclick="openPickerFor(\'floorplan\')" style="background:var(--blue);border:none;border-radius:7px;color:#fff;font-family:\'IBM Plex Sans\',sans-serif;font-size:12px;font-weight:600;padding:8px 14px;cursor:pointer;white-space:nowrap;align-self:stretch">&#128444; Pick from<br>Library</button>'
+    +  '</div>'
+    +  '<div id="office-floorplan-status" style="font-size:12px;color:var(--txt2);margin-top:6px"></div>'
     +'</div></div></div>';
   updOfficeNet();
   // Populate amenities checkboxes — pulls from DB.amenityList with hardcoded fallback
@@ -3985,6 +3996,12 @@ function openOfficeForm(id){
   if(dz){dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag');});dz.addEventListener('dragleave',()=>dz.classList.remove('drag'));dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('drag');handleOfficePhotos(e.dataTransfer.files);});}
   const fi=document.getElementById('office-photo-input');
   if(fi){fi.addEventListener('change',()=>handleOfficePhotos(fi.files));}
+  // Floorplan upload handlers (single file)
+  _pendingFloorplan = undefined; // undefined = unchanged, null = removed, object = new
+  const fdz=document.getElementById('office-floorplan-drop');
+  if(fdz){fdz.addEventListener('dragover',e=>{e.preventDefault();fdz.classList.add('drag');});fdz.addEventListener('dragleave',()=>fdz.classList.remove('drag'));fdz.addEventListener('drop',e=>{e.preventDefault();fdz.classList.remove('drag');if(e.dataTransfer.files[0])handleOfficeFloorplan(e.dataTransfer.files[0]);});}
+  const ffi=document.getElementById('office-floorplan-input');
+  if(ffi){ffi.addEventListener('change',()=>{ if(ffi.files[0]) handleOfficeFloorplan(ffi.files[0]); });}
   document.getElementById('form-modal').classList.add('open');
 }
 
@@ -4089,7 +4106,9 @@ async function submitForm(){
     const remainingExisting = _remainingOfficePhotos || (existing.photos||[]);
     const newPhotos = _pendingCloudinaryPhotos || [];
     const mergedPhotos = [...remainingExisting, ...newPhotos].slice(0,6);
-    const obj={id:formId||uid(),num,status:document.getElementById('f-status').value,member:document.getElementById('f-member').value,tenantStart:document.getElementById('f-tstart').value,sqft:Number(document.getElementById('f-sqft').value)||null,dormer:Number(document.getElementById('f-dormer').value)||null,listDues:Number(document.getElementById('f-ldues').value)||null,discount:Number(document.getElementById('f-odiscount')?.value)||0,confHours:Number(document.getElementById('f-confhours')?.value)??6,description:document.getElementById('f-desc')?.value||'',amenities:[...document.querySelectorAll('input[name="f-amenity"]:checked')].map(cb=>cb.value),photos:mergedPhotos};
+    // Floorplan: undefined = keep existing; null = removed; object = newly uploaded/picked
+    const fpResolved = (typeof _pendingFloorplan === 'undefined') ? (existing.floorplan||null) : _pendingFloorplan;
+    const obj={id:formId||uid(),num,status:document.getElementById('f-status').value,member:document.getElementById('f-member').value,tenantStart:document.getElementById('f-tstart').value,sqft:Number(document.getElementById('f-sqft').value)||null,dormer:Number(document.getElementById('f-dormer').value)||null,listDues:Number(document.getElementById('f-ldues').value)||null,discount:Number(document.getElementById('f-odiscount')?.value)||0,confHours:Number(document.getElementById('f-confhours')?.value)??6,description:document.getElementById('f-desc')?.value||'',amenities:[...document.querySelectorAll('input[name="f-amenity"]:checked')].map(cb=>cb.value),photos:mergedPhotos,floorplan:fpResolved};
     if(formId){const i=DB.offices.findIndex(x=>x.id===formId);DB.offices[i]=obj;}else DB.offices.push(obj);
   } else if(formType==='member'){
     const name=document.getElementById('f-name').value.trim();if(!name){alert('Member name required.');return;}
@@ -4138,10 +4157,11 @@ async function submitForm(){
   }
   closeForm();refreshAll();await saveData();toast('Saved &#10003;');
 }
-function closeForm(){document.getElementById('form-modal').classList.remove('open');formType=null;formId=null;pendingFiles=[];_remainingOfficePhotos=null;_pendingCloudinaryPhotos=[];}
+function closeForm(){document.getElementById('form-modal').classList.remove('open');formType=null;formId=null;pendingFiles=[];_remainingOfficePhotos=null;_pendingCloudinaryPhotos=[];_pendingFloorplan=undefined;}
 
 let _remainingOfficePhotos = null;
 let _pendingCloudinaryPhotos = [];
+let _pendingFloorplan = undefined; // undefined = unchanged, null = removed, object = new floorplan
 
 function buildPhotoThumb(p, i){
   const src = p.url||p.data||'';
@@ -5859,9 +5879,10 @@ function getUsedPublicIds(){
     if(post.heroPhoto?.public_id) used.add(post.heroPhoto.public_id);
     (post.galleryPhotos||[]).forEach(p=>{ if(p?.public_id) used.add(p.public_id); });
   };
-  // All office photos
+  // All office photos + floorplan
   (DB.offices||[]).forEach(o=>{
     (o.photos||[]).forEach(p=>{ if(p?.public_id) used.add(p.public_id); });
+    if(o.floorplan?.public_id) used.add(o.floorplan.public_id);
   });
   // News posts — public /news page (DB.posts)
   (DB.posts||[]).forEach(collectFromPost);
@@ -6032,7 +6053,9 @@ async function openPickerFor(target){
   // Default folder based on context
   const folderEl = document.getElementById('picker-folder-filter');
   if(folderEl){
-    folderEl.value = (target === 'nl-hero' || target === 'nl-gallery') ? 'news' : 'offices';
+    folderEl.value = (target === 'nl-hero' || target === 'nl-gallery') ? 'news'
+                   : (target === 'floorplan') ? 'floorplans'
+                   : 'offices';
   }
 
   // Ensure media is loaded
@@ -6077,7 +6100,7 @@ function renderPickerGrid(assets){
 }
 
 function togglePickerCell(public_id){
-  const isSingle = (_pickerTarget === 'nl-hero' || (_pickerTarget && _pickerTarget.startsWith('attr-photo-')));
+  const isSingle = (_pickerTarget === 'nl-hero' || _pickerTarget === 'floorplan' || (_pickerTarget && _pickerTarget.startsWith('attr-photo-')));
   if(isSingle){
     // Single select for hero
     _pickerSelected.clear();
@@ -6161,6 +6184,12 @@ async function confirmPickerSelection(){
       });
       renderAttrPhotoEditor();
       toast('Landmark photo updated — click Save Home Page to publish ✓');
+    }
+  } else if(_pickerTarget === 'floorplan'){
+    if(selected.length > 0){
+      const asset = selected[0];
+      setOfficeFloorplan({url: asset.url, public_id: asset.public_id, alt: asset.alt||''});
+      toast('Floorplan set from library — click Save to keep ✓');
     }
   }
 }
@@ -6314,6 +6343,48 @@ async function handleOfficePhotos(files){
     }catch(e){ toast('Upload failed: '+e.message,'var(--red)'); }
   }
   if(statusEl) statusEl.textContent = _pendingCloudinaryPhotos.length ? _pendingCloudinaryPhotos.length+' photo(s) ready — click Save to keep.' : '';
+}
+
+// ── Office floorplan handlers (single image/PDF, separate from gallery) ──────
+async function handleOfficeFloorplan(file){
+  const statusEl = document.getElementById('office-floorplan-status');
+  if(!file) return;
+  if(file.size > 10*1024*1024){ toast('Floorplan too large (max 10MB)','var(--red)'); return; }
+  if(statusEl) statusEl.textContent = 'Uploading floorplan...';
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('folder', 'floorplans');
+  fd.append('alt', '');
+  try{
+    const r = await fetch('/admin/api/media/upload', {method:'POST', body: fd});
+    const d = await r.json();
+    if(!d.ok) throw new Error(d.error || 'Upload failed');
+    setOfficeFloorplan({url: d.url, public_id: d.public_id, alt: '', width: d.width, height: d.height});
+    if(statusEl) statusEl.textContent = 'Floorplan uploaded — click Save to keep.';
+  }catch(e){
+    toast('Floorplan upload failed: '+e.message, 'var(--red)');
+    if(statusEl) statusEl.textContent = '';
+  }
+}
+
+function setOfficeFloorplan(fp){
+  _pendingFloorplan = fp;
+  const wrap = document.getElementById('office-floorplan-preview');
+  const img  = document.getElementById('office-floorplan-img');
+  if(img){ img.src = fp.url || ''; }
+  if(wrap){ wrap.style.display = ''; }
+}
+
+function removeOfficeFloorplan(){
+  _pendingFloorplan = null;
+  const wrap = document.getElementById('office-floorplan-preview');
+  const img  = document.getElementById('office-floorplan-img');
+  const stat = document.getElementById('office-floorplan-status');
+  const inp  = document.getElementById('office-floorplan-input');
+  if(img){ img.src = ''; }
+  if(wrap){ wrap.style.display = 'none'; }
+  if(stat){ stat.textContent = 'Floorplan removed — click Save to confirm.'; }
+  if(inp){ inp.value = ''; }
 }
 
 // ── Newsletter photo handlers — with AI alt approval ─────────────────────────

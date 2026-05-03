@@ -75,6 +75,12 @@ async function requestCode(){
     document.getElementById('verify-code').focus();
     return;
   }
+  // Phone not on file → take them to the Memberships page instead of
+  // showing a dead-end error.
+  if(result.notMember || result.redirect){
+    window.location = result.redirect || '/memberships';
+    return;
+  }
   toast(result.error || 'Could not send code.','#dc2626');
   btn.disabled=false; btn.textContent='Send Verification Code';
 }

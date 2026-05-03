@@ -56,7 +56,7 @@
 {% block content %}
 <div style="background:var(--navy);padding:20px 5%;color:#fff;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
   <div>
-    <div style="font-family:'Playfair Display',serif;font-size:20px;color:var(--gold)">Conference Room Booking</div>
+    <div style="font-family:'Playfair Display',serif;font-size:20px;color:var(--gold)">Meeting Space Booking</div>
     <div style="font-size:13px;opacity:.75;margin-top:2px">Welcome, {{ member_name }} &mdash; {{ included_hours }} hours included monthly</div>
   </div>
   <a href="/book" style="color:rgba(255,255,255,.6);font-size:13px">Sign out</a>
@@ -68,13 +68,23 @@
     <!-- Calendar -->
     <div style="flex:1 1 720px;min-width:300px">
       <!-- Resource picker (defaults to Conference Room; vacant offices listed below) -->
-      <div style="background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-        <label for="resource-select" style="font-size:14px;font-weight:500;color:var(--navy);margin:0">Booking:</label>
-        <select id="resource-select" onchange="onResourceChange()" style="flex:1;min-width:200px;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:14px;background:#fff">
-          {% for r in resources %}
-          <option value="{{ r.id }}">{{ r.label }}</option>
-          {% endfor %}
-        </select>
+      <!-- Dropdown is narrow on the left; the floorplan for the selected
+           space renders on the right when available. -->
+      <div style="background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:16px;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <label for="resource-select" style="font-size:14px;font-weight:500;color:var(--navy);margin:0">Booking:</label>
+          <select id="resource-select" onchange="onResourceChange()" style="width:280px;max-width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:14px;background:#fff">
+            {% for r in resources %}
+            <option value="{{ r.id }}" data-floorplan="{{ (r.floorplan.url if r.floorplan else '') }}" data-label="{{ r.label }}">{{ r.label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div id="resource-floorplan-wrap" style="margin-left:auto;display:none;align-items:center;gap:10px">
+          <span style="font-size:12px;color:var(--txt2);text-transform:uppercase;letter-spacing:.06em;font-weight:600">Floorplan</span>
+          <a href="#" id="resource-floorplan-link" target="_blank" rel="noopener" style="display:inline-block;line-height:0">
+            <img id="resource-floorplan-img" src="" alt="" style="height:80px;max-width:200px;object-fit:contain;border:1px solid var(--border);border-radius:6px;background:#fff;cursor:zoom-in">
+          </a>
+        </div>
       </div>
 
       <!-- Hours summary for the currently-viewed month. Updates on month-nav. -->
@@ -321,7 +331,31 @@ function onResourceChange(){
   document.getElementById('booking-panel').style.display = 'none';
   document.getElementById('success-panel').style.display = 'none';
   selectedDate = null;
+  updateFloorplanPreview();
   loadSlots();
+}
+
+// Show or hide the floorplan thumbnail beside the resource picker, based on
+// the currently-selected option's data-floorplan attribute (set by the server).
+function updateFloorplanPreview(){
+  const sel  = document.getElementById('resource-select');
+  const wrap = document.getElementById('resource-floorplan-wrap');
+  const img  = document.getElementById('resource-floorplan-img');
+  const link = document.getElementById('resource-floorplan-link');
+  if(!sel || !wrap || !img) return;
+  const opt   = sel.options[sel.selectedIndex];
+  const url   = opt ? (opt.getAttribute('data-floorplan') || '') : '';
+  const label = opt ? (opt.getAttribute('data-label') || 'Floorplan') : 'Floorplan';
+  if(url){
+    img.src = url;
+    img.alt = label + ' floorplan';
+    if(link) link.href = url;
+    wrap.style.display = 'flex';
+  } else {
+    img.src = '';
+    if(link) link.removeAttribute('href');
+    wrap.style.display = 'none';
+  }
 }
 
 function updateNavButtons(){
@@ -741,6 +775,7 @@ function renderList(){
 
 // Initial load: fire both fetches in parallel so the upcoming-bookings
 // panel doesn't have to wait for the calendar grid to finish loading.
+updateFloorplanPreview();
 loadSlots();
 loadMyBookings();
 </script>
