@@ -30,7 +30,7 @@
 .cal-day{border:1px solid var(--border)}
 .cal-day .day-num{font-size:18px;font-weight:600;color:var(--navy)}
 .cal-day .day-slots{display:flex;flex-direction:column;gap:3px;margin-top:6px}
-.slot-pip{font-size:12px;padding:3px 6px;border-radius:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500}
+.slot-pip{font-size:12px;padding:3px 6px;border-radius:4px;font-weight:500;line-height:1.3;word-break:break-word;overflow-wrap:anywhere}
 .slot-pip.taken{background:#fee2e2;color:#991b1b}
 .slot-pip.mine{background:#d1fae5;color:#065f46}
 
@@ -81,33 +81,9 @@
 
     <!-- Calendar -->
     <div style="flex:1 1 900px;min-width:300px">
-      <!-- Resource picker (defaults to Conference Room; vacant offices listed below) -->
-      <!-- Dropdown sits on the left; "Click to See Floor Plan" link appears
-           on the right when the selected resource has a floorplan saved. -->
-      <div id="resource-picker-bar" style="background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:14px 18px;margin-bottom:14px;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
-        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-          <label for="resource-select" style="font-size:14px;font-weight:500;color:var(--navy);margin:0">Booking:</label>
-          <select id="resource-select" onchange="onResourceChange()" style="width:280px;max-width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:14px;background:#fff">
-            {% for r in resources %}
-            <option value="{{ r.id }}" data-floorplan="{{ (r.floorplan.url if r.floorplan else '') }}" data-label="{{ r.label }}">{{ r.label }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <a id="resource-floorplan-link" href="#" target="_blank" rel="noopener"
-           style="margin-left:auto;display:none;color:var(--gold);font-size:14px;font-weight:600;text-decoration:underline">
-          Click to See Floor Plan
-        </a>
-      </div>
-
-      <!-- Hours summary for the currently-viewed month. Updates on month-nav. -->
-      <div id="hours-summary" style="background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:12px 16px;margin-bottom:16px;font-size:14px;color:var(--txt2);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-        <span><span id="hours-month-label" style="font-weight:500;color:var(--navy)"></span></span>
-        <span><span id="hours-used">0</span> / <span id="hours-included">0</span> hours used &middot; <span id="hours-remaining" style="font-weight:500;color:var(--navy)">0</span> remaining</span>
-      </div>
 
       <!-- View toggle: calendar grid vs upcoming-list. List view spans all
-           resources for the next 60 days; resource picker is hidden in that
-           mode since it isn't relevant. -->
+           resources for the next 60 days. -->
       <div style="display:flex;justify-content:center;margin-bottom:12px">
         <div class="view-toggle" role="tablist">
           <button id="vt-cal" class="active" onclick="setView('cal')">📅 Calendar</button>
@@ -147,13 +123,26 @@
       </div>
     </div>
 
-    <!-- Booking panel -->
+    <!-- Right column: welcome card → booking panel (when active) → resource
+         picker → My Upcoming Bookings -->
     <div style="flex:0 1 360px;min-width:280px;width:100%;max-width:380px">
+
+      <!-- Welcome banner — always visible. Hours numbers update on month-nav. -->
+      <div class="time-picker" style="margin-top:0">
+        <h3 style="font-size:16px;margin:0 0 6px 0">Welcome, {{ member_name }}</h3>
+        <div style="font-size:13px;color:var(--txt2);line-height:1.5">
+          <span id="hours-month-label" style="font-weight:500;color:var(--navy)"></span><br>
+          <span id="hours-used">0</span> / <span id="hours-included">0</span> hours used &middot;
+          <span id="hours-remaining" style="font-weight:500;color:var(--navy)">0</span> remaining
+        </div>
+      </div>
+
       <div id="booking-panel" class="time-picker" style="display:none">
         <h3 id="panel-date"></h3>
         <div class="form-group">
           <label style="font-size:13px">Meeting Title</label>
           <input type="text" id="booking-title" placeholder="e.g. Client Meeting" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:14px;outline:none">
+          <div style="font-size:11px;color:var(--txt2);margin-top:4px">This will show on calendar.</div>
         </div>
         <div class="form-group" style="margin-top:12px">
           <label style="font-size:13px">Start Time</label>
@@ -197,6 +186,22 @@
             <button onclick="acceptOverage()" class="btn btn-gold" style="flex:1">Accept &amp; Confirm</button>
           </div>
         </div>
+      </div>
+
+      <!-- Resource picker — sits directly above My Upcoming Bookings.
+           "Click to See Floor Plan" link appears when the selected resource
+           has a floorplan saved. -->
+      <div id="resource-picker-bar" class="time-picker" style="margin-top:16px">
+        <label for="resource-select" style="font-size:13px;font-weight:500;color:var(--navy);display:block;margin-bottom:6px">Booking:</label>
+        <select id="resource-select" onchange="onResourceChange()" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:14px;background:#fff">
+          {% for r in resources %}
+          <option value="{{ r.id }}" data-floorplan="{{ (r.floorplan.url if r.floorplan else '') }}" data-label="{{ r.label }}">{{ r.label }}</option>
+          {% endfor %}
+        </select>
+        <a id="resource-floorplan-link" href="#" target="_blank" rel="noopener"
+           style="display:none;margin-top:8px;color:var(--gold);font-size:13px;font-weight:600;text-decoration:underline">
+          Click to See Floor Plan
+        </a>
       </div>
 
       <!-- Upcoming bookings -->
@@ -407,8 +412,10 @@ function renderCalendar(){
     let html = `<div class="day-num">${d}</div><div class="day-slots">`;
     dayBookings.forEach(b => {
       const isMe = isMine(b);
-      const who = pipName(b);   // first name, escaped
-      html += `<div class="slot-pip ${isMe?'mine':'taken'}" title="${pipTitle(b)}">${b.start}&ndash;${b.end}${who?` <span class="pip-name">· ${who}</span>`:''}</div>`;
+      const title = escHtml(b.title || 'Meeting');
+      // Show meeting title on the pip (not the member name). Hover-title carries
+      // the full info (member · title · resource).
+      html += `<div class="slot-pip ${isMe?'mine':'taken'}" title="${pipTitle(b)}">${b.start}&ndash;${b.end} <span class="pip-name">· ${title}</span></div>`;
     });
     html += '</div>';
     cell.innerHTML = html;
@@ -713,10 +720,9 @@ function setView(mode){
   document.getElementById('vt-list').classList.toggle('active', mode==='list');
   document.getElementById('view-cal-wrap').style.display  = mode==='cal'  ? 'block' : 'none';
   document.getElementById('view-list-wrap').style.display = mode==='list' ? 'block' : 'none';
-  // Resource picker / hours summary only matter in calendar mode. Both are
-  // inline-styled display:flex; restore that explicitly when showing.
-  document.getElementById('resource-picker-bar').style.display = mode==='cal' ? 'flex' : 'none';
-  document.getElementById('hours-summary').style.display                  = mode==='cal' ? 'flex' : 'none';
+  // Resource picker now lives in the right column above My Upcoming Bookings.
+  // It's useful in both modes (the dropdown still drives the calendar grid
+  // when the user switches back), so we leave it visible.
   if(mode==='cal'){
     // Hide whatever booking panel was open — list mode would have left it stale.
     document.getElementById('booking-panel').style.display = 'none';
