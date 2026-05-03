@@ -230,6 +230,10 @@ footer a:hover{color:var(--gold)}
 </head>
 <body>
 
+{# Site nav, sticky CTA, and footer are wrapped in overridable blocks so a
+   focused page (like /book/calendar) can suppress all surrounding chrome by
+   declaring an empty {% block site_nav %}{% endblock %} etc. #}
+{% block site_nav %}
 <nav class="site-nav">
   <a href="/" class="nav-logo"><span class="nav-logo-text">Qbix Centre</span><span class="nav-city">Macon, GA</span></a>
   <div class="nav-links">
@@ -241,11 +245,14 @@ footer a:hover{color:var(--gold)}
     <a href="/admin" class="nav-admin">Admin</a>
   </div>
 </nav>
+{% endblock %}
 
+{% block site_cta %}
 <div class="sticky-cta">
   <span class="sticky-cta-text">Ready to see a space? Call us at <a href="tel:4782162876">(478) 216-2876</a></span>
   <a href="/contact" class="btn btn-gold btn-sm">Schedule a Tour</a>
 </div>
+{% endblock %}
 
 {% with messages = get_flashed_messages(with_categories=true) %}
   {% if messages %}
@@ -259,6 +266,7 @@ footer a:hover{color:var(--gold)}
 
 {% block content %}{% endblock %}
 
+{% block site_footer %}
 <footer>
   <div class="footer-grid">
     <div>
@@ -285,6 +293,7 @@ footer a:hover{color:var(--gold)}
     <span>Qbix Centre &mdash; Macon, GA</span>
   </div>
 </footer>
+{% endblock %}
 
 <div class="toast" id="toast"></div>
 <script>

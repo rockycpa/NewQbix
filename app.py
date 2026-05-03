@@ -665,10 +665,26 @@ CONFERENCE_ROOM_LABEL = 'Conference Room'
 def get_bookable_resources(data):
     """Return list of bookable resources: conference room + vacant offices.
     Each item: {id, type, label, floorplan?}. Used by the calendar resource
-    picker (which now shows the floorplan beside the dropdown) and to
-    validate resourceId on booking create/edit."""
+    picker (which shows a "Click to See Floor Plan" link when present) and to
+    validate resourceId on booking create/edit.
+
+    Conference Room floorplan: there's no floorplan field on bookingSettings,
+    so we look up an office record whose num matches "Conference Room"
+    (case-insensitive, trimmed) and reuse its floorplan. Rocky created such
+    an office and marked it Occupied specifically so the office-form floorplan
+    upload would be available for it. That same office is then filtered out
+    of the dropdown below so it never appears as a duplicate option, even if
+    its status is later switched to Vacant."""
+    def _is_conf_office(o):
+        return (o.get('num', '') or '').strip().lower() == \
+               CONFERENCE_ROOM_LABEL.lower()
+
+    conf_office = next((o for o in data.get('offices', []) if _is_conf_office(o)),
+                       None)
     bs = data.get('bookingSettings', {}) or {}
-    conf_fp = bs.get('conferenceRoomFloorplan') or None
+    conf_fp = (conf_office.get('floorplan') if conf_office else None) \
+              or bs.get('conferenceRoomFloorplan') or None
+
     resources = [{
         'id':        CONFERENCE_ROOM_ID,
         'type':      'conference_room',
@@ -676,6 +692,10 @@ def get_bookable_resources(data):
         'floorplan': conf_fp,
     }]
     for o in data.get('offices', []):
+        if _is_conf_office(o):
+            # Skip the floorplan-holder office so it doesn't show up as a
+            # duplicate "Conference Room" entry in the picker.
+            continue
         if o.get('status') == 'Vacant':
             resources.append({
                 'id':        o['id'],
