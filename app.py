@@ -664,19 +664,24 @@ CONFERENCE_ROOM_LABEL = 'Conference Room'
 
 def get_bookable_resources(data):
     """Return list of bookable resources: conference room + vacant offices.
-    Each item: {id, type, label}. Used by the calendar resource picker and to
+    Each item: {id, type, label, floorplan?}. Used by the calendar resource
+    picker (which now shows the floorplan beside the dropdown) and to
     validate resourceId on booking create/edit."""
+    bs = data.get('bookingSettings', {}) or {}
+    conf_fp = bs.get('conferenceRoomFloorplan') or None
     resources = [{
-        'id':    CONFERENCE_ROOM_ID,
-        'type':  'conference_room',
-        'label': CONFERENCE_ROOM_LABEL,
+        'id':        CONFERENCE_ROOM_ID,
+        'type':      'conference_room',
+        'label':     CONFERENCE_ROOM_LABEL,
+        'floorplan': conf_fp,
     }]
     for o in data.get('offices', []):
         if o.get('status') == 'Vacant':
             resources.append({
-                'id':    o['id'],
-                'type':  'office',
-                'label': f"Office {o.get('num', '')}".strip(),
+                'id':        o['id'],
+                'type':      'office',
+                'label':     f"Office {o.get('num', '')}".strip(),
+                'floorplan': o.get('floorplan') or None,
             })
     return resources
 
@@ -1018,6 +1023,13 @@ def office_detail(office_id):
 def amenities():
     return redirect('/#amenities')
 
+@app.route('/memberships')
+def memberships():
+    track_pageview('/memberships')
+    return render_template('public/memberships.html',
+                           canonical_url=APP_URL+'/memberships',
+                           ga_id=GA_MEASUREMENT_ID)
+
 @app.route('/contact')
 def contact():
     track_pageview('/contact')
@@ -1281,10 +1293,11 @@ def book_request_code():
     data     = get_db()
     occupant = _member_by_phone(data, phone)
     if not occupant:
-        # Vague on purpose — don't confirm or deny that a phone is on file.
-        return jsonify({'ok': False, 'error':
-            'We couldn\'t find that phone number on file. Contact the admin '
-            'if you believe this is an error.'})
+        # Phone not on file → not a member. Send the user to the Memberships
+        # page so they can learn about plans instead of seeing a dead-end error.
+        return jsonify({'ok': False, 'notMember': True,
+                        'redirect': '/memberships',
+                        'error': 'No membership found for that number.'})
 
     # Issue a session id, stash code + occupant identity in the pending2fa
     # store so /book/verify can finalize.

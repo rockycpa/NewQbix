@@ -234,8 +234,7 @@ footer a:hover{color:var(--gold)}
   <a href="/" class="nav-logo"><span class="nav-logo-text">Qbix Centre</span><span class="nav-city">Macon, GA</span></a>
   <div class="nav-links">
     <a href="/" class="{% if request.endpoint == 'home' %}active{% endif %}">Home</a>
-    <a href="/#offices">Offices</a>
-    <a href="/#amenities">Amenities</a>
+    <a href="/memberships" class="{% if request.endpoint == 'memberships' %}active{% endif %}">Memberships</a>
     <a href="/news" class="{% if request.endpoint == 'news' %}active{% endif %}">News</a>
     <a href="/contact" class="{% if request.endpoint == 'contact' %}active{% endif %}">Contact</a>
     <a href="/book" class="btn btn-gold btn-sm nav-cta"><span class="nav-cta-full">Book A Meeting Space</span><span class="nav-cta-short">Book Space</span></a>
@@ -269,8 +268,7 @@ footer a:hover{color:var(--gold)}
     </div>
     <div>
       <h4>Quick Links</h4>
-      <a href="/#offices">Available Offices</a>
-      <a href="/#amenities">Amenities</a>
+      <a href="/memberships">Memberships</a>
       <a href="/book">Book A Meeting Space</a>
       <a href="/news">News</a>
       <a href="/contact">Contact Us</a>

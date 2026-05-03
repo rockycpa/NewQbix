@@ -1,5 +1,5 @@
 # Qbix Centre — Project Handoff
-*Last updated: April 26, 2026*
+*Last updated: May 2, 2026*
 
 > **For the next Claude:** Read this top-to-bottom before starting work. The "Recent Decisions" and "Outstanding Issues" sections at the end are the most current.
 
@@ -26,10 +26,15 @@
 
 ## Live URLs
 
-- **Public site:** https://web-production-395db.up.railway.app
-- **Admin login:** /admin/login — username: `admin`, password: `QbixAdmin2026!`
+- **Public site:** https://www.qbixcentre.com (canonical, www form)
+- **Admin login:** https://www.qbixcentre.com/admin/login — username: `admin`, password: `QbixAdmin2026!`
+- **Railway URL (still works as fallback):** https://web-production-395db.up.railway.app
 - **Emergency bypass:** `/admin/emergency-login-rocky2026` — REMOVE after Twilio verified
 - **GitHub repo:** rockycpa/NewQbix (deployed via GitHub Desktop → Railway auto-deploys)
+
+> **Important:** Always log into admin via the **www.qbixcentre.com** URL, not the Railway one. The newsletter teaser flow builds the email link from `window.location.origin`, so accessing admin via the wrong URL puts the wrong domain in your sent newsletters.
+
+> **Apex (`qbixcentre.com` without www) is currently NOT pointed at Railway** — only the `www.` subdomain is. Setting up an apex → www redirect in Railway custom domains is a "nice to have" cleanup, not urgent.
 
 ---
 
@@ -61,7 +66,7 @@
 | ADMIN_EMAIL | qbixcentre@outlook.com |
 | ADMIN_PHONE | 4787379107 |
 | SECRET_KEY | set |
-| APP_URL | update to https://qbixcentre.com after domain points |
+| APP_URL | https://www.qbixcentre.com (set May 2026 after domain transfer) |
 | TWILIO_ACCOUNT_SID | set in Railway (starts with AC...) |
 | TWILIO_AUTH_TOKEN | set |
 | TWILIO_PHONE_NUMBER | +18665096310 |
@@ -123,9 +128,42 @@ Admin → Notify tab → pick audience → Open in Email Client → opens `mailt
 
 ### Photo Storage
 
-All photos in Cloudinary as WebP. Always reference `photo.url` (never `photo.data`, that's legacy).
+All photos in Cloudinary. Always reference `photo.url` (never `photo.data`, that's legacy).
 
 The orphan scanner (Media tab) compares Cloudinary against `public_id` references in: `DB.offices[].photos`, `DB.posts[].heroPhoto/galleryPhotos`, `DB.newsletter[].heroPhoto/galleryPhotos`, `DB.homeGallery`, `DB.attractionPhotos`. Any new photo storage location must be added to `getUsedPublicIds()` in dashboard.html.
+
+**Image delivery optimization (May 2026).** A Jinja filter `cl_optimize(width)` in app.py injects `f_auto,q_auto,w_<n>,c_limit/` after `/upload/` in Cloudinary URLs at render time. `f_auto` delivers WebP/AVIF to modern browsers; `q_auto` picks the best size/quality tradeoff per-image; `c_limit` prevents upscaling. Used in every public template (news.html, news_post.html, home.html, offices.html, office_detail.html). Some places combine the filter with existing inline transforms like `ar_16:9,c_fill,w_1200` — those preserve aspect-ratio crops and add `f_auto,q_auto` inside the same transform string. Most below-fold images also have `loading="lazy" decoding="async"`. News page went from ~5s to ~2s; home page from ~3s to ~2.5s after this landed.
+
+### Newsletter — Send via Outlook (May 2026 rebuild)
+
+Newsletter compose has two entry paths from the same admin tab:
+
+- **Generate Draft with AI** (existing) — fills the Quill editor from an Anthropic call
+- **Write My Own — No AI** (new) — opens the editor empty so Rocky can write a newsletter from scratch without firing the AI call
+
+Sending uses **Send via Outlook** (replaced the old "Save & Email Members" button). Opens a modal with:
+
+1. Recipient summary — counts Active Occupants with email on file (BCC list source)
+2. **"Also publish to website"** checkbox, defaulted to **checked** (recommended path) — locked when editing an already-published post (un-publishing from this flow would silently 404 the post; instead use Delete in Past Newsletters)
+3. **Editable teaser textarea** — only visible when the website checkbox is checked. Pre-filled with: greeting + auto-extracted first paragraph(s) of body (~280-420 chars, walks `p`/`h1-6`/`li`/`blockquote` until threshold) + visible URL of post-to-be + sign-off
+
+Two send modes:
+- **Teaser mode** (publishToSite=true, default): email body is the (editable) teaser + visible URL. Plain text only — no clipboard HTML needed. Recipients click through to read the full newsletter on the website with full formatting and photos.
+- **Full-body mode** (publishToSite=false, opt-out): full Quill content goes in the email body as plain text via mailto, AND the formatted HTML is copied to the clipboard so Rocky can `Ctrl+V` in Outlook to paste with full formatting (bold, lists, headings, etc.).
+
+**Critical timing detail.** `window.open(mailto)` and `navigator.clipboard.write()` BOTH have to fire synchronously inside the click handler — Edge (and other browsers) consume the user-gesture token across `await` boundaries, so calling them after a save round-trip is silently swallowed as a popup. Order in `sendNewsletterViaOutlook()`: build emails + mailto string + clipboard payload, then close modal, then fire clipboard.write + window.open SYNCHRONOUSLY, THEN await the save. If save fails, Outlook is still open with the newsletter ready — toast says "Save failed (Outlook still opened)".
+
+**Pre-generated postIds.** The frontend generates a `_xxxxxxx` id when Rocky toggles the website checkbox, includes it in the email URL, and passes it to `/admin/api/publish-newsletter` via the `postId` field so the saved post lands at the same URL. Backend validates the shape (must start with `_`, alphanumeric, 2-16 chars) and falls back to a server-generated id if missing or invalid.
+
+**mailto line endings.** Outlook on Windows strips bare `\n` in mailto bodies, collapsing emails to one line. All teaser/plain-text bodies use `\r\n` (CRLF), and `sendNewsletterViaOutlook` normalizes `\r?\n` → `\r\n` on the textarea content before encoding. **Don't switch to `\n` in any new mailto code path.**
+
+**Quill nested lists.** Quill exports indented list items as `<li class="ql-indent-1">` etc. on a flat list, NOT as nested `<ul>` tags. The website CSS in news_post.html has `.nl-body li.ql-indent-1..5` rules that restore visual indentation and vary the bullet marker. The clipboard-paste path also runs `_quillHtmlToEmailHtml()` which inlines those `ql-indent-N` classes as inline `style="padding-left:..."` so indentation survives Outlook's CSS-class stripping when pasted.
+
+**Newsletter typography on /news.** `templates/base.html` applies a global `*{margin:0;padding:0}` reset that flattens Quill HTML. `news_post.html` has a scoped `<style>` block defining `.nl-body p/h1-h4/ul/ol/li/strong/em/a/blockquote` rules to restore prose-style typography only inside the post body. **Don't try to fix this in base.html — the reset is intentional for the rest of the site.**
+
+### Search Console API (May 2026 — was missing)
+
+The `/admin/api/searchconsole` route in app.py was missing entirely until May 2026 — frontend had been calling it since the marketing dashboard was built, hitting a 404 silently. The route now uses the same `GA_SERVICE_ACCOUNT_JSON` service account as GA4 analytics, with `SC_SITE_URL=sc-domain:qbixcentre.com` (set in Railway). Two API calls: one for aggregate KPIs (no dimensions = single totals row), one for top 100 queries by clicks (default sort), then re-sorted by impressions client-side and trimmed to top 20. Helpful error messages mapped for 403 (service account permissions) and 404 (property URL mismatch).
 
 ### Admin Login
 
@@ -265,11 +303,18 @@ Use the helper `_booking_billed_to(b)` (returns `b.parentMember or b.memberName`
 
 ---
 
+## Recent Decisions (May 2026)
+
+1. **Newsletter teaser+link is the default send mode.** When sending via Outlook, "Also publish to website" defaults to checked, and the email becomes a short editable teaser linking to the post on qbixcentre.com. Spam-friendlier than full-content emails, drives traffic to the site, and lets recipients see the full formatting/photos. Full-body-in-email mode still available by unchecking the box.
+2. **www.qbixcentre.com is canonical**, not the bare apex. Apex `qbixcentre.com` is currently NOT pointed at Railway; only the www form is bound. Setting up an apex → www redirect is on the cleanup list but not urgent.
+3. **Cloudinary delivery optimization is now baked in.** Don't write `<img src="{{ photo.url }}">` directly in public templates — pipe through `| cl_optimize(<width>)` to get f_auto/q_auto/w_N/c_limit transformations. Cut News page load time from 5s to ~2s.
+4. **Search Console route was missing from day one.** Built in May 2026; uses the same service account as GA4. If the marketing dashboard's search-queries panel ever stops loading, check `SC_SITE_URL` env var first.
+
 ## Recent Decisions (April 2026)
 
 1. **AWS SES retired.** All outbound app email is gone. `send_email()` is a stub no-op.
 2. **Notify → Outlook workflow.** Admin uses Notify to assemble recipients, then formats in Outlook with Quick Parts/Templates. Rich text editing inside the app was considered and explicitly rejected — Outlook handles it better.
-3. **No app-side rich text editor.** Keeps things simple.
+3. **No app-side rich text editor.** Keeps things simple. (Note: Quill is used in the Newsletter compose flow only, since the post body needs structured HTML for the website.)
 4. **Phone-based auth coming, not yet live.** When Twilio toll-free verification completes, login (member AND admin) switches to phone + SMS code. Members without phone numbers on file just won't be able to self-serve until Rocky adds them. Admin login already uses SMS 2FA.
 5. **Public browsing stays open.** Only the booking action is gated behind login.
 6. **Occupants book, members get billed.** Phone lookup at `/book` matches occupants only — never members directly. Bookings stamp `parentMember` so the occupant's hours roll up to their company's monthly bucket. The admin Add Booking picker also lists occupants only. This keeps multi-occupant companies clean: every occupant under one member shares the same hour pool.
@@ -280,21 +325,69 @@ Use the helper `_booking_billed_to(b)` (returns `b.parentMember or b.memberName`
 
 ## Outstanding Issues
 
-1. **Twilio toll-free verification** — pending. When it goes live, switch `/book/request-code` from the test-mode block to a real SMS-code path; admin login will need no change (already SMS).
+1. **Upgrade Twilio from trial to paid plan** — toll-free verification cleared May 2026 and SMS is working end-to-end. Trial account caps recipients to numbers Rocky has explicitly verified in the Twilio console. Upgrade in console.twilio.com → Billing → Upgrade. Expect ~$3-5/month total (toll-free number ~$2 + per-SMS $0.0079, ~50-100 SMS/month). No code changes needed; Railway env vars stay the same.
 2. **Rotate AWS SES IAM keys** — Rocky to delete user `ses-smtp-user.20260401-160520` in AWS Console (those keys were committed to GitHub before being removed).
 3. **Rotate Twilio Auth Token** — has been parked from earlier session.
 4. **Delete leftover Railway env vars** — SMTP_PASS, SMTP_HOST, SMTP_PORT, SMTP_USER, SENDGRID_API_KEY, FROM_EMAIL, FROM_NAME if any still exist.
-5. **Domain pointing** — still on WordPress/GoDaddy. After pointing to Railway: update `APP_URL`, submit sitemap.
-6. **Cancel WhatSpot ($192/yr)** — after new booking system confirmed working.
-7. **Cancel GoDaddy** — after domain pointed.
-8. **JSON-LD geo coordinates** — currently approximate (32.9, -83.7); update with exact from Google Maps.
-9. **Backfill occupant phone numbers** — needed before SMS booking-login goes live (the lookup is occupants-only now, not members).
-10. **Verify GA_MEASUREMENT_ID is in Railway** — was not visible in environment variable list during last review.
-11. **Confirm Rolando is set up correctly** — must be an Active occupant with phone 4787379107, `company` field pointing at an Active member, for the admin bypass login to work end-to-end.
+5. **Cancel WhatSpot ($192/yr)** — new booking system has been working; safe to cut.
+6. **Cancel GoDaddy** — domain has been transferred away from them.
+7. **JSON-LD geo coordinates** — currently approximate (32.9, -83.7); update with exact from Google Maps.
+8. **Verify GA_MEASUREMENT_ID is in Railway** — was not visible in environment variable list during last review.
+9. **Confirm Rolando is set up correctly** — must be an Active occupant with phone 4787379107, `company` field pointing at an Active member, for the admin bypass login to work end-to-end.
+
+### Resolved this session (May 2, 2026)
+
+- ~~Domain pointing — still on WordPress/GoDaddy~~ → www.qbixcentre.com pointed at Railway, APP_URL updated, sitemap submitted to Google + Bing
+- ~~Search Console route missing~~ → built and working, returning 20 top queries
+- ~~Apex domain redirect~~ → `qbixcentre.com` (no www) now redirects to `https://www.qbixcentre.com/` correctly
+- ~~Backfill occupant phone numbers~~ → done
+- ~~Backfill occupant email addresses~~ → done
+- ~~Twilio toll-free verification — pending~~ → cleared, SMS booking flow live and tested. (Upgrade trial→paid still pending — see item 1 above.)
 
 ---
 
 ## Recent Completed Work
+
+### May 2, 2026 session — Newsletter rebuild + domain transfer + perf
+
+**Newsletter compose + send flow**
+- New "Write My Own — No AI" entry path next to the existing AI generator — opens Quill editor empty for manual composition
+- Old "Save & Email Members" button replaced with "Send via Outlook" — opens a new modal with recipient summary, "Also publish to website" checkbox (defaults to checked, locked when editing already-published posts), and an editable teaser textarea
+- Teaser textarea pre-fills with: greeting + auto-extracted first paragraph(s) of body (~280-420 chars, walks block-level elements) + visible URL of post-to-be + sign-off
+- Two send modes: teaser+link (default, plain text body) and full-body-in-email (with HTML clipboard copy for Ctrl+V paste in Outlook)
+- `mailto` line endings normalized to CRLF — Outlook on Windows silently strips bare LFs
+- Pre-generated postId threaded from the modal through `/admin/api/publish-newsletter` so the email URL matches the saved post URL exactly
+- Backend `publish_newsletter` accepts client-supplied `postId` (validated for shape) with fallback to server-generated
+- Photo attachment bug fixed in `publishNewsletter` override: was using `find(x => editId ? x.id===editId : true)` which matched `DB.newsletter[0]` for new posts (clobbering an unrelated post's photos); now uses `slice(-1)[0]` to grab the just-pushed entry
+
+**Public newsletter page typography (`news_post.html`)**
+- Added scoped `.nl-body` style block to restore prose typography (headings, lists, paragraphs, blockquote, links) inside the post body
+- Quill nested-list support: rules for `.nl-body li.ql-indent-1..5` since Quill exports indented LIs as classes on a flat list, not nested ULs
+- News index excerpt expanded from 200 chars / 80px max-height to 500 chars / 6-line CSS line-clamp
+- Email clipboard helper `_quillHtmlToEmailHtml()` inlines `ql-indent-N` and `ql-align-*` classes as inline styles so Outlook preserves them
+
+**Admin polish**
+- "View Public Site" link button next to the logo in admin header (opens `/` in new tab)
+- Booking page hero tightened (60px → 28px padding, smaller heading) so the sign-in card is above the fold on phones
+- Nav button "Book Conference Room" → "Book A Meeting Space" (better matches the "meeting space"/"meeting rooms" search queries that have the highest impressions in Search Console)
+
+**Domain transfer**
+- qbixcentre.com transferred from GoDaddy/WordPress; www.qbixcentre.com now serves the Flask app
+- `APP_URL` env var updated on Railway → `https://www.qbixcentre.com`
+- JSON-LD fallback in `base.html` updated to www.qbixcentre.com
+- Sitemap submitted to Google Search Console and Bing Webmaster Tools (20 URLs, including legacy WordPress newsletter posts going back to 2018)
+- Apex `qbixcentre.com` (no www) currently 404s — apex→www redirect on the Outstanding list
+
+**Search Console endpoint built**
+- `/admin/api/searchconsole` was being called by the marketing dashboard JS but had no backend route — was 404ing silently since the dashboard was built
+- New route uses GA_SERVICE_ACCOUNT_JSON + SC_SITE_URL env vars, two API calls (totals + top queries), client-side sort by impressions, top 20 returned
+- Helpful error mapping for 403 (service account permissions) and 404 (property URL mismatch)
+
+**Image performance (Cloudinary delivery)**
+- New `cl_optimize(width)` Jinja filter in app.py inserts `f_auto,q_auto,w_<n>,c_limit/` into Cloudinary URLs
+- Applied to all `<img>` tags in news.html, news_post.html, home.html, offices.html, office_detail.html
+- `loading="lazy" decoding="async"` added on most below-fold images
+- Result: News page load time 5s → ~2s; Home 3s → ~2.5s; photos confirmed delivering as WebP
 
 ### April 26, 2026 session — Booking module
 **Phases 1–8 — initial build**
