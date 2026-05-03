@@ -82,13 +82,22 @@
     <!-- Calendar -->
     <div style="flex:1 1 900px;min-width:300px">
 
-      <!-- View toggle: calendar grid vs upcoming-list. List view spans all
-           resources for the next 60 days. -->
-      <div style="display:flex;justify-content:center;margin-bottom:12px">
+      <!-- Top row of the calendar pane:
+            • Left  — label of the currently-selected meeting space
+                      (e.g. "Conference Room" or "Office 19B")
+            • Center — Calendar / List view toggle
+            • Right  — spacer (keeps the toggle visually centered)
+           Three-column grid so adding the label doesn't shove the
+           calendar grid down. -->
+      <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px;margin-bottom:12px">
+        <div id="cal-resource-label"
+             style="font-family:'Playfair Display',serif;font-size:22px;color:var(--navy);font-weight:600;justify-self:start">
+        </div>
         <div class="view-toggle" role="tablist">
           <button id="vt-cal" class="active" onclick="setView('cal')">📅 Calendar</button>
           <button id="vt-list" onclick="setView('list')">☰ List</button>
         </div>
+        <div></div>
       </div>
 
       <div id="view-cal-wrap">
@@ -354,19 +363,26 @@ function onResourceChange(){
 
 // Show or hide the "Click to See Floor Plan" link beside the resource picker,
 // based on the currently-selected option's data-floorplan attribute (set by
-// the server). Link opens the floorplan image in a new browser tab.
+// the server). Link opens the floorplan image in a new browser tab. Also
+// keeps the calendar's resource label (top-left of the calendar pane) in
+// sync with the selected dropdown option.
 function updateFloorplanPreview(){
   const sel  = document.getElementById('resource-select');
   const link = document.getElementById('resource-floorplan-link');
-  if(!sel || !link) return;
-  const opt = sel.options[sel.selectedIndex];
-  const url = opt ? (opt.getAttribute('data-floorplan') || '') : '';
-  if(url){
-    link.href = url;
-    link.style.display = 'inline-block';
-  } else {
-    link.removeAttribute('href');
-    link.style.display = 'none';
+  const lbl  = document.getElementById('cal-resource-label');
+  if(!sel) return;
+  const opt   = sel.options[sel.selectedIndex];
+  const url   = opt ? (opt.getAttribute('data-floorplan') || '') : '';
+  const label = opt ? (opt.getAttribute('data-label') || opt.textContent || '') : '';
+  if(lbl) lbl.textContent = label;
+  if(link){
+    if(url){
+      link.href = url;
+      link.style.display = 'inline-block';
+    } else {
+      link.removeAttribute('href');
+      link.style.display = 'none';
+    }
   }
 }
 
