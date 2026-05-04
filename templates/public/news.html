@@ -2,13 +2,36 @@
 {% block title %}{{ page_title or 'News & Updates | Qbix Centre Macon GA' }}{% endblock %}
 {% block description %}{{ page_desc }}{% endblock %}
 
+{% block extra_css %}
+<style>
+.cat-filter-bar{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;max-width:900px;margin:0 auto 28px;padding:0 5%}
+.cat-chip{display:inline-block;padding:6px 14px;border-radius:999px;font-size:13px;font-weight:500;color:var(--navy);background:#fff;border:1px solid var(--border);text-decoration:none;transition:all .15s}
+.cat-chip:hover{background:var(--light);border-color:var(--gold);color:var(--navy)}
+.cat-chip.active{background:var(--navy);color:#fff;border-color:var(--navy)}
+.post-cat-badge{display:inline-block;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--gold);background:rgba(201,168,76,.12);border:1px solid rgba(201,168,76,.4);text-decoration:none;margin-left:8px;vertical-align:middle}
+.post-cat-badge:hover{background:var(--gold);color:#fff;border-color:var(--gold)}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="hero" style="padding:60px 5%">
   {% if page_h1 %}<h1>{{ page_h1 }}</h1>{% else %}<h1>Qbix Centre <span>News</span></h1>{% endif %}
-  <p>Updates, announcements, and community highlights from your Qbix Centre family.</p>
+  <p>{% if cat_filter %}Showing posts tagged &ldquo;{{ cat_filter }}&rdquo;.{% else %}Updates, announcements, and community highlights from your Qbix Centre family.{% endif %}</p>
 </div>
 
-<section>
+<section style="padding-top:36px">
+  {# Category filter chips — "All" plus every category that's been used on a
+     published post. Active chip is highlighted. cat_filter and categories
+     come from the /news route in app.py. #}
+  {% if categories %}
+  <div class="cat-filter-bar">
+    <a href="/news" class="cat-chip {% if not cat_filter %}active{% endif %}">All</a>
+    {% for cat in categories %}
+    <a href="/news?category={{ cat | urlencode }}" class="cat-chip {% if cat_filter == cat %}active{% endif %}">{{ cat }}</a>
+    {% endfor %}
+  </div>
+  {% endif %}
+
   {% if posts %}
     <div style="max-width:800px;margin:0 auto;display:flex;flex-direction:column;gap:28px">
       {% for post in posts %}
@@ -25,6 +48,10 @@
         <div style="padding:22px">
           <div style="font-size:13px;color:var(--txt2);margin-bottom:8px">
             {{ post.date[:10] if post.date else '' }}
+            {% if post.category %}
+            <a href="/news?category={{ post.category | urlencode }}" class="post-cat-badge"
+               onclick="event.stopPropagation()">{{ post.category }}</a>
+            {% endif %}
           </div>
           <h3 style="font-family:'Playfair Display',serif;font-size:22px;color:var(--navy);margin-bottom:10px">
             {{ post.subject }}
@@ -42,8 +69,8 @@
   {% else %}
     <div style="text-align:center;padding:60px 0">
       <div style="font-size:48px;margin-bottom:16px">📰</div>
-      <h3 style="font-family:'Playfair Display',serif;color:var(--navy);margin-bottom:8px">No posts yet</h3>
-      <p style="color:var(--txt2)">Check back soon for news and updates from Qbix Centre.</p>
+      <h3 style="font-family:'Playfair Display',serif;color:var(--navy);margin-bottom:8px">{% if cat_filter %}No posts in &ldquo;{{ cat_filter }}&rdquo; yet{% else %}No posts yet{% endif %}</h3>
+      <p style="color:var(--txt2)">{% if cat_filter %}<a href="/news" style="color:var(--gold)">View all posts &rarr;</a>{% else %}Check back soon for news and updates from Qbix Centre.{% endif %}</p>
     </div>
   {% endif %}
 </section>

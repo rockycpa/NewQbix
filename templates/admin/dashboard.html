@@ -997,6 +997,28 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
   </div>
 </div>
 
+<!-- NEWSLETTER CATEGORIES MANAGER MODAL -->
+<div id="nl-cats-mgr-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:300;align-items:center;justify-content:center;">
+  <div style="background:var(--sur);border:1px solid var(--bdr);border-radius:12px;width:480px;max-width:94vw;max-height:80vh;display:flex;flex-direction:column;">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 20px 14px;border-bottom:1px solid var(--bdr);">
+      <div style="font-family:'Playfair Display',serif;font-size:18px;">&#127991; Newsletter Categories</div>
+      <button onclick="closeNlCategoriesMgr()" style="background:none;border:none;color:var(--txt2);font-size:20px;cursor:pointer;line-height:1;">&times;</button>
+    </div>
+    <div style="padding:18px 20px;overflow-y:auto;flex:1;">
+      <div style="font-size:13px;color:var(--txt2);margin-bottom:14px;">These are the categories you can pick when publishing a newsletter post. They also appear as filter chips on the public News page.</div>
+      <div id="nl-cats-mgr-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px;"></div>
+      <div style="display:flex;gap:8px;">
+        <input id="nl-cats-mgr-new" type="text" placeholder="New category..." style="flex:1;background:var(--sur2);border:1px solid var(--bdr);border-radius:7px;color:var(--txt);font-family:'IBM Plex Sans',sans-serif;font-size:14px;padding:8px 11px;" onkeydown="if(event.key==='Enter')addNlCategoryItem()">
+        <button onclick="addNlCategoryItem()" style="background:var(--acc);border:none;border-radius:7px;color:#1a0e00;font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:700;padding:8px 16px;cursor:pointer;">Add</button>
+      </div>
+    </div>
+    <div style="padding:14px 20px;border-top:1px solid var(--bdr);display:flex;justify-content:flex-end;gap:8px;">
+      <button onclick="closeNlCategoriesMgr()" style="background:var(--sur2);border:1px solid var(--bdr);border-radius:7px;color:var(--txt2);font-family:'IBM Plex Sans',sans-serif;font-size:14px;padding:8px 18px;cursor:pointer;">Cancel</button>
+      <button onclick="saveNlCategoriesMgr()" style="background:var(--grn);border:none;border-radius:7px;color:#fff;font-family:'IBM Plex Sans',sans-serif;font-size:14px;font-weight:600;padding:8px 22px;cursor:pointer;">Save</button>
+    </div>
+  </div>
+</div>
+
 <!-- MEMBERS -->
 <div class="page" id="page-members">
   <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:3px"><div class="pg-title">Members <button class="help-btn" onclick="openHelp('help-members')" title="Help">?</button></div><button onclick="loadData()" style="background:var(--sur2);border:1px solid var(--acc);border-radius:6px;color:var(--acc);padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;font-family:'IBM Plex Sans',sans-serif">&#8635; Refresh</button></div><div class="pg-sub">Click any row to view or edit</div>
@@ -1214,8 +1236,15 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
         </div>
 
         <!-- CATEGORY PICKER -->
+        <!-- Options are populated from DB.newsletterCategories on render
+             (renderNlCategoryOptions); the four <option>s below are a static
+             fallback for first paint before JS runs. Use "Edit" to add or
+             remove categories. -->
         <div class="compose-field">
-          <label>Post Category</label>
+          <label style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+            <span>Post Category</span>
+            <button type="button" onclick="openNlCategoriesMgr()" style="background:none;border:none;color:var(--blue);font-size:11px;cursor:pointer;padding:0;text-decoration:underline">Edit categories&hellip;</button>
+          </label>
           <select id="nl-category" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:14px;padding:8px 10px;font-family:'IBM Plex Sans',sans-serif">
             <option value="Monthly Update">Monthly Update</option>
             <option value="Member Spotlight">Member Spotlight</option>
@@ -3198,13 +3227,26 @@ async function publishNewsletter(send){
 
   if(editId && !send){
     const p=(DB.newsletter||[]).find(x=>x.id===editId);
-    if(p){p.subject=subject;p.body=body;p.category=category;}
+    let wasDraft = false;
+    if(p){
+      p.subject=subject;
+      p.body=body;
+      p.category=category;
+      // "Save to Website" = publish. If this post was a draft, flip it to
+      // published and refresh the date so /news shows it in the right
+      // chronological spot. Already-published posts keep their date.
+      wasDraft = !!p.draft;
+      if(wasDraft){
+        p.draft = false;
+        p.date  = new Date().toISOString();
+      }
+    }
     await saveData();
     buildNewsletterHistory();
     document.getElementById('nl-draft-area').style.display='none';
     document.getElementById('nl-draft-area').dataset.editId='';
     document.getElementById('nl-notes').value='';
-    toast('Post updated &#10003;');
+    toast(wasDraft ? 'Published to website &#10003;' : 'Post updated &#10003;');
     return;
   }
 
@@ -3396,7 +3438,7 @@ function drillBack(){
   loadAnalytics(true);
 }
 
-function refreshAll(){ buildWebsite(); buildMarketing(); renderOffices(); renderMembers(); renderOccupants(); renderWaitlist(); buildNotify(); buildBookingsTab(); buildNewsletterHistory(); loadContactMessages(); loadBookableResources(); loadBookingSettings(); renderUsers(); renderUpcomingBirthdays(); buildNewsletterSettings(); }
+function refreshAll(){ buildWebsite(); buildMarketing(); renderOffices(); renderMembers(); renderOccupants(); renderWaitlist(); buildNotify(); buildBookingsTab(); buildNewsletterHistory(); loadContactMessages(); loadBookableResources(); loadBookingSettings(); renderUsers(); renderUpcomingBirthdays(); buildNewsletterSettings(); renderNlCategoryOptions(); }
 
 // === OFFICES ===
 let ofFilter='all',ofSearch='';
@@ -4072,6 +4114,62 @@ async function saveAmenitiesMgr(){
   closeAmenitiesMgr();
   await saveData();
   toast('Amenities list saved &#10003;');
+}
+
+// ── Newsletter Categories Manager (mirrors the amenities manager pattern) ──
+const _DEFAULT_NL_CATEGORIES = ['Monthly Update','Member Spotlight','Community','Availability'];
+function getNlCategoryList(){
+  return (DB.newsletterCategories && DB.newsletterCategories.length)
+    ? DB.newsletterCategories
+    : _DEFAULT_NL_CATEGORIES;
+}
+// Render the <select id="nl-category"> options from the saved category list,
+// preserving the currently-selected value if possible. If the current
+// selection isn't in the list (e.g. an old post whose category was since
+// removed), prepend it so editing that post still shows its saved value.
+function renderNlCategoryOptions(){
+  const sel = document.getElementById('nl-category');
+  if(!sel) return;
+  const cats = [...getNlCategoryList()];
+  const prev = sel.value;
+  if(prev && !cats.includes(prev)) cats.unshift(prev);
+  sel.innerHTML = cats.map(c => '<option value="'+c.replace(/"/g,'&quot;')+'">'+c+'</option>').join('');
+  if(prev) sel.value = prev;
+}
+
+let _nlCatsMgrWorking = [];
+function openNlCategoriesMgr(){
+  _nlCatsMgrWorking = [...getNlCategoryList()];
+  renderNlCatsMgrList();
+  document.getElementById('nl-cats-mgr-new').value = '';
+  document.getElementById('nl-cats-mgr-modal').style.display = 'flex';
+}
+function closeNlCategoriesMgr(){document.getElementById('nl-cats-mgr-modal').style.display='none';}
+function renderNlCatsMgrList(){
+  document.getElementById('nl-cats-mgr-list').innerHTML = _nlCatsMgrWorking.map((c,i)=>
+    '<div style="display:flex;align-items:center;gap:8px;background:var(--sur2);border:1px solid var(--bdr);border-radius:7px;padding:7px 10px;">'
+    + '<span style="flex:1;font-size:14px;color:var(--txt);">'+c+'</span>'
+    + '<button onclick="removeNlCategoryItem('+i+')" style="background:none;border:none;color:var(--red);font-size:16px;cursor:pointer;line-height:1;padding:0 2px;">&times;</button>'
+    + '</div>'
+  ).join('');
+}
+function addNlCategoryItem(){
+  const inp = document.getElementById('nl-cats-mgr-new');
+  const val = inp.value.trim();
+  if(!val) return;
+  if(_nlCatsMgrWorking.includes(val)){toast('Already in the list','var(--acc)');return;}
+  _nlCatsMgrWorking.push(val);
+  inp.value = '';
+  renderNlCatsMgrList();
+}
+function removeNlCategoryItem(i){_nlCatsMgrWorking.splice(i,1);renderNlCatsMgrList();}
+async function saveNlCategoriesMgr(){
+  if(!_nlCatsMgrWorking.length){toast('Keep at least one category','var(--red)');return;}
+  DB.newsletterCategories = [..._nlCatsMgrWorking];
+  closeNlCategoriesMgr();
+  renderNlCategoryOptions();
+  await saveData();
+  toast('Categories saved &#10003;');
 }
 
 function openOccupantForm(id){
