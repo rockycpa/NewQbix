@@ -1878,7 +1878,7 @@ function buildBookingsTab(){
     const overage = b.overageCharge ? `$${Number(b.overageCharge).toFixed(2)}` : '—';
     return `<tr>
       <td class="mono">${b.date}</td>
-      <td class="mono">${b.start}&ndash;${b.end}</td>
+      <td class="mono">${fmt12(b.start)}&ndash;${fmt12(b.end)}</td>
       <td>${bookingResourceLabel(b.resourceId)}</td>
       <td>${b.memberName||''}</td>
       <td>${b.title||'Meeting'}</td>
@@ -1902,6 +1902,21 @@ async function adminCancelBooking(id){
 // ── Add / Edit Booking modal ─────────────────────────────────────────────────
 // b=null means "create new"; b is an existing booking record means "edit".
 let _pendingAdminBooking = null;
+
+// Format a 24-hour "HH:MM" time string for display as 12-hour AM/PM.
+// Stored values stay in HH:MM (so backend / sorting / select.value still work);
+// this only changes what the user sees.
+function fmt12(hhmm){
+  if(!hhmm) return '';
+  const m = String(hhmm).match(/^(\d{1,2}):(\d{2})$/);
+  if(!m) return hhmm;
+  let h = parseInt(m[1], 10);
+  const mins = m[2];
+  const ap = h >= 12 ? 'PM' : 'AM';
+  h = h % 12;
+  if(h === 0) h = 12;
+  return h + ':' + mins + ' ' + ap;
+}
 
 function bookingTimeOptions(){
   // 15-min increments from 07:00 to 18:00. Mirror of the public-side TIMES.
@@ -1957,8 +1972,10 @@ function openBookingModal(b, prefill){
   const startSel = document.getElementById('book-modal-start');
   const endSel   = document.getElementById('book-modal-end');
   const times    = bookingTimeOptions();
-  startSel.innerHTML = times.slice(0,-1).map(t => `<option value="${t}">${t}</option>`).join('');
-  endSel.innerHTML   = times.slice(1).map(t => `<option value="${t}">${t}</option>`).join('');
+  // Display labels are 12-hour AM/PM; option values stay HH:MM 24-hour so
+  // saving / sorting / backend matching all keep working unchanged.
+  startSel.innerHTML = times.slice(0,-1).map(t => `<option value="${t}">${fmt12(t)}</option>`).join('');
+  endSel.innerHTML   = times.slice(1).map(t => `<option value="${t}">${fmt12(t)}</option>`).join('');
 
   document.getElementById('book-modal-date').value  = isEdit ? b.date
                                                     : (prefill && prefill.date) ? prefill.date
@@ -2158,7 +2175,7 @@ function renderBookingCalendar(){
       // survive the round-trip through HTML parsing.
       const json = JSON.stringify(b).replace(/'/g,'&#39;');
       return `<div onclick='event.stopPropagation();openBookingModal(${json})' title="Click to edit" style="background:var(--sur2);border-left:3px solid var(--blue);border-radius:3px;padding:3px 5px;font-size:11px;line-height:1.3;margin-bottom:2px;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
-        <span style="color:var(--acc);font-weight:700">${b.start}</span> ${safeName}
+        <span style="color:var(--acc);font-weight:700">${fmt12(b.start)}</span> ${safeName}
       </div>`;
     }).join('');
     html += `<div onclick="bvAddOnDate('${dateStr}')" style="background:var(--bg);min-height:88px;padding:5px 6px;cursor:pointer;display:flex;flex-direction:column;${isToday?'box-shadow:inset 0 0 0 2px var(--acc)':''}">
@@ -2291,7 +2308,7 @@ function renderUsageRows(monthName){
       +'</div>'
       +'<details style="margin-top:8px"><summary style="cursor:pointer;font-size:11px;color:var(--txt3)">'+row.bookings.length+' booking'+(row.bookings.length===1?'':'s')+'</summary>'
         +'<ul style="margin:6px 0 0 18px;padding:0;font-size:11px;color:var(--txt2);line-height:1.7">'
-        +row.bookings.map(b=>'<li>'+esc(b.date)+' '+esc(b.start)+'&ndash;'+esc(b.end)+' &middot; '+esc(b.space)+(b.title?' &middot; '+esc(b.title):'')+(b.bookedBy&&b.bookedBy!==row.memberName?' <span style="color:var(--txt3)">(by '+esc(b.bookedBy)+')</span>':'')+'</li>').join('')
+        +row.bookings.map(b=>'<li>'+esc(b.date)+' '+esc(fmt12(b.start))+'&ndash;'+esc(fmt12(b.end))+' &middot; '+esc(b.space)+(b.title?' &middot; '+esc(b.title):'')+(b.bookedBy&&b.bookedBy!==row.memberName?' <span style="color:var(--txt3)">(by '+esc(b.bookedBy)+')</span>':'')+'</li>').join('')
         +'</ul></details>'
     +'</div>';
   }).join('');
@@ -2303,7 +2320,7 @@ function _usageMonthName(){
 }
 function _usageBodyFor(row){
   const monthName=_usageMonthName();
-  const lines=row.bookings.map(b=>'  '+b.date+' '+b.start+'-'+b.end+' '+b.space+(b.title?' ('+b.title+')':'')).join('\n');
+  const lines=row.bookings.map(b=>'  '+b.date+' '+fmt12(b.start)+'-'+fmt12(b.end)+' '+b.space+(b.title?' ('+b.title+')':'')).join('\n');
   const overText = row.hoursOver>0
     ? '\nHours over: '+row.hoursOver.toFixed(2).replace(/\.?0+$/,'')
     : '';
@@ -4059,9 +4076,15 @@ async function saveAmenitiesMgr(){
 
 function openOccupantForm(id){
   formType='occupant';formId=id;pendingFiles=[];window._pendingFacePhoto=null;const p=id?getOccById(id):{};
-  const sortedMembers=[...DB.members].sort((a,b)=>a.name.localeCompare(b.name));
+  // Member Company picker — Active members only. If editing an occupant
+  // already linked to a non-Active member, surface that one company too so
+  // the form opens on the saved value instead of clearing it.
+  const activeMembers = DB.members.filter(m => (m.status || 'Active') === 'Active');
+  const memberNames   = activeMembers.map(m => m.name);
+  if(p.company && !memberNames.includes(p.company)) memberNames.push(p.company);
+  memberNames.sort((a,b) => a.localeCompare(b));
   const sortedOffices=[...DB.offices].sort((a,b)=>a.num.localeCompare(b.num,undefined,{numeric:true}));
-  const cOpts=['',...sortedMembers.map(m=>m.name)].map(n=>'<option value="'+n+'" '+((p.company||'')==n?'selected':'')+'>'+(n||'&mdash; Select &mdash;')+'</option>').join('');
+  const cOpts=['', ...memberNames].map(n=>'<option value="'+n+'" '+((p.company||'')==n?'selected':'')+'>'+(n||'&mdash; Select &mdash;')+'</option>').join('');
   const oOpts=['',...sortedOffices.map(o=>o.num)].map(n=>'<option value="'+n+'" '+((p.office||'')==n?'selected':'')+'>'+(n||'&mdash; None &mdash;')+'</option>').join('');
   const facePreview=p.facePhoto?'<div style="margin-top:7px;display:flex;align-items:center;gap:10px"><img src="'+p.facePhoto.data+'" style="width:50px;height:50px;object-fit:cover;border-radius:50%;border:2px solid var(--acc)"><span style="font-size:11px;color:var(--txt2)">Current photo &mdash; upload new to replace</span></div>':'';
   document.getElementById('form-title').textContent=id?'Edit Occupant':'Add Occupant';

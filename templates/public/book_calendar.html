@@ -146,8 +146,10 @@
         </div>
       </div>
 
-      <div id="booking-panel" class="time-picker" style="display:none">
-        <h3 id="panel-date"></h3>
+      <div id="booking-panel" class="time-picker" style="display:none;position:relative">
+        <button type="button" onclick="closeBookingPanel()" aria-label="Close"
+                style="position:absolute;top:10px;right:12px;background:none;border:none;font-size:22px;line-height:1;color:var(--txt2);cursor:pointer;padding:4px 8px;border-radius:6px">&times;</button>
+        <h3 id="panel-date" style="padding-right:30px"></h3>
         <div class="form-group">
           <label style="font-size:13px">Meeting Title</label>
           <input type="text" id="booking-title" placeholder="e.g. Client Meeting" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:14px;outline:none">
@@ -441,6 +443,22 @@ function renderCalendar(){
     }
     grid.appendChild(cell);
   }
+}
+
+// Close the booking panel and return to the pre-click state — clears the
+// title input, deselects the date, hides the panel + success card, and
+// re-renders the calendar so the previously-highlighted day is no longer
+// highlighted.
+function closeBookingPanel(){
+  selectedDate = null;
+  const panel  = document.getElementById('booking-panel');
+  const succ   = document.getElementById('success-panel');
+  const title  = document.getElementById('booking-title');
+  if(panel) panel.style.display = 'none';
+  if(succ)  succ.style.display  = 'none';
+  if(title) title.value = '';
+  // Re-render the calendar to clear any selected-day visual.
+  if(typeof renderCalendar === 'function') renderCalendar();
 }
 
 function selectDate(dateStr, dateLabel, dayBookings){
