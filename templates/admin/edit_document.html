@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ title }} &mdash; Qbix Centre Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.snow.min.css" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#f8f6f1;--sur:#ffffff;--sur2:#f3efe7;--bdr:#e2ddd5;--acc:#c9a84c;--blue:#2563eb;--grn:#15803d;--red:#dc2626;--txt:#1a2744;--txt2:#555;--txt3:#888}
+body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;font-size:15px}
+.shell{max-width:1100px;margin:0 auto;padding:24px 24px 48px}
+.bar{background:var(--sur);border:1px solid var(--bdr);border-radius:10px;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:18px}
+.bar h1{font-family:'Playfair Display',serif;font-size:22px;color:var(--txt);font-weight:700}
+.bar .sub{font-size:13px;color:var(--txt3);margin-top:2px}
+.bar .actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.btn{font-family:inherit;font-size:13px;font-weight:600;padding:8px 16px;border-radius:7px;border:none;cursor:pointer;text-decoration:none;display:inline-block}
+.btn-save{background:var(--grn);color:#fff}
+.btn-save:hover{filter:brightness(1.05)}
+.btn-link{background:rgba(37,99,235,.08);color:var(--blue);border:1px solid rgba(37,99,235,.3)}
+.btn-link:hover{background:rgba(37,99,235,.15)}
+.btn-reset{background:var(--sur2);color:var(--txt2);border:1px solid var(--bdr)}
+.btn-reset:hover{background:#ebe5d8}
+.btn-back{background:none;color:var(--txt2);border:1px solid var(--bdr)}
+.btn-back:hover{color:var(--txt);background:var(--sur2)}
+.help{background:rgba(201,168,76,.08);border:1px solid rgba(201,168,76,.3);border-radius:8px;padding:12px 16px;margin-bottom:14px;font-size:13px;color:var(--txt2);line-height:1.6}
+.help strong{color:var(--txt)}
+.help code{display:inline-block;padding:2px 6px;background:#fff;border:1px solid var(--bdr);border-radius:4px;font-size:12px;color:var(--txt);font-family:'IBM Plex Mono',monospace}
+.toast{position:fixed;bottom:24px;right:24px;background:var(--txt);color:#fff;padding:10px 16px;border-radius:8px;font-size:13px;opacity:0;transform:translateY(8px);transition:all .25s;pointer-events:none}
+.toast.show{opacity:1;transform:translateY(0)}
+.ql-toolbar{background:var(--sur2);border:1px solid var(--bdr)!important;border-bottom:none!important;border-radius:8px 8px 0 0}
+.ql-container{background:#fff;border:1px solid var(--bdr)!important;border-radius:0 0 8px 8px;font-family:'IBM Plex Sans',sans-serif;font-size:15px;color:var(--txt);min-height:60vh}
+.ql-editor{min-height:60vh;line-height:1.7;color:var(--txt);background:#fff;padding:18px 22px}
+.ql-editor h2{font-family:'Playfair Display',serif;color:var(--txt);font-size:22px;margin:18px 0 10px}
+.ql-editor h3{font-family:'Playfair Display',serif;color:var(--txt);font-size:17px;margin:14px 0 6px}
+.ql-editor p{margin-bottom:10px}
+.ql-editor ul,.ql-editor ol{padding-left:24px;margin-bottom:10px}
+.ql-editor li{margin-bottom:5px;line-height:1.6}
+.ql-toolbar .ql-stroke{stroke:var(--txt2)}
+.ql-toolbar .ql-fill{fill:var(--txt2)}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="bar">
+    <div>
+      <h1>{{ title }}</h1>
+      <div class="sub">{{ subtitle }}</div>
+    </div>
+    <div class="actions">
+      <a href="/admin#members" class="btn btn-back" onclick="window.close();return false;">Close window</a>
+      {% if preview_url %}
+      <a href="{{ preview_url }}" target="_blank" rel="noopener" class="btn btn-link">{{ preview_label }} &#8599;</a>
+      {% endif %}
+      <button type="button" class="btn btn-reset" onclick="resetDoc()">Reset to default</button>
+      <button type="button" class="btn btn-save" onclick="saveDoc()" id="save-btn">&#128190; Save</button>
+    </div>
+  </div>
+
+  {% if help_html %}
+  <div class="help">{{ help_html | safe }}</div>
+  {% endif %}
+
+  <div id="editor"></div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js"></script>
+<script>
+const SAVE_URL  = {{ save_url  | tojson }};
+const RESET_URL = {{ reset_url | tojson }};
+const INITIAL   = {{ initial_html | tojson }};
+
+const quill = new Quill('#editor', {
+  theme: 'snow',
+  modules: { toolbar: [
+    ['bold','italic','underline'],
+    [{'color':[]},{'background':[]}],
+    [{'list':'ordered'},{'list':'bullet'}],
+    [{'header':[1,2,3,false]}],
+    ['link'],
+    ['clean']
+  ]},
+  placeholder: 'Edit the document…'
+});
+quill.root.innerHTML = INITIAL || '';
+
+function toast(msg, color){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.background = color || '#1a2744';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+async function saveDoc(){
+  const btn = document.getElementById('save-btn');
+  const orig = btn.innerHTML;
+  btn.disabled = true; btn.innerHTML = 'Saving…';
+  try{
+    const r = await fetch(SAVE_URL, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({html: quill.root.innerHTML})
+    });
+    const d = await r.json();
+    if(d.ok) toast('Saved ✓');
+    else toast('Save failed: '+(d.error||'unknown'), '#dc2626');
+  } catch(e){ toast('Could not reach server', '#dc2626'); }
+  btn.disabled = false; btn.innerHTML = orig;
+}
+
+async function resetDoc(){
+  if(!confirm('Reset this document to the original built-in version? Your edits will be lost.')) return;
+  try{
+    const r = await fetch(RESET_URL, {method:'POST'});
+    const d = await r.json();
+    if(d.ok && d.html){
+      quill.root.innerHTML = d.html;
+      toast('Reset to default — click Save to keep this version');
+    } else {
+      toast('Reset failed', '#dc2626');
+    }
+  } catch(e){ toast('Could not reach server', '#dc2626'); }
+}
+
+// Ctrl/Cmd+S as a save shortcut
+document.addEventListener('keydown', e => {
+  if((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's'){
+    e.preventDefault();
+    saveDoc();
+  }
+});
+</script>
+</body>
+</html>

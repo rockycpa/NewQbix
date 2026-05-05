@@ -2304,6 +2304,64 @@ def update_agreement_status(member_id):
 # Quill. The agreement body uses {{placeholder}} tokens that are filled in by
 # generate_agreement at render time. House rules render as-is on /guidelines.
 
+@app.route('/admin/edit/house-rules')
+@login_required
+def edit_house_rules_page():
+    """Standalone editor page for the public House Rules. Loads the current
+    HTML from DB server-side (no client-side race) so the editor opens
+    pre-populated regardless of how the page was reached."""
+    data = get_db()
+    initial = data.get('houseRulesHtml') or DEFAULT_HOUSE_RULES_HTML
+    return render_template('admin/edit_document.html',
+        title='House Rules',
+        subtitle='Public document at qbixcentre.com/guidelines — saved edits go live immediately.',
+        initial_html=initial,
+        save_url='/admin/api/save-house-rules',
+        reset_url='/admin/api/reset-house-rules',
+        preview_url='/guidelines',
+        preview_label='View public page',
+        help_html=None,
+    )
+
+
+@app.route('/admin/edit/agreement')
+@login_required
+def edit_agreement_page():
+    """Standalone editor page for the Membership Agreement body clauses
+    (sections 1-8). Edits apply the next time you generate an agreement
+    for any member."""
+    data = get_db()
+    initial = data.get('agreementBodyHtml') or DEFAULT_AGREEMENT_BODY_HTML
+    help_html = (
+        'These are the numbered clauses (1&ndash;8) that appear between the '
+        'Member Summary table and the Signature Page on every generated '
+        'agreement. Member-specific values are filled in automatically '
+        'from these markers &mdash; <strong>leave them in place</strong>: '
+        '<code>{{member_name}}</code> '
+        '<code>{{office_str}}</code> '
+        '<code>{{dues_str}}</code> '
+        '<code>{{deposit_str}}</code> '
+        '<code>{{term_start_str}}</code> '
+        '<code>{{term_end_str}}</code> '
+        '<code>{{conf_hours}}</code> '
+        '<code>{{member_email}}</code> '
+        '<code>{{member_phone}}</code> '
+        '<code>{{today_str}}</code> '
+        '<code>{{proration_clause}}</code> '
+        '<code>{{setup_fee_clause}}</code>'
+    )
+    return render_template('admin/edit_document.html',
+        title='Membership Agreement',
+        subtitle='Body clauses (Sections 1-8). Applied next time you click Review &amp; Generate Agreement on a member.',
+        initial_html=initial,
+        save_url='/admin/api/save-agreement-body',
+        reset_url='/admin/api/reset-agreement-body',
+        preview_url=None,
+        preview_label=None,
+        help_html=help_html,
+    )
+
+
 @app.route('/admin/api/save-house-rules', methods=['POST'])
 @login_required
 def save_house_rules():
