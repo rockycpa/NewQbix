@@ -401,6 +401,155 @@ DEFAULT_DATA = {
 }
 
 
+# ── Default editable documents ───────────────────────────────────────────────
+# House Rules and the Membership Agreement body are editable from the admin
+# Members tab → Documents section. Both are stored as HTML in the DB so the
+# Quill rich-text editor can round-trip them. These constants are the seed
+# values used when the DB has no saved version.
+
+DEFAULT_HOUSE_RULES_HTML = """
+<p><em>These rules may be updated as needed.</em></p>
+<p>Qbix Centre is a coworking space &mdash; a quiet, professional environment for productive work, and a chance to widen your circle of acquaintances and business contacts. Above all, it is a workplace, and these house rules apply to everyone. Members who repeatedly disregard these rules may have their access revoked.</p>
+
+<h2>1. Offices and Shared Spaces</h2>
+<h3>Using and caring for the space</h3>
+<ul>
+  <li>Each office or workstation includes a desk, chair, storage area, and wireless or wired internet access.</li>
+  <li>Members have access 24 hours a day, 7 days a week.</li>
+  <li>Treat the property with care. Damage caused by negligence is the member&rsquo;s responsibility &mdash; replacement or repayment is required.</li>
+  <li>Do not bring your own furniture or hang posters on the walls without first checking with management. If you have an idea for an improvement, we&rsquo;d love to hear it.</li>
+  <li>We set the temperature for the comfort of most members. Personal heaters are not permitted. Heating and cooling are reduced after normal business hours and on weekends to conserve energy.</li>
+  <li>Pets are not allowed in the workspace.</li>
+</ul>
+<h3>Conference Room</h3>
+<ul>
+  <li>One conference room is available, intended for business meetings, longer phone calls, and video conferences.</li>
+  <li>Furniture stays in the conference room at all times.</li>
+  <li>Reserve the conference room through the online booking system at qbixcentre.com.</li>
+  <li>If the conference room is open and unbooked, members may use it on a first-come, first-served basis.</li>
+</ul>
+<h3>Kitchenette</h3>
+<ul>
+  <li>All members may use the kitchenette.</li>
+  <li>Label any food or drinks you store in the cupboards or refrigerator with your name.</li>
+  <li>Keep the kitchenette clean and tidy after use.</li>
+  <li>Personal food remaining in the refrigerator on Friday evening will be discarded.</li>
+  <li>Drinks in the refrigerator and Keurig coffee are complimentary for on-site use.</li>
+</ul>
+
+<h2>2. Noise</h2>
+<ul>
+  <li>Coworking is a shared environment. Keep voices low and minimize avoidable noise.</li>
+  <li><em>Phone calls</em> &mdash; Adjust your volume when speaking on the phone. If a call might disturb others, take it in your private office or the conference room. Headphones are highly recommended.</li>
+  <li>Set your cell phone to vibrate when in shared spaces.</li>
+  <li><em>Visitors</em> &mdash; Visitors are welcome but are subject to the same rules. Bring private guests to the conference room or your office.</li>
+</ul>
+
+<h2>3. Cleanliness</h2>
+<ul>
+  <li>Each member is responsible for keeping their own desk and the common areas clean. Tidy up before you leave for the day, and recycle whenever possible.</li>
+  <li>Cleaning supplies are stored in designated locations.</li>
+  <li>A cleaning service comes in each weekend and has access to all offices. If you&rsquo;d prefer your office not be cleaned, leave your trash bin outside your office door on Friday evening.</li>
+</ul>
+
+<h2>4. Internet</h2>
+<ul>
+  <li>Free Wi-Fi and wired ethernet are available in every office. Ask management for the password.</li>
+  <li>Wired ethernet typically delivers the fastest speeds &mdash; we recommend it for video calls and large transfers.</li>
+  <li>Do not download torrents or other illegal files.</li>
+  <li>Be considerate with bandwidth.</li>
+</ul>
+
+<h2>5. Printing</h2>
+<ul>
+  <li>Printer use is included, subject to any overage charges in your membership terms.</li>
+  <li>You may install the printer drivers on your own computer using the instructions posted near the printer.</li>
+</ul>
+
+<h2>6. Smoking and Vaping</h2>
+<p>Smoking, vaping, and e-cigarettes are not permitted anywhere on the property.</p>
+
+<h2>7. Document Destruction</h2>
+<p>A document shredder is available for sensitive documents. Please use it only for that purpose.</p>
+
+<h2>8. Scents and Sensitivities</h2>
+<p>Out of respect for members with allergies and sensitivities, please do not burn candles, incense, or other strongly scented products in the workspace.</p>
+"""
+
+
+# Agreement body — the clauses that go between the member-summary table and
+# the signature page in the generated agreement. {{placeholders}} are filled
+# in at render time with member-specific values:
+#   {{member_name}}      member or company name
+#   {{office_str}}       e.g. "Office 19A, Office 19B" (or "TBD")
+#   {{dues_str}}         e.g. "$725/month"
+#   {{deposit_str}}      e.g. "$725"
+#   {{term_start_str}}   e.g. "September 1, 2025"
+#   {{term_end_str}}     e.g. "February 28, 2026"
+#   {{conf_hours}}       e.g. "6"
+#   {{proration_clause}} expanded to a <li> with proration details if applicable, else empty
+#   {{setup_fee_clause}} expanded to a <li> with setup fee text, or empty if waived
+DEFAULT_AGREEMENT_BODY_HTML = """
+<h2 class="sec-head"><span class="sec-num">1.</span> MEMBERSHIP &amp; FEES</h2>
+<ul class="clauses">
+  <li>Monthly membership fee of <strong>{{dues_str}}</strong> is due on the 1st of each month via auto-draft through Bill.com. Payments received after the 5th are considered late.</li>
+  {{proration_clause}}
+  <li>A refundable deposit of <strong>{{deposit_str}}</strong> is required prior to move-in and will be returned, less normal wear and tear and cost of unreturned keys, upon conclusion of the membership.</li>
+  {{setup_fee_clause}}
+  <li>The initial term of this Agreement is six (6) full calendar months, from <strong>{{term_start_str}}</strong> through <strong>{{term_end_str}}</strong>. This Agreement automatically renews for successive six (6) month periods at the then-current rate unless the Member provides written notice of non-renewal at least thirty (30) days prior to the end of the then-current term. Failure to provide timely notice results in automatic renewal and the Member's obligation for the full succeeding term.</li>
+  <li>A non-refundable background check fee of $35 per cardholder is required prior to access being granted.</li>
+  <li>Additional key/fob holders: $150/month plus $35 background check fee. Both keyholders must be from the same company.</li>
+</ul>
+<h2 class="sec-head"><span class="sec-num">2.</span> ACCESS &amp; USE</h2>
+<ul class="clauses">
+  <li>Members receive 24/7 access via card key/fob and a personal access code. Access codes are strictly confidential and must not be shared. Card replacement fee: $35.</li>
+  <li>The conference room may be reserved online at qbixcentre.com at least 24 hours in advance. Each membership includes <strong>{{conf_hours}} hours/month</strong> at no charge; additional time is billed at $25/hour.</li>
+  <li>The workspace is for lawful, professional business purposes only. Sleeping, cooking meals, or personal activities on the premises are not permitted.</li>
+  <li>Members are responsible for safeguarding their own confidential information and must respect the privacy and confidentiality of fellow members.</li>
+</ul>
+<h2 class="sec-head"><span class="sec-num">3.</span> AMENITIES &amp; OVERAGE CHARGES</h2>
+<ul class="clauses">
+  <li>Included: High-speed Wi-Fi/Ethernet (AT&amp;T Gigabit Fiber), furnished workstations, kitchenette with Starbucks coffee and beverages, full-color laser printer/scanner, conference room, free parking, and janitorial service.</li>
+  <li>Monthly printing allowances: 200 black &amp; white pages; 100 color pages. Overages: $0.10/page B&amp;W; $0.20/page color.</li>
+  <li>Conference room overages: $25/hour, billed monthly.</li>
+  <li>Mail handling is included with all private office memberships.</li>
+</ul>
+<h2 class="sec-head"><span class="sec-num">4.</span> CONDUCT &amp; RESPONSIBILITIES</h2>
+<ul class="clauses">
+  <li>Members shall conduct themselves in a professional, courteous, and cooperative manner at all times. Disruptive behavior or harassment may result in immediate termination.</li>
+  <li>Noise: Use headphones for audio; avoid speakerphone calls or amplified sound in common areas.</li>
+  <li>Cleanliness: Wash dishes immediately after use. Label food and beverages; unlabeled items discarded weekly. Clear personal items from common areas daily.</li>
+  <li>Safety: No hazardous materials, open flames, smoking, or pets anywhere on the premises.</li>
+  <li>Members are fully responsible for their own conduct and that of any guests. Damages must be reported immediately and paid in full.</li>
+  <li>Prohibited: pyramid schemes, harassment, unauthorized use of others' information, theft, or display of inappropriate content.</li>
+</ul>
+<h2 class="sec-head"><span class="sec-num">5.</span> INSURANCE &amp; LIABILITY</h2>
+<ul class="clauses">
+  <li>Qbix Centre does not provide insurance for members' personal property or business assets. Members are strongly encouraged to obtain appropriate coverage.</li>
+  <li>RoseAn Properties, LLC and affiliates shall not be liable for theft, loss, damage, or injury to persons or property on the premises, to the maximum extent permitted by law.</li>
+  <li>Member agrees to indemnify and hold harmless RoseAn Properties, LLC and Qbix Centre from all claims, damages, or expenses (including attorneys' fees) arising from Member's use of the premises.</li>
+</ul>
+<h2 class="sec-head"><span class="sec-num">6.</span> TERMINATION</h2>
+<ul class="clauses">
+  <li>By Member: Written notice of non-renewal must be provided at least thirty (30) days prior to the end of the then-current six (6) month term. Notice after this deadline will not prevent automatic renewal; Member remains responsible for dues for the full succeeding term.</li>
+  <li>By Management: Qbix Centre may terminate any membership immediately and without refund for violation of this Agreement or the House Guidelines.</li>
+  <li>Upon termination, Member must return all keys, remove all personal property within 48 hours, and leave their office in clean condition.</li>
+</ul>
+<h2 class="sec-head"><span class="sec-num">7.</span> GENERAL PROVISIONS</h2>
+<ul class="clauses">
+  <li>Not a Lease: This Agreement grants a revocable license to use shared workspace and does not create a tenancy, leasehold interest, or any real property right.</li>
+  <li>Force Majeure: Services may be suspended without liability for events beyond management's reasonable control.</li>
+  <li>Modifications: House Guidelines and policies may be updated at any time. Members will be notified of material changes by email.</li>
+  <li>Authority: The person signing represents that they have full authority to bind themselves and/or their company.</li>
+  <li>Promotional Use: Member consents to Qbix Centre publishing their business name in directories. Written consent required for photos identifying individual members.</li>
+  <li>Governing Law: This Agreement is governed by the laws of the State of Georgia.</li>
+  <li>Entire Agreement: This Agreement, together with the House Guidelines, constitutes the entire agreement between the parties.</li>
+</ul>
+<h2 class="sec-head"><span class="sec-num">8.</span> HOUSE GUIDELINES</h2>
+<p style="font-size:9.5pt;line-height:1.6;margin-top:8px">Qbix Centre maintains a separate House Guidelines document governing day-to-day conduct, use of common areas, equipment, noise, and cleanliness. By signing this Agreement, Member acknowledges that they have received, read, and agree to abide by the House Guidelines in their current form. Member acknowledges that the House Guidelines are subject to change at the sole discretion of the Manager, and that continued use of the premises constitutes acceptance of any updated guidelines.</p>
+"""
+
+
 # ── Database helpers ─────────────────────────────────────────────────────────
 _data_lock = threading.Lock()
 DATABASE_URL = os.environ.get('DATABASE_URL', '')
@@ -475,6 +624,11 @@ def load_data():
             'Drive-by / Signage', 'Facebook', 'Nextdoor',
             'Referral from Member', 'Google Search', 'Website', 'Other'
         ])
+        # Editable documents — seed with built-in defaults the first time the
+        # admin opens them. Both keys store HTML produced/consumed by the
+        # Quill editor on the Members → Documents panel.
+        d.setdefault('houseRulesHtml',    DEFAULT_HOUSE_RULES_HTML)
+        d.setdefault('agreementBodyHtml', DEFAULT_AGREEMENT_BODY_HTML)
         for m in d.get('members', []):
             m.setdefault('attachments', [])
             m.setdefault('discount', 0)
@@ -2144,6 +2298,67 @@ def update_agreement_status(member_id):
     save_data(data)
     return jsonify({'ok': True, 'agreementStatus': status})
 
+
+# ── Editable documents (House Rules + Membership Agreement body) ─────────────
+# Both are stored as HTML in the DB and edited in the admin Members tab via
+# Quill. The agreement body uses {{placeholder}} tokens that are filled in by
+# generate_agreement at render time. House rules render as-is on /guidelines.
+
+@app.route('/admin/api/save-house-rules', methods=['POST'])
+@login_required
+def save_house_rules():
+    data = get_db()
+    html = (request.json or {}).get('html', '')
+    if not isinstance(html, str):
+        return jsonify({'ok': False, 'error': 'html must be a string'}), 400
+    data['houseRulesHtml'] = html
+    save_data(data)
+    return jsonify({'ok': True})
+
+
+@app.route('/admin/api/save-agreement-body', methods=['POST'])
+@login_required
+def save_agreement_body():
+    data = get_db()
+    html = (request.json or {}).get('html', '')
+    if not isinstance(html, str):
+        return jsonify({'ok': False, 'error': 'html must be a string'}), 400
+    data['agreementBodyHtml'] = html
+    save_data(data)
+    return jsonify({'ok': True})
+
+
+@app.route('/admin/api/reset-house-rules', methods=['POST'])
+@login_required
+def reset_house_rules():
+    data = get_db()
+    data['houseRulesHtml'] = DEFAULT_HOUSE_RULES_HTML
+    save_data(data)
+    return jsonify({'ok': True, 'html': DEFAULT_HOUSE_RULES_HTML})
+
+
+@app.route('/admin/api/reset-agreement-body', methods=['POST'])
+@login_required
+def reset_agreement_body():
+    data = get_db()
+    data['agreementBodyHtml'] = DEFAULT_AGREEMENT_BODY_HTML
+    save_data(data)
+    return jsonify({'ok': True, 'html': DEFAULT_AGREEMENT_BODY_HTML})
+
+
+@app.route('/guidelines')
+def guidelines():
+    """Public House Rules page. Renders DB.houseRulesHtml inside a printable
+    site-styled wrapper so prospective members can read or print the rules."""
+    track_pageview('/guidelines')
+    data = get_db()
+    rules_html = data.get('houseRulesHtml') or DEFAULT_HOUSE_RULES_HTML
+    return render_template('public/guidelines.html',
+                           rules_html=rules_html,
+                           canonical_url=APP_URL + '/guidelines',
+                           ga_id=GA_MEASUREMENT_ID)
+
+
 # ── Agreement generator ───────────────────────────────────────────────────────
 
 @app.route('/admin/api/generate-agreement/<member_id>')
@@ -2218,6 +2433,41 @@ def generate_agreement(member_id):
     mname      = member.get('name', '')
     memail     = member.get('email', '')
     mphone     = member.get('phone', '')
+    mbox       = (member.get('mailbox') or '').strip()
+    # Members get a mailing address at the building once a mailbox number
+    # is assigned. The agreement summary shows the full address; if no
+    # mailbox is set yet, we leave the row off so it doesn't appear blank.
+    if mbox:
+        mailing_addr = (
+            f"{mname}<br>500A Northside Crossing, Box {mbox}"
+            f"<br>Macon, GA 31210-2377"
+        )
+        mail_field = f'<tr><td class="fl">Qbix Centre Mailing Address</td><td class="fv">{mailing_addr}</td></tr>'
+    else:
+        mail_field = ''
+
+    # Render the editable agreement body. We pull the HTML from the DB
+    # (admin can edit it on the Members → Documents panel) and substitute
+    # {{placeholder}} tokens with member-specific values. Falls back to the
+    # built-in default if the saved value is empty for any reason.
+    body_template = (data.get('agreementBodyHtml') or '').strip() or DEFAULT_AGREEMENT_BODY_HTML
+    _replacements = {
+        '{{member_name}}':      mname,
+        '{{office_str}}':       office_str,
+        '{{dues_str}}':         dues_str,
+        '{{deposit_str}}':      deposit_str,
+        '{{term_start_str}}':   term_start_str,
+        '{{term_end_str}}':     term_end_str,
+        '{{conf_hours}}':       str(conf_hours),
+        '{{member_email}}':     memail,
+        '{{member_phone}}':     mphone,
+        '{{today_str}}':        today_str,
+        '{{proration_clause}}': pro_bullet,
+        '{{setup_fee_clause}}': setup_blt,
+    }
+    agreement_body_rendered = body_template
+    for _k, _v in _replacements.items():
+        agreement_body_rendered = agreement_body_rendered.replace(_k, _v)
 
     html = f"""<!DOCTYPE html>
 <html lang="en">
@@ -2282,65 +2532,10 @@ ul.clauses li{{margin-bottom:7px;line-height:1.55;font-size:9.5pt}}
       {fld('Conference Room Hours Included', f'{conf_hours} hours/month')}
       {fld('Contact Email', memail)}
       {fld('Contact Phone', mphone)}
+      {mail_field}
     </table>
   </div>
-  {sec(1,'Membership & Fees')}
-  <ul class="clauses">
-    {blt(f'Monthly membership fee of <strong>{dues_str}</strong> is due on the 1st of each month via auto-draft through Bill.com. Payments received after the 5th are considered late.')}
-    {pro_bullet}
-    {blt(f'A refundable deposit of <strong>{deposit_str}</strong> is required prior to move-in and will be returned, less normal wear and tear and cost of unreturned keys, upon conclusion of the membership.')}
-    {setup_blt}
-    {blt(f'The initial term of this Agreement is six (6) full calendar months, from <strong>{term_start_str}</strong> through <strong>{term_end_str}</strong>. This Agreement automatically renews for successive six (6) month periods at the then-current rate unless the Member provides written notice of non-renewal at least thirty (30) days prior to the end of the then-current term. Failure to provide timely notice results in automatic renewal and the Member\'s obligation for the full succeeding term.')}
-    {blt('A non-refundable background check fee of $35 per cardholder is required prior to access being granted.')}
-    {blt('Additional key/fob holders: $150/month plus $35 background check fee. Both keyholders must be from the same company.')}
-  </ul>
-  {sec(2,'Access & Use')}
-  <ul class="clauses">
-    {blt('Members receive 24/7 access via card key/fob and a personal access code. Access codes are strictly confidential and must not be shared. Card replacement fee: $35.')}
-    {blt(f'The conference room may be reserved online at qbixcentre.com at least 24 hours in advance. Each membership includes <strong>{conf_hours} hours/month</strong> at no charge; additional time is billed at $25/hour.')}
-    {blt('The workspace is for lawful, professional business purposes only. Sleeping, cooking meals, or personal activities on the premises are not permitted.')}
-    {blt('Members are responsible for safeguarding their own confidential information and must respect the privacy and confidentiality of fellow members.')}
-  </ul>
-  {sec(3,'Amenities & Overage Charges')}
-  <ul class="clauses">
-    {blt('Included: High-speed Wi-Fi/Ethernet (AT&T Gigabit Fiber), furnished workstations, kitchenette with Starbucks coffee and beverages, full-color laser printer/scanner, conference room, free parking, and janitorial service.')}
-    {blt('Monthly printing allowances: 200 black &amp; white pages; 100 color pages. Overages: $0.10/page B&amp;W; $0.20/page color.')}
-    {blt('Conference room overages: $25/hour, billed monthly.')}
-    {blt('Mail handling is included with all private office memberships.')}
-  </ul>
-  {sec(4,'Conduct & Responsibilities')}
-  <ul class="clauses">
-    {blt('Members shall conduct themselves in a professional, courteous, and cooperative manner at all times. Disruptive behavior or harassment may result in immediate termination.')}
-    {blt('Noise: Use headphones for audio; avoid speakerphone calls or amplified sound in common areas.')}
-    {blt('Cleanliness: Wash dishes immediately after use. Label food and beverages; unlabeled items discarded weekly. Clear personal items from common areas daily.')}
-    {blt('Safety: No hazardous materials, open flames, smoking, or pets anywhere on the premises.')}
-    {blt('Members are fully responsible for their own conduct and that of any guests. Damages must be reported immediately and paid in full.')}
-    {blt('Prohibited: pyramid schemes, harassment, unauthorized use of others\' information, theft, or display of inappropriate content.')}
-  </ul>
-  {sec(5,'Insurance & Liability')}
-  <ul class="clauses">
-    {blt('Qbix Centre does not provide insurance for members\' personal property or business assets. Members are strongly encouraged to obtain appropriate coverage.')}
-    {blt('RoseAn Properties, LLC and affiliates shall not be liable for theft, loss, damage, or injury to persons or property on the premises, to the maximum extent permitted by law.')}
-    {blt('Member agrees to indemnify and hold harmless RoseAn Properties, LLC and Qbix Centre from all claims, damages, or expenses (including attorneys\' fees) arising from Member\'s use of the premises.')}
-  </ul>
-  {sec(6,'Termination')}
-  <ul class="clauses">
-    {blt('By Member: Written notice of non-renewal must be provided at least thirty (30) days prior to the end of the then-current six (6) month term. Notice after this deadline will not prevent automatic renewal; Member remains responsible for dues for the full succeeding term.')}
-    {blt('By Management: Qbix Centre may terminate any membership immediately and without refund for violation of this Agreement or the House Guidelines.')}
-    {blt('Upon termination, Member must return all keys, remove all personal property within 48 hours, and leave their office in clean condition.')}
-  </ul>
-  {sec(7,'General Provisions')}
-  <ul class="clauses">
-    {blt('Not a Lease: This Agreement grants a revocable license to use shared workspace and does not create a tenancy, leasehold interest, or any real property right.')}
-    {blt('Force Majeure: Services may be suspended without liability for events beyond management\'s reasonable control.')}
-    {blt('Modifications: House Guidelines and policies may be updated at any time. Members will be notified of material changes by email.')}
-    {blt('Authority: The person signing represents that they have full authority to bind themselves and/or their company.')}
-    {blt('Promotional Use: Member consents to Qbix Centre publishing their business name in directories. Written consent required for photos identifying individual members.')}
-    {blt('Governing Law: This Agreement is governed by the laws of the State of Georgia.')}
-    {blt('Entire Agreement: This Agreement, together with the House Guidelines, constitutes the entire agreement between the parties.')}
-  </ul>
-  {sec(8,'House Guidelines')}
-  <p style="font-size:9.5pt;line-height:1.6;margin-top:8px">Qbix Centre maintains a separate House Guidelines document governing day-to-day conduct, use of common areas, equipment, noise, and cleanliness. By signing this Agreement, Member acknowledges that they have received, read, and agree to abide by the House Guidelines in their current form. Member acknowledges that the House Guidelines are subject to change at the sole discretion of the Manager, and that continued use of the premises constitutes acceptance of any updated guidelines.</p>
+  {agreement_body_rendered}
 
   <!-- Signature Page -->
   <div class="page-break">

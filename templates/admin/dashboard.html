@@ -1033,6 +1033,56 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
 <!-- MEMBERS -->
 <div class="page" id="page-members">
   <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:3px"><div class="pg-title">Members <button class="help-btn" onclick="openHelp('help-members')" title="Help">?</button></div><button onclick="loadData()" style="background:var(--sur2);border:1px solid var(--acc);border-radius:6px;color:var(--acc);padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;font-family:'IBM Plex Sans',sans-serif">&#8635; Refresh</button></div><div class="pg-sub">Click any row to view or edit</div>
+
+  <!-- Documents — collapsible card. Edits to House Rules and the Membership
+       Agreement body are stored in DB and reflected on the public /guidelines
+       page and the generated agreements respectively. -->
+  <div class="card" style="margin-bottom:14px">
+    <div style="display:flex;align-items:center;justify-content:space-between;cursor:pointer" onclick="toggleDocsPanel()">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:18px">&#128196;</span>
+        <span style="font-size:15px;font-weight:700;color:var(--txt)">Documents</span>
+        <span style="font-size:12px;color:var(--txt3)">House Rules &middot; Membership Agreement</span>
+      </div>
+      <button id="docs-toggle-btn" type="button" style="background:none;border:1px solid var(--bdr);border-radius:6px;color:var(--txt2);padding:4px 12px;font-size:13px;cursor:pointer;font-family:inherit">Edit &#9662;</button>
+    </div>
+
+    <div id="docs-panel" style="display:none;margin-top:18px">
+      <div style="display:grid;grid-template-columns:1fr;gap:24px">
+        <!-- HOUSE RULES -->
+        <div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:8px">
+            <div style="font-size:13px;font-weight:700;color:var(--txt);text-transform:uppercase;letter-spacing:.06em">House Rules</div>
+            <div style="display:flex;gap:8px">
+              <a href="/guidelines" target="_blank" rel="noopener" style="font-size:12px;color:var(--blue);text-decoration:underline">Preview public page &#8599;</a>
+              <button type="button" onclick="resetDoc('house-rules')" style="background:none;border:1px solid var(--bdr);border-radius:6px;color:var(--txt3);padding:3px 10px;font-size:11px;cursor:pointer;font-family:inherit">Reset to default</button>
+            </div>
+          </div>
+          <div id="hr-editor" style="background:#fff"></div>
+          <div style="margin-top:10px;display:flex;justify-content:flex-end">
+            <button type="button" id="hr-save-btn" onclick="saveHouseRules()" class="btn-save">&#128190; Save House Rules</button>
+          </div>
+        </div>
+
+        <!-- MEMBERSHIP AGREEMENT BODY -->
+        <div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:8px">
+            <div style="font-size:13px;font-weight:700;color:var(--txt);text-transform:uppercase;letter-spacing:.06em">Membership Agreement &mdash; Body Clauses</div>
+            <button type="button" onclick="resetDoc('agreement-body')" style="background:none;border:1px solid var(--bdr);border-radius:6px;color:var(--txt3);padding:3px 10px;font-size:11px;cursor:pointer;font-family:inherit">Reset to default</button>
+          </div>
+          <div style="background:rgba(201,168,76,.08);border:1px solid rgba(201,168,76,.3);border-radius:7px;padding:10px 12px;margin-bottom:10px;font-size:12px;color:var(--txt2);line-height:1.6">
+            These are the numbered clauses (1&ndash;8) that appear between the Member Summary table and the Signature Page in the generated agreement. Member-specific values are filled in automatically from these markers &mdash; <strong>leave them in place</strong>:
+            <code style="display:block;margin-top:6px;padding:6px 8px;background:#fff;border:1px solid var(--bdr);border-radius:4px;font-size:11px;color:var(--txt);white-space:normal">{{member_name}} {{office_str}} {{dues_str}} {{deposit_str}} {{term_start_str}} {{term_end_str}} {{conf_hours}} {{member_email}} {{member_phone}} {{today_str}} {{proration_clause}} {{setup_fee_clause}}</code>
+          </div>
+          <div id="ag-editor" style="background:#fff"></div>
+          <div style="margin-top:10px;display:flex;justify-content:flex-end">
+            <button type="button" id="ag-save-btn" onclick="saveAgreementBody()" class="btn-save">&#128190; Save Agreement Body</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="tb">
     <input class="sb" type="text" placeholder="Search member..." oninput="filterMembers(this.value)">
     <button class="fb on" id="mf-active" onclick="setMF('Active',this)">Active</button>
@@ -4079,7 +4129,7 @@ function openMemberForm(id){
   formType='member';formId=id;pendingFiles=[];const m=id?getMemberById(id):{};
   const lsOpts=['',  ...(DB.leadSources||[])].map(s=>'<option value="'+s+'" '+((m.leadSource||'')==s?'selected':'')+'>'+(s||'— Select source —')+'</option>').join('');
   document.getElementById('form-title').textContent=id?'Edit Member':'Add Member';
-  document.getElementById('form-body').innerHTML='<div class="fg"><div class="fl full"><label>Member Name *</label><input id="f-name" value="'+(m.name||'')+'" placeholder="Company or individual name"></div>'+statusButtons(m.status||'Active',true)+'<div class="fl"><label>Start Date</label><input id="f-start" type="date" value="'+(m.start||'')+'"></div><div class="fl"><label>Deposit Held ($)</label><input id="f-deposit" type="number" value="'+(m.deposit||'')+'"></div><div class="fl"><label>Billing Email</label><input id="f-email" type="email" value="'+(m.email||'')+'"></div><div class="fl"><label>Phone</label><input id="f-phone" value="'+(m.phone||'')+'"></div><div class="fl full"><label>Notes</label><textarea id="f-notes">'+(m.notes||'')+'</textarea></div><div class="fl"><label>First Month Proration ($) <span style="font-weight:400;color:var(--txt3);font-size:11px">— leave blank if starting on the 1st</span></label><input id="f-proration" type="number" value="'+(m.proration||'')+'" placeholder="e.g. 387"></div>'
+  document.getElementById('form-body').innerHTML='<div class="fg"><div class="fl full"><label>Member Name *</label><input id="f-name" value="'+(m.name||'')+'" placeholder="Company or individual name"></div>'+statusButtons(m.status||'Active',true)+'<div class="fl"><label>Start Date</label><input id="f-start" type="date" value="'+(m.start||'')+'"></div><div class="fl"><label>Deposit Held ($)</label><input id="f-deposit" type="number" value="'+(m.deposit||'')+'"></div><div class="fl"><label>Billing Email</label><input id="f-email" type="email" value="'+(m.email||'')+'"></div><div class="fl"><label>Phone</label><input id="f-phone" value="'+(m.phone||'')+'"></div><div class="fl"><label>Mailbox <span style="font-weight:400;color:var(--txt3);font-size:11px">— used in agreement mailing address</span></label><input id="f-mailbox" value="'+(m.mailbox||'')+'" placeholder="e.g. 41"></div><div class="fl full"><label>Notes</label><textarea id="f-notes">'+(m.notes||'')+'</textarea></div><div class="fl"><label>First Month Proration ($) <span style="font-weight:400;color:var(--txt3);font-size:11px">— leave blank if starting on the 1st</span></label><input id="f-proration" type="number" value="'+(m.proration||'')+'" placeholder="e.g. 387"></div>'
     +'<div class="fl"><label>How Did They Find Us?</label><select id="f-leadsource">'+lsOpts+'</select></div>'
     +'<div class="sect-title">Agreements / Documents</div><div class="fl full"><div class="file-drop" id="member-drop-zone"><input type="file" multiple accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" id="member-file-input"><div class="file-drop-txt">&#128206; Drop files or <span>click to browse</span><br><small>PDF, Word, or images &mdash; max 10MB each</small></div></div><div class="pending-files" id="pending-agreements"></div>'+((m.attachments||[]).length?'<div style="margin-top:7px;font-size:11px;color:var(--txt3)">Stored: '+(m.attachments||[]).map(a=>'<span style="color:var(--acc)">'+a.name+'</span>').join(', ')+'</div>':'')+'</div></div>';
   const mdz=document.getElementById('member-drop-zone');
@@ -4245,7 +4295,7 @@ async function submitForm(){
   } else if(formType==='member'){
     const name=document.getElementById('f-name').value.trim();if(!name){alert('Member name required.');return;}
     const existing=formId?getMemberById(formId):{attachments:[],agreementSent:'',agreementSigned:''};
-    const obj={id:formId||uid(),name,status:document.getElementById('f-status').value,deposit:Number(document.getElementById('f-deposit').value)||0,proration:Number(document.getElementById('f-proration')?.value)||0,start:document.getElementById('f-start').value,end:document.getElementById('f-end')?.value||existing.end||'',email:document.getElementById('f-email').value.trim(),phone:document.getElementById('f-phone').value.trim(),notes:document.getElementById('f-notes').value.trim(),leadSource:document.getElementById('f-leadsource')?.value||'',attachments:[...(existing.attachments||[]),...pendingFiles],agreementSent:existing.agreementSent||'',agreementSigned:existing.agreementSigned||''};
+    const obj={id:formId||uid(),name,status:document.getElementById('f-status').value,deposit:Number(document.getElementById('f-deposit').value)||0,proration:Number(document.getElementById('f-proration')?.value)||0,start:document.getElementById('f-start').value,end:document.getElementById('f-end')?.value||existing.end||'',email:document.getElementById('f-email').value.trim(),phone:document.getElementById('f-phone').value.trim(),mailbox:(document.getElementById('f-mailbox')?.value||'').trim(),notes:document.getElementById('f-notes').value.trim(),leadSource:document.getElementById('f-leadsource')?.value||'',attachments:[...(existing.attachments||[]),...pendingFiles],agreementSent:existing.agreementSent||'',agreementSigned:existing.agreementSigned||''};
     if(formId){const i=DB.members.findIndex(x=>x.id===formId);DB.members[i]=obj;}else DB.members.push(obj);
   } else if(formType==='occupant'){
     const name=document.getElementById('f-name').value.trim();const company=document.getElementById('f-company').value;if(!name||!company){alert('Name and company required.');return;}
@@ -5115,6 +5165,118 @@ function initQuill(){
   nlQuill.on('text-change', () => {
     document.getElementById('nl-body').value = nlQuill.root.innerHTML;
   });
+}
+
+// ── Members → Documents panel (House Rules + Agreement Body) ─────────────────
+let _hrQuill = null;
+let _agQuill = null;
+const _docsToolbar = [
+  ['bold','italic','underline'],
+  [{'color':[]},{'background':[]}],
+  [{'list':'ordered'},{'list':'bullet'}],
+  [{'header':[1,2,3,false]}],
+  ['link'],
+  ['clean']
+];
+
+function toggleDocsPanel(){
+  const panel = document.getElementById('docs-panel');
+  const btn   = document.getElementById('docs-toggle-btn');
+  if(!panel) return;
+  const opening = panel.style.display === 'none';
+  panel.style.display = opening ? 'block' : 'none';
+  if(btn) btn.textContent = opening ? 'Close ▴' : 'Edit ▾';
+  if(opening) initDocsEditors();
+}
+
+// Lazy-init both Quill editors the first time the panel opens, populating
+// from DB.houseRulesHtml and DB.agreementBodyHtml. After that, each edit
+// stays in the editor until saved.
+function initDocsEditors(){
+  if(!_hrQuill){
+    _hrQuill = new Quill('#hr-editor', {
+      theme: 'snow',
+      modules: { toolbar: _docsToolbar },
+      placeholder: 'Edit the public-facing House Rules…'
+    });
+    _hrQuill.root.innerHTML = (DB && DB.houseRulesHtml) || '';
+    _hrQuill.root.style.minHeight = '320px';
+  }
+  if(!_agQuill){
+    _agQuill = new Quill('#ag-editor', {
+      theme: 'snow',
+      modules: { toolbar: _docsToolbar },
+      placeholder: 'Edit the agreement clauses (sections 1–8)…'
+    });
+    _agQuill.root.innerHTML = (DB && DB.agreementBodyHtml) || '';
+    _agQuill.root.style.minHeight = '420px';
+  }
+}
+
+async function saveHouseRules(){
+  if(!_hrQuill) return;
+  const html = _hrQuill.root.innerHTML;
+  const btn  = document.getElementById('hr-save-btn');
+  const orig = btn ? btn.innerHTML : '';
+  if(btn){ btn.disabled = true; btn.innerHTML = 'Saving…'; }
+  try{
+    const r = await fetch('/admin/api/save-house-rules', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({html})
+    });
+    const d = await r.json();
+    if(d.ok){
+      DB.houseRulesHtml = html;
+      toast('House Rules saved ✓');
+    } else {
+      toast('Save failed: '+(d.error||'unknown'),'var(--red)');
+    }
+  } catch(e){ toast('Save failed','var(--red)'); }
+  if(btn){ btn.disabled = false; btn.innerHTML = orig; }
+}
+
+async function saveAgreementBody(){
+  if(!_agQuill) return;
+  const html = _agQuill.root.innerHTML;
+  const btn  = document.getElementById('ag-save-btn');
+  const orig = btn ? btn.innerHTML : '';
+  if(btn){ btn.disabled = true; btn.innerHTML = 'Saving…'; }
+  try{
+    const r = await fetch('/admin/api/save-agreement-body', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({html})
+    });
+    const d = await r.json();
+    if(d.ok){
+      DB.agreementBodyHtml = html;
+      toast('Agreement body saved ✓');
+    } else {
+      toast('Save failed: '+(d.error||'unknown'),'var(--red)');
+    }
+  } catch(e){ toast('Save failed','var(--red)'); }
+  if(btn){ btn.disabled = false; btn.innerHTML = orig; }
+}
+
+async function resetDoc(which){
+  const label = which === 'house-rules' ? 'House Rules' : 'Agreement body';
+  if(!confirm('Reset '+label+' to the original built-in version? Your edits will be lost.')) return;
+  const url = which === 'house-rules' ? '/admin/api/reset-house-rules' : '/admin/api/reset-agreement-body';
+  try{
+    const r = await fetch(url, {method:'POST'});
+    const d = await r.json();
+    if(d.ok && d.html){
+      if(which === 'house-rules'){
+        DB.houseRulesHtml = d.html;
+        if(_hrQuill) _hrQuill.root.innerHTML = d.html;
+      } else {
+        DB.agreementBodyHtml = d.html;
+        if(_agQuill) _agQuill.root.innerHTML = d.html;
+      }
+      toast(label+' reset to default ✓');
+    } else {
+      toast('Reset failed','var(--red)');
+    }
+  } catch(e){ toast('Reset failed','var(--red)'); }
 }
 
 // Override editNewsletterPost to set Quill content and photos

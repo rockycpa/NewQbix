@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}House Rules | Qbix Centre Macon GA{% endblock %}
+{% block description %}Qbix Centre coworking space house rules — covering office use, conference room, kitchenette, noise, internet, printing, and member conduct.{% endblock %}
+
+{% block extra_css %}
+<style>
+.rules-wrap{max-width:780px;margin:0 auto;padding:48px 5% 64px}
+.rules-wrap h2{font-family:'Playfair Display',serif;color:var(--navy);font-size:clamp(20px,2.6vw,26px);margin:32px 0 12px;padding-bottom:6px;border-bottom:2px solid var(--gold)}
+.rules-wrap h2:first-of-type{margin-top:8px}
+.rules-wrap h3{font-family:'Playfair Display',serif;color:var(--navy);font-size:18px;margin:20px 0 8px}
+.rules-wrap p{font-size:15px;line-height:1.7;color:var(--txt);margin-bottom:14px}
+.rules-wrap ul{padding-left:22px;margin-bottom:14px}
+.rules-wrap li{font-size:15px;line-height:1.7;color:var(--txt);margin-bottom:6px}
+.rules-wrap em{color:var(--txt2)}
+.rules-wrap strong{color:var(--navy)}
+.print-btn{background:var(--navy);color:#fff;border:none;border-radius:7px;padding:9px 20px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
+.print-btn:hover{background:#253660}
+@media print{
+  nav.site-nav,.sticky-cta,footer,.no-print{display:none!important}
+  .hero{padding:0!important;background:#fff!important;color:var(--navy)!important;text-align:left!important}
+  .hero h1{color:var(--navy)!important;font-size:24pt!important}
+  .hero p{display:none}
+  .rules-wrap{padding:0;max-width:100%}
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="hero" style="padding:48px 5%">
+  <h1>House <span>Rules</span></h1>
+  <p>The day-to-day expectations for life at Qbix Centre.</p>
+</div>
+
+<div class="rules-wrap">
+  <div class="no-print" style="text-align:right;margin-bottom:18px">
+    <button class="print-btn" onclick="window.print()">&#128438;&nbsp; Print / Save as PDF</button>
+  </div>
+
+  {{ rules_html | safe }}
+
+  <div class="no-print" style="margin-top:48px;padding-top:24px;border-top:1px solid var(--border);text-align:center;font-size:13px;color:var(--txt2)">
+    Questions? Contact us at <a href="mailto:qbixcentre@outlook.com" style="color:var(--gold);font-weight:600">qbixcentre@outlook.com</a> or
+    <a href="tel:4782162876" style="color:var(--gold);font-weight:600">(478) 216-2876</a>.
+  </div>
+</div>
+{% endblock %}
