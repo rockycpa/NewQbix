@@ -87,7 +87,15 @@ const quill = new Quill('#editor', {
   ]},
   placeholder: 'Edit the document…'
 });
-quill.root.innerHTML = INITIAL || '';
+// Load initial HTML through Quill's clipboard parser. Setting root.innerHTML
+// directly bypasses Quill's parser, so its internal Delta model stays empty
+// and the editor visibly drops list items, links, etc. — even though the
+// HTML is sitting in the DOM. dangerouslyPasteHTML routes the markup through
+// Quill's HTML→Delta converter so everything (lists, headings, bold, links)
+// renders properly and round-trips on save.
+if(INITIAL){
+  quill.clipboard.dangerouslyPasteHTML(0, INITIAL, 'silent');
+}
 
 function toast(msg, color){
   const t = document.getElementById('toast');
@@ -119,7 +127,10 @@ async function resetDoc(){
     const r = await fetch(RESET_URL, {method:'POST'});
     const d = await r.json();
     if(d.ok && d.html){
-      quill.root.innerHTML = d.html;
+      // Same as initial load — go through Quill's parser so lists and other
+      // structures actually render in the editor.
+      quill.setText('');
+      quill.clipboard.dangerouslyPasteHTML(0, d.html, 'silent');
       toast('Reset to default — click Save to keep this version');
     } else {
       toast('Reset failed', '#dc2626');
