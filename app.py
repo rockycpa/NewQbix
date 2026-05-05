@@ -2366,6 +2366,7 @@ def guidelines():
 def generate_agreement(member_id):
     """Render membership agreement as styled HTML in a new browser tab."""
     waive_setup_fee = request.args.get('waive_setup_fee', 'false').lower() == 'true'
+    waive_bg        = request.args.get('waive_bg',        'false').lower() == 'true'
     data   = get_db()
     member = next((m for m in data['members'] if m['id'] == member_id), None)
     if not member:
@@ -2428,6 +2429,10 @@ def generate_agreement(member_id):
     pro_field  = fld(f'Prorated First Payment ({pro_str})' if pro_str else 'Prorated First Payment', f'${proration_amt:,.0f}') if proration_amt > 0 else ''
     pro_bullet = blt(f'Prorated first payment ({pro_str}): <strong>${proration_amt:,.0f}</strong>, due at signing.') if proration_amt > 0 else ''
     setup_blt  = '' if waive_setup_fee else blt('A one-time setup fee of <strong>$100</strong> is due at signing.')
+    # Diagonal "WAIVED" watermark stamped across the background check page
+    # when the admin checks the box during agreement review. Empty string
+    # otherwise so the f-string interpolation is safe.
+    waived_stamp = '<div class="waived-stamp">WAIVED</div>' if waive_bg else ''
     pro_sig    = fld('Prorated First Payment', f'${proration_amt:,.0f}') if proration_amt > 0 else ''
     pro_ach    = fld('Prorated First Draft', f'<strong>${proration_amt:,.0f}</strong>') if proration_amt > 0 else ''
     mname      = member.get('name', '')
@@ -2500,10 +2505,19 @@ ul.clauses li{{margin-bottom:7px;line-height:1.55;font-size:9.5pt}}
 .sig-field{{flex:1;border-bottom:1px solid #aaa;min-height:26px;padding-bottom:2px}}
 .sig-label{{font-size:8pt;color:#888;margin-top:4px}}
 .prefilled{{color:#333;font-size:10pt}}
+/* Diagonal "WAIVED" watermark stamped across the Background Check page when
+   the admin waives the background check during agreement review. The
+   parent container needs position:relative so the absolute-positioned mark
+   centers within the page-break section. */
+.waived-stamp{{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-22deg);font-family:'Inter',Arial,sans-serif;font-size:96pt;font-weight:900;color:rgba(217,38,38,0.18);letter-spacing:.05em;pointer-events:none;user-select:none;white-space:nowrap;z-index:5}}
+.bg-check-page{{position:relative}}
 @media print{{
   body{{background:#fff;padding:0}}
   .page{{box-shadow:none;padding:40px 50px;max-width:100%}}
   .no-print{{display:none}}
+  /* Force browsers to print the watermark color even when "background
+     graphics" is off — most still respect this on transparent text. */
+  .waived-stamp{{-webkit-print-color-adjust:exact;print-color-adjust:exact;color:rgba(217,38,38,0.20)}}
 }}
 </style>
 </head>
@@ -2558,7 +2572,8 @@ ul.clauses li{{margin-bottom:7px;line-height:1.55;font-size:9.5pt}}
   </div>
 
   <!-- Background Check -->
-  <div class="page-break">
+  <div class="page-break bg-check-page">
+    {waived_stamp}
     <div class="sec-title">CONFIDENTIAL BACKGROUND CHECK AUTHORIZATION</div>
     <div class="sec-sub">Non-refundable fee: $35 per cardholder &bull; Required prior to access</div>
     <h2 class="sec-head">Applicant Information</h2>

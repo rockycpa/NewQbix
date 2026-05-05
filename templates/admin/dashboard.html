@@ -1072,7 +1072,12 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
           </div>
           <div style="background:rgba(201,168,76,.08);border:1px solid rgba(201,168,76,.3);border-radius:7px;padding:10px 12px;margin-bottom:10px;font-size:12px;color:var(--txt2);line-height:1.6">
             These are the numbered clauses (1&ndash;8) that appear between the Member Summary table and the Signature Page in the generated agreement. Member-specific values are filled in automatically from these markers &mdash; <strong>leave them in place</strong>:
+            {# {% raw %} so Jinja doesn't try to evaluate the {{...}} tokens
+               below as template variables — we want them shown literally as
+               documentation. #}
+            {% raw %}
             <code style="display:block;margin-top:6px;padding:6px 8px;background:#fff;border:1px solid var(--bdr);border-radius:4px;font-size:11px;color:var(--txt);white-space:normal">{{member_name}} {{office_str}} {{dues_str}} {{deposit_str}} {{term_start_str}} {{term_end_str}} {{conf_hours}} {{member_email}} {{member_phone}} {{today_str}} {{proration_clause}} {{setup_fee_clause}}</code>
+            {% endraw %}
           </div>
           <div id="ag-editor" style="background:#fff"></div>
           <div style="margin-top:10px;display:flex;justify-content:flex-end">
@@ -3813,9 +3818,11 @@ function openAgreementReview(id) {
 
 function commitAgreement(id) {
   const waiveFee = document.getElementById('rv-waive-setup')?.checked;
+  const waiveBg  = document.getElementById('rv-waive-bg')?.checked;
   const m        = getMemberById(id);
   const params   = new URLSearchParams();
   if (waiveFee) params.set('waive_setup_fee','true');
+  if (waiveBg)  params.set('waive_bg','true');
 
   // Opens as styled HTML page in new tab — use Print → Save as PDF to save
   const url = '/admin/api/generate-agreement/'+id+(params.toString()? '?'+params.toString() : '');
