@@ -7,10 +7,15 @@
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link href="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.snow.min.css" rel="stylesheet">
 <style>
+/* Quill rich-text editor — light theme. Toolbar is the inset cream surface
+   so it differentiates from the white editor area below. The editor itself
+   is pure white so text contrast is unambiguous (a previous dark-mode bug
+   could make pasted dark text read as invisible on the dark editor bg). */
 .ql-toolbar{background:var(--sur2);border:1px solid var(--bdr)!important;border-bottom:none!important;border-radius:7px 7px 0 0}
-.ql-container{background:var(--sur2);border:1px solid var(--bdr)!important;border-radius:0 0 7px 7px;font-family:'IBM Plex Sans',sans-serif;font-size:14px;color:var(--txt);min-height:220px}
-.ql-editor{min-height:220px;line-height:1.7;color:var(--txt)}
+.ql-container{background:#ffffff;border:1px solid var(--bdr)!important;border-radius:0 0 7px 7px;font-family:'IBM Plex Sans',sans-serif;font-size:14px;color:var(--txt);min-height:220px}
+.ql-editor{min-height:220px;line-height:1.7;color:var(--txt);background:#ffffff}
 .ql-editor p{margin-bottom:8px}
+.ql-editor.ql-blank::before{color:#888;font-style:italic}
 .ql-toolbar .ql-stroke{stroke:var(--txt2)}
 .ql-toolbar .ql-fill{fill:var(--txt2)}
 .ql-toolbar .ql-picker{color:var(--txt2)}
@@ -19,7 +24,13 @@
 .ql-toolbar .ql-picker-label:hover,.ql-toolbar .ql-active{color:var(--acc)!important}
 </style>
 <style>
-:root{--bg:#0b0d11;--sur:#13161e;--sur2:#1b1f2b;--bdr:#2e3448;--acc:#d4a843;--blue:#5b9bd5;--grn:#4db887;--red:#d96060;--purple:#9b7ed4;--txt:#edf1fb;--txt2:#a8b4cc;--txt3:#6b7a96;--r:10px}
+/* Light admin theme — matches the public site palette (navy + gold + cream).
+   --bg is the page background (cream), --sur is panels (white), --sur2 is
+   inset surfaces (slightly darker cream so inputs/sub-panels read against
+   panels). --txt is dark navy for body text; --acc stays gold but slightly
+   richer for white-bg contrast; --blue/--grn/--red are deeper than the dark
+   theme so colored text/icons stay readable on a light backdrop. */
+:root{--bg:#f8f6f1;--sur:#ffffff;--sur2:#f3efe7;--bdr:#e2ddd5;--acc:#c9a84c;--blue:#2563eb;--grn:#15803d;--red:#dc2626;--purple:#7c3aed;--txt:#1a2744;--txt2:#555555;--txt3:#888888;--r:10px}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;font-size:15px}
 header{background:var(--sur);border-bottom:1px solid var(--bdr);display:flex;align-items:center;gap:18px;padding:0 22px;height:54px;position:sticky;top:0;z-index:100}
@@ -32,13 +43,13 @@ nav{display:flex;gap:2px}
 .nb.notify-btn.on{background:var(--blue);color:#fff;border-color:var(--blue)}
 .hstats{margin-left:auto;display:flex;gap:16px;align-items:center}
 .hs{text-align:right}.hs-v{font-family:'IBM Plex Mono',monospace;font-size:16px;color:var(--acc)}.hs-l{font-size:11px;color:var(--txt2);text-transform:uppercase;letter-spacing:.08em}
-.savebar{background:#0d1a0f;border-bottom:1px solid #1a3a1f;padding:6px 22px;display:flex;align-items:center;gap:10px;font-size:12px}
-.save-indicator{display:flex;align-items:center;gap:6px;font-size:12px;color:#4db887}
+.savebar{background:#f0fdf4;border-bottom:1px solid #bbf7d0;padding:6px 22px;display:flex;align-items:center;gap:10px;font-size:12px}
+.save-indicator{display:flex;align-items:center;gap:6px;font-size:12px;color:#15803d}
 .save-dot{width:8px;height:8px;border-radius:50%;background:var(--grn);flex-shrink:0}
 .save-dot.saving{background:var(--acc);animation:pulse 1s infinite}
 .save-dot.error{background:var(--red)}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
-.bk-btn{background:transparent;border:1px solid #1a3a1f;border-radius:6px;color:#4db887;font-family:'IBM Plex Sans',sans-serif;font-size:11px;padding:4px 11px;cursor:pointer;margin-left:auto}
+.bk-btn{background:transparent;border:1px solid #bbf7d0;border-radius:6px;color:#15803d;font-family:'IBM Plex Sans',sans-serif;font-size:11px;padding:4px 11px;cursor:pointer;margin-left:auto}
 .bk-btn:hover{border-color:var(--grn)}
 main{padding:20px 22px;max-width:1440px;margin:0 auto}
 .page{display:none}.page.on{display:block}
@@ -55,9 +66,9 @@ main{padding:20px 22px;max-width:1440px;margin:0 auto}
 .tw{overflow-x:auto}
 table{width:100%;border-collapse:collapse}
 th{text-align:left;font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--txt2);padding:8px 10px;border-bottom:1px solid var(--bdr);font-weight:600;white-space:nowrap}
-td{padding:9px 10px;border-bottom:1px solid rgba(46,52,72,.6);font-size:14px;vertical-align:middle}
+td{padding:9px 10px;border-bottom:1px solid rgba(226,221,213,.6);font-size:14px;vertical-align:middle}
 tr:last-child td{border-bottom:none}
-tr.rclick:hover td{background:rgba(255,255,255,.02);cursor:pointer}
+tr.rclick:hover td{background:rgba(0,0,0,.02);cursor:pointer}
 .mono{font-family:'IBM Plex Mono',monospace;font-size:12px}
 .badge{display:inline-block;padding:2px 7px;border-radius:20px;font-size:11px;font-weight:500}
 .bg{background:rgba(77,184,135,.12);color:var(--grn);border:1px solid rgba(77,184,135,.25)}
@@ -282,7 +293,7 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
 <div class="savebar">
   <div class="save-indicator"><div class="save-dot" id="save-dot"></div><span id="save-status">All changes saved</span></div>
   <button class="bk-btn" onclick="doBackup()">&#128230; Backup Now</button>
-  <button class="bk-btn" onclick="doRestore()" style="border-color:#3a1a1a;color:var(--red);margin-left:6px">&#128257; Restore from Backup</button>
+  <button class="bk-btn" onclick="doRestore()" style="border-color:#fee2e2;color:var(--red);margin-left:6px">&#128257; Restore from Backup</button>
   <input type="file" id="restore-file-input" accept=".json" style="display:none" onchange="confirmRestore(this)">
 </div>
 <main>
@@ -374,10 +385,10 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
   <!-- HERO -->
   <div class="card" style="margin-bottom:16px;background:linear-gradient(135deg,#1a2744 0%,#2d4a7a 100%);border-color:#2d4a7a">
     <div style="font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:#c9a84c;font-weight:700;margin-bottom:14px">Hero Section</div>
-    <label style="font-size:12px;color:#a0b0cc;display:block;margin-bottom:6px">Main Headline</label>
+    <label style="font-size:12px;color:#888888;display:block;margin-bottom:6px">Main Headline</label>
     <input id="hp-hero-h1" type="text" style="width:100%;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:8px;color:#fff;font-size:22px;font-weight:700;padding:12px 14px;font-family:'Playfair Display',serif;box-sizing:border-box" placeholder="Your Professional Home in North Macon, Georgia">
-    <label style="font-size:12px;color:#a0b0cc;display:block;margin:12px 0 6px">Subtext</label>
-    <textarea id="hp-hero-sub" rows="2" style="width:100%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:8px;color:rgba(255,255,255,.85);font-size:15px;padding:10px 14px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box;resize:vertical" placeholder="Private offices and coworking space at Northside Crossing..."></textarea>
+    <label style="font-size:12px;color:#888888;display:block;margin:12px 0 6px">Subtext</label>
+    <textarea id="hp-hero-sub" rows="2" style="width:100%;background:rgba(0,0,0,.04);border:1px solid rgba(0,0,0,.06);border-radius:8px;color:rgba(255,255,255,.85);font-size:15px;padding:10px 14px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box;resize:vertical" placeholder="Private offices and coworking space at Northside Crossing..."></textarea>
   </div>
 
   <!-- AVAILABLE OFFICES -->
@@ -460,16 +471,16 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
     <div style="font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--red);font-weight:700;margin-bottom:14px">Contact CTA Section</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
       <div>
-        <label style="font-size:12px;color:#a0b0cc;display:block;margin-bottom:4px">Section Label</label>
-        <input id="hp-contact-label" type="text" style="width:100%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:6px;color:#c9a84c;font-size:13px;padding:8px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box" placeholder="Ready to Get Started?">
+        <label style="font-size:12px;color:#888888;display:block;margin-bottom:4px">Section Label</label>
+        <input id="hp-contact-label" type="text" style="width:100%;background:rgba(0,0,0,.04);border:1px solid rgba(0,0,0,.06);border-radius:6px;color:#c9a84c;font-size:13px;padding:8px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box" placeholder="Ready to Get Started?">
       </div>
       <div>
-        <label style="font-size:12px;color:#a0b0cc;display:block;margin-bottom:4px">Heading</label>
-        <input id="hp-contact-heading" type="text" style="width:100%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:6px;color:#fff;font-size:16px;font-weight:700;padding:8px 10px;font-family:'Playfair Display',serif;box-sizing:border-box" placeholder="Come See Qbix Centre">
+        <label style="font-size:12px;color:#888888;display:block;margin-bottom:4px">Heading</label>
+        <input id="hp-contact-heading" type="text" style="width:100%;background:rgba(0,0,0,.04);border:1px solid rgba(0,0,0,.06);border-radius:6px;color:#fff;font-size:16px;font-weight:700;padding:8px 10px;font-family:'Playfair Display',serif;box-sizing:border-box" placeholder="Come See Qbix Centre">
       </div>
     </div>
-    <label style="font-size:12px;color:#a0b0cc;display:block;margin:10px 0 4px">Subtext</label>
-    <textarea id="hp-contact-sub" rows="2" style="width:100%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:6px;color:rgba(255,255,255,.8);font-size:13px;padding:8px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box;resize:vertical"></textarea>
+    <label style="font-size:12px;color:#888888;display:block;margin:10px 0 4px">Subtext</label>
+    <textarea id="hp-contact-sub" rows="2" style="width:100%;background:rgba(0,0,0,.04);border:1px solid rgba(0,0,0,.06);border-radius:6px;color:rgba(255,255,255,.8);font-size:13px;padding:8px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box;resize:vertical"></textarea>
   </div>
 
   <div style="display:flex;justify-content:flex-end;padding-bottom:24px">
@@ -1797,7 +1808,7 @@ function renderAttrPhotoEditor(){
   if(!el) return;
   el.innerHTML = _attrPhotos.map((p,i) => `
     <div style="background:var(--sur2);border:1px solid var(--bdr);border-radius:10px;overflow:hidden">
-      <div style="height:110px;position:relative;background:#1b1f2b;display:flex;align-items:center;justify-content:center">
+      <div style="height:110px;position:relative;background:#f3efe7;display:flex;align-items:center;justify-content:center">
         ${p.url
           ? `<img src="${p.url.replace('/upload/','/upload/ar_3:2,c_fill,w_400/')}" style="width:100%;height:110px;object-fit:cover;display:block">`
           : `<div style="color:var(--txt3);font-size:12px;text-align:center;padding:8px">No photo yet</div>`
@@ -2063,7 +2074,7 @@ async function submitAdminBooking(url, payload){
 function showAdminOverage(info){
   const box = document.getElementById('book-modal-overage');
   box.innerHTML = `
-    <div style="background:#3a1f1f;border:1px solid var(--red);border-radius:8px;padding:12px;margin-top:12px;font-size:13px">
+    <div style="background:#fee2e2;border:1px solid var(--red);border-radius:8px;padding:12px;margin-top:12px;font-size:13px">
       <div style="color:var(--red);font-weight:600;margin-bottom:6px">⚠️ Additional Charges</div>
       <div style="color:var(--txt2);margin-bottom:8px">${info.overageWarningMessage || 'This booking exceeds the included monthly hours.'}</div>
       <div>This booking: <strong>${info.hoursThisBooking} hrs</strong></div>
@@ -3278,7 +3289,7 @@ async function publishNewsletter(send){
 }
 
 // === ANALYTICS ===
-const AN_COLORS = ['#d4a843','#5b9bd5','#4db887','#9b7ed4','#d96060','#e8994a','#4dc8c8','#c45bb8'];
+const AN_COLORS = ['#c9a84c','#2563eb','#15803d','#7c3aed','#dc2626','#e8994a','#4dc8c8','#c45bb8'];
 let anDays = 30;
 let anChannel = '';  // '' = top level, 'Referral' etc = drilled in
 
@@ -3375,7 +3386,7 @@ async function loadAnalytics(force){
       ctx.closePath();
       ctx.fillStyle = AN_COLORS[i % AN_COLORS.length];
       ctx.fill();
-      ctx.strokeStyle='#0b0d11'; ctx.lineWidth=2; ctx.stroke();
+      ctx.strokeStyle='#f8f6f1'; ctx.lineWidth=2; ctx.stroke();
       angle += sweep;
     });
 
@@ -3561,7 +3572,7 @@ function renderMembers(){
     totGross+=gross; totDisc+=disc; totNet+=netDues; totDep+=dep; totHrs+=hrs;
     const atts=m.attachments||[];
     const agStatus=m.agreementStatus||(m.agreementSigned?'Received':m.agreementSent?'Sent':'Pending');
-    const agColors={'Received':'background:#14532d;color:#86efac','Sent':'background:#1e3a5f;color:#93c5fd','Pending':'background:#4a1515;color:#fca5a5','N/A':'background:#1f2535;color:#94a3b8'};
+    const agColors={'Received':'background:#15803d;color:#15803d','Sent':'background:#dbeafe;color:#2563eb','Pending':'background:#fee2e2;color:#dc2626','N/A':'background:#f1f5f9;color:#888888'};
     const agStyle=agColors[agStatus]||agColors['Pending'];
     const agCell=`<td onclick="event.stopPropagation()"><select onchange="updateAgreementStatus('${m.id}',this.value,this)" style="border:none;border-radius:6px;padding:5px 9px;font-size:13px;font-weight:600;cursor:pointer;outline:none;${agStyle}">`+
       ['Pending','Sent','Received','N/A'].map(s=>`<option value="${s}"${s===agStatus?' selected':''}>${s}</option>`).join('')+
@@ -3629,7 +3640,7 @@ function openMemberMo(id){
 }
 
 async function updateAgreementStatus(memberId, status, selectEl){
-  const agColors={'Received':'background:#14532d;color:#86efac','Sent':'background:#1e3a5f;color:#93c5fd','Pending':'background:#4a1515;color:#fca5a5','N/A':'background:#1f2535;color:#94a3b8'};
+  const agColors={'Received':'background:#15803d;color:#15803d','Sent':'background:#dbeafe;color:#2563eb','Pending':'background:#fee2e2;color:#dc2626','N/A':'background:#f1f5f9;color:#888888'};
   const agStyle=agColors[status]||agColors['Pending'];
   if(selectEl){ selectEl.style.cssText='border:none;border-radius:6px;padding:5px 9px;font-size:13px;font-weight:600;cursor:pointer;outline:none;'+agStyle; }
   const m=getMemberById(memberId);
@@ -3987,12 +3998,12 @@ function handleDrop(e,ctx){e.preventDefault();e.currentTarget.classList.remove('
 
 function setStatus(val){
   document.getElementById('f-status').value=val;
-  const styles={Active:{border:'var(--grn)',bg:'rgba(77,184,135,.15)',color:'var(--grn)'},Archive:{border:'var(--txt3)',bg:'rgba(64,72,96,.4)',color:'var(--txt2)'},Pending:{border:'var(--acc)',bg:'rgba(212,168,67,.12)',color:'var(--acc)'}};
+  const styles={Active:{border:'var(--grn)',bg:'rgba(77,184,135,.15)',color:'var(--grn)'},Archive:{border:'var(--txt3)',bg:'rgba(226,221,213,.5)',color:'var(--txt2)'},Pending:{border:'var(--acc)',bg:'rgba(212,168,67,.12)',color:'var(--acc)'}};
   ['Active','Archive','Pending'].forEach(s=>{const btn=document.getElementById('st-'+s.toLowerCase());if(!btn)return;const on=s===val;const st=styles[s];btn.style.borderColor=on?st.border:'var(--bdr)';btn.style.background=on?st.bg:'var(--sur)';btn.style.color=on?st.color:'var(--txt3)';});
 }
 
 function statusButtons(cur,includesPending){
-  const btn=(val,icon,label)=>{const styles={Active:{b:'var(--grn)',bg:'rgba(77,184,135,.15)',c:'var(--grn)'},Archive:{b:'var(--txt3)',bg:'rgba(64,72,96,.4)',c:'var(--txt2)'},Pending:{b:'var(--acc)',bg:'rgba(212,168,67,.12)',c:'var(--acc)'}};const on=cur===val;const s=styles[val];return '<button type="button" id="st-'+val.toLowerCase()+'" onclick="setStatus(\''+val+'\')" style="flex:1;padding:9px;border-radius:7px;border:2px solid '+(on?s.b:'var(--bdr)')+';background:'+(on?s.bg:'var(--sur)')+';color:'+(on?s.c:'var(--txt3)')+';font-family:IBM Plex Sans,sans-serif;font-size:13px;font-weight:600;cursor:pointer">'+icon+' '+label+'</button>';};
+  const btn=(val,icon,label)=>{const styles={Active:{b:'var(--grn)',bg:'rgba(77,184,135,.15)',c:'var(--grn)'},Archive:{b:'var(--txt3)',bg:'rgba(226,221,213,.5)',c:'var(--txt2)'},Pending:{b:'var(--acc)',bg:'rgba(212,168,67,.12)',c:'var(--acc)'}};const on=cur===val;const s=styles[val];return '<button type="button" id="st-'+val.toLowerCase()+'" onclick="setStatus(\''+val+'\')" style="flex:1;padding:9px;border-radius:7px;border:2px solid '+(on?s.b:'var(--bdr)')+';background:'+(on?s.bg:'var(--sur)')+';color:'+(on?s.c:'var(--txt3)')+';font-family:IBM Plex Sans,sans-serif;font-size:13px;font-weight:600;cursor:pointer">'+icon+' '+label+'</button>';};
   return '<div class="fl full" style="background:var(--sur2);border:1px solid var(--bdr);border-radius:8px;padding:11px"><label style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--txt3);font-weight:600;display:block;margin-bottom:6px">Status</label><div style="display:flex;gap:8px">'+btn('Active','&#10003;','Active')+btn('Archive','&#128230;','Archive')+(includesPending?btn('Pending','&#9203;','Pending'):'')+
   '</div><input type="hidden" id="f-status" value="'+cur+'"></div>';
 }
@@ -4673,8 +4684,8 @@ function buildMarketing(){
     noData.style.display  = 'none';
 
     const COLORS = [
-      '#d4a843','#5b9bd5','#4db887','#9b7ed4','#d96060',
-      '#e8994a','#4dc8c8','#c45bb8','#8db85b','#7b8fb5'
+      '#c9a84c','#2563eb','#15803d','#7c3aed','#dc2626',
+      '#e8994a','#4dc8c8','#c45bb8','#8db85b','#888888'
     ];
     const canvas  = document.getElementById('mkt-pie');
     const ctx     = canvas.getContext('2d');
@@ -4699,7 +4710,7 @@ function buildMarketing(){
       ctx.closePath();
       ctx.fillStyle = sl.color;
       ctx.fill();
-      ctx.strokeStyle = '#0b0d11';
+      ctx.strokeStyle = '#f8f6f1';
       ctx.lineWidth = 2;
       ctx.stroke();
       angle += sweep;
@@ -4785,7 +4796,7 @@ function closeLsDrill(){
 //   ]
 // }
 
-const RV_COLORS = ['#d4a843','#5b9bd5','#4db887','#9b7ed4','#d96060','#e8994a','#4dc8c8'];
+const RV_COLORS = ['#c9a84c','#2563eb','#15803d','#7c3aed','#dc2626','#e8994a','#4dc8c8'];
 
 const DEFAULT_REVIEW_DATA = {
   lastUpdated: '',
@@ -4862,9 +4873,9 @@ function buildReviewChart(){
 
   // Grid lines
   const gridSteps = 4;
-  ctx.strokeStyle = 'rgba(46,52,72,0.8)';
+  ctx.strokeStyle = 'rgba(226,221,213,0.6)';
   ctx.lineWidth = 1;
-  ctx.fillStyle = '#6b7a96';
+  ctx.fillStyle = '#888888';
   ctx.font = '11px IBM Plex Mono, monospace';
   ctx.textAlign = 'right';
   for(let i = 0; i <= gridSteps; i++){
@@ -4881,7 +4892,7 @@ function buildReviewChart(){
     if(i % labelStep !== 0 && i !== allDates.length - 1) return;
     const x = PAD.left + (allDates.length === 1 ? cW/2 : (i / (allDates.length - 1)) * cW);
     const label = date.slice(5); // MM-DD
-    ctx.fillStyle = '#6b7a96';
+    ctx.fillStyle = '#888888';
     ctx.fillText(label, x, H - PAD.bottom + 16);
   });
 
@@ -4913,7 +4924,7 @@ function buildReviewChart(){
       ctx.arc(p.x, p.y, comp.isQbix ? 5 : 4, 0, Math.PI*2);
       ctx.fillStyle = color;
       ctx.fill();
-      ctx.strokeStyle = '#0b0d11';
+      ctx.strokeStyle = '#f8f6f1';
       ctx.lineWidth = 1.5;
       ctx.stroke();
       // Count label above dot
@@ -5080,8 +5091,18 @@ function initQuill(){
   nlQuill = new Quill('#nl-body-editor', {
     theme: 'snow',
     modules: {
+      // Toolbar groups (each inner array = one separated cluster):
+      //  · bold/italic/underline
+      //  · text color picker + highlight (background) picker
+      //  · ordered + bulleted lists
+      //  · heading dropdown (H1/H2/H3/Normal)
+      //  · link
+      //  · clean (remove formatting)
+      // Quill's built-in 'color' and 'background' modules render swatch
+      // dropdowns; passing [] uses Quill's default 35-color palette.
       toolbar: [
         ['bold','italic','underline'],
+        [{'color':[]},{'background':[]}],
         [{'list':'ordered'},{'list':'bullet'}],
         [{'header':[1,2,3,false]}],
         ['link'],
@@ -5406,7 +5427,7 @@ async function dismissAlert(id){
 }
 
 // ── FACEBOOK TRACKER ─────────────────────────────────────────────────────────
-const FB_COLOR = '#5b9bd5';
+const FB_COLOR = '#2563eb';
 
 function getFbData(){
   return (DB.marketingSettings || {}).facebookTracker || {history:[]};
@@ -5471,8 +5492,8 @@ function buildFbChart(){
 
   // Grid
   const steps=3;
-  ctx.strokeStyle='rgba(46,52,72,0.8)'; ctx.lineWidth=1;
-  ctx.fillStyle='#6b7a96'; ctx.font='10px IBM Plex Mono,monospace'; ctx.textAlign='right';
+  ctx.strokeStyle='rgba(226,221,213,0.6)'; ctx.lineWidth=1;
+  ctx.fillStyle='#888888'; ctx.font='10px IBM Plex Mono,monospace'; ctx.textAlign='right';
   for(let i=0;i<=steps;i++){
     const val=Math.round(minY+(maxY-minY)*(i/steps));
     const y=PAD.top+cH-(i/steps)*cH;
@@ -5481,7 +5502,7 @@ function buildFbChart(){
   }
 
   // X labels
-  ctx.textAlign='center'; ctx.fillStyle='#6b7a96';
+  ctx.textAlign='center'; ctx.fillStyle='#888888';
   const labelStep=Math.max(1,Math.ceil(hist.length/5));
   hist.forEach((h,i)=>{
     if(i%labelStep!==0 && i!==hist.length-1) return;
@@ -5502,14 +5523,14 @@ function buildFbChart(){
   pts.forEach(p=>{
     ctx.beginPath(); ctx.arc(p.x,p.y,4,0,Math.PI*2);
     ctx.fillStyle=FB_COLOR; ctx.fill();
-    ctx.strokeStyle='#0b0d11'; ctx.lineWidth=1.5; ctx.stroke();
+    ctx.strokeStyle='#f8f6f1'; ctx.lineWidth=1.5; ctx.stroke();
     ctx.fillStyle=FB_COLOR; ctx.font='bold 10px IBM Plex Mono,monospace'; ctx.textAlign='center';
     ctx.fillText(p.followers,p.x,p.y-9);
   });
 }
 
 // ── NEXTDOOR TRACKER ─────────────────────────────────────────────────────────
-const ND_COLOR = '#4db887';
+const ND_COLOR = '#15803d';
 
 function getNdData(){
   return (DB.marketingSettings || {}).nextdoorTracker || {history:[]};
@@ -5573,8 +5594,8 @@ function buildNdChart(){
   const minY=Math.max(0,Math.min(...vals)-5);
 
   const steps=3;
-  ctx.strokeStyle='rgba(46,52,72,0.8)'; ctx.lineWidth=1;
-  ctx.fillStyle='#6b7a96'; ctx.font='10px IBM Plex Mono,monospace'; ctx.textAlign='right';
+  ctx.strokeStyle='rgba(226,221,213,0.6)'; ctx.lineWidth=1;
+  ctx.fillStyle='#888888'; ctx.font='10px IBM Plex Mono,monospace'; ctx.textAlign='right';
   for(let i=0;i<=steps;i++){
     const val=Math.round(minY+(maxY-minY)*(i/steps));
     const y=PAD.top+cH-(i/steps)*cH;
@@ -5582,7 +5603,7 @@ function buildNdChart(){
     ctx.fillText(val,PAD.left-4,y+4);
   }
 
-  ctx.textAlign='center'; ctx.fillStyle='#6b7a96';
+  ctx.textAlign='center'; ctx.fillStyle='#888888';
   const labelStep=Math.max(1,Math.ceil(hist.length/5));
   hist.forEach((h,i)=>{
     if(i%labelStep!==0&&i!==hist.length-1) return;
@@ -5601,7 +5622,7 @@ function buildNdChart(){
   pts.forEach(p=>{
     ctx.beginPath(); ctx.arc(p.x,p.y,4,0,Math.PI*2);
     ctx.fillStyle=ND_COLOR; ctx.fill();
-    ctx.strokeStyle='#0b0d11'; ctx.lineWidth=1.5; ctx.stroke();
+    ctx.strokeStyle='#f8f6f1'; ctx.lineWidth=1.5; ctx.stroke();
     ctx.fillStyle=ND_COLOR; ctx.font='bold 10px IBM Plex Mono,monospace'; ctx.textAlign='center';
     ctx.fillText(p.reach,p.x,p.y-9);
   });

@@ -6,7 +6,8 @@
 <title>Qbix Centre &mdash; Management Portal</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#0b0d11;--sur:#13161e;--sur2:#1b1f2b;--bdr:#252a38;--acc:#d4a843;--blue:#5b9bd5;--grn:#4db887;--red:#d96060;--purple:#9b7ed4;--txt:#dde2ed;--txt2:#7d8aa0;--txt3:#404860;--r:10px}
+/* Light admin theme — see admin/dashboard.html for the master comment. */
+:root{--bg:#f8f6f1;--sur:#ffffff;--sur2:#f3efe7;--bdr:#e2ddd5;--acc:#c9a84c;--blue:#2563eb;--grn:#15803d;--red:#dc2626;--purple:#7c3aed;--txt:#1a2744;--txt2:#555555;--txt3:#888888;--r:10px}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;font-size:14px}
 header{background:var(--sur);border-bottom:1px solid var(--bdr);display:flex;align-items:center;gap:18px;padding:0 22px;height:54px;position:sticky;top:0;z-index:100}
@@ -19,13 +20,13 @@ nav{display:flex;gap:2px}
 .nb.notify-btn.on{background:var(--blue);color:#fff;border-color:var(--blue)}
 .hstats{margin-left:auto;display:flex;gap:16px;align-items:center}
 .hs{text-align:right}.hs-v{font-family:'IBM Plex Mono',monospace;font-size:15px;color:var(--acc)}.hs-l{font-size:10px;color:var(--txt3);text-transform:uppercase;letter-spacing:.08em}
-.savebar{background:#0d1a0f;border-bottom:1px solid #1a3a1f;padding:6px 22px;display:flex;align-items:center;gap:10px;font-size:12px}
-.save-indicator{display:flex;align-items:center;gap:6px;font-size:12px;color:#4db887}
+.savebar{background:#f0fdf4;border-bottom:1px solid #bbf7d0;padding:6px 22px;display:flex;align-items:center;gap:10px;font-size:12px}
+.save-indicator{display:flex;align-items:center;gap:6px;font-size:12px;color:#15803d}
 .save-dot{width:8px;height:8px;border-radius:50%;background:var(--grn);flex-shrink:0}
 .save-dot.saving{background:var(--acc);animation:pulse 1s infinite}
 .save-dot.error{background:var(--red)}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
-.bk-btn{background:transparent;border:1px solid #1a3a1f;border-radius:6px;color:#4db887;font-family:'IBM Plex Sans',sans-serif;font-size:11px;padding:4px 11px;cursor:pointer;margin-left:auto}
+.bk-btn{background:transparent;border:1px solid #bbf7d0;border-radius:6px;color:#15803d;font-family:'IBM Plex Sans',sans-serif;font-size:11px;padding:4px 11px;cursor:pointer;margin-left:auto}
 .bk-btn:hover{border-color:var(--grn)}
 main{padding:20px 22px;max-width:1440px;margin:0 auto}
 .page{display:none}.page.on{display:block}
