@@ -2573,10 +2573,15 @@ body{{font-family:'Inter',Arial,sans-serif;font-size:10.5pt;color:#222;backgroun
 table.fields{{width:100%;border-collapse:collapse}}
 .fl{{padding:5px 0;color:#555;font-size:9.5pt;width:55%}}
 .fv{{padding:5px 0;color:#222;font-size:9.5pt;text-align:right;font-weight:500}}
-.sec-head{{font-size:9pt;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#1a2744;border-bottom:1.5px solid #1a2744;padding-bottom:4px;margin:24px 0 10px}}
+/* Section heads & bullet lists — also target raw h2/ul inside the editable
+   agreement body so styling survives Quill's HTML normalization (Quill
+   strips the .sec-head and .clauses classes when the admin edits and
+   saves through the WYSIWYG, but it keeps the h2/ul/li tags themselves). */
+.sec-head, .agreement-body h2{{font-size:9pt;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#1a2744;border-bottom:1.5px solid #1a2744;padding-bottom:4px;margin:24px 0 10px}}
 .sec-num{{color:#d4a843}}
-ul.clauses{{padding-left:18px;margin:0}}
-ul.clauses li{{margin-bottom:7px;line-height:1.55;font-size:9.5pt}}
+ul.clauses, .agreement-body ul{{padding-left:18px;margin:0}}
+ul.clauses li, .agreement-body ul li{{margin-bottom:7px;line-height:1.55;font-size:9.5pt}}
+.agreement-body p{{font-size:9.5pt;line-height:1.55;margin:8px 0}}
 .page-break{{border-top:2px solid #1a2744;margin-top:48px;padding-top:32px}}
 .sec-title{{text-align:center;font-size:14pt;font-weight:700;color:#1a2744;margin-bottom:6px}}
 .sec-sub{{text-align:center;font-size:9pt;color:#888;margin-bottom:24px;font-style:italic}}
@@ -2639,7 +2644,9 @@ ul.clauses li{{margin-bottom:7px;line-height:1.55;font-size:9.5pt}}
       {mail_field}
     </table>
   </div>
+  <div class="agreement-body">
   {agreement_body_rendered}
+  </div>
 
   <!-- Signature section — flows after Section 8, no forced page break. -->
   <div class="page-break no-pb-print">
