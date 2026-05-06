@@ -2620,7 +2620,7 @@ ul.clauses li{{margin-bottom:7px;line-height:1.55;font-size:9.5pt}}
   <div class="hdr">
     <div class="hdr-title">QBIX CENTRE</div>
     <div class="hdr-sub">Membership Agreement</div>
-    <div class="hdr-addr">500A Northside Crossing, Macon, GA 31210 &bull; (478) 787-0532 &bull; qbixcentre.com</div>
+    <div class="hdr-addr">500A Northside Crossing, Macon, GA 31210 &bull; (478) 216-2876 &bull; qbixcentre.com</div>
     <div class="hdr-date">Agreement Date: {today_str}</div>
   </div>
   <div class="summary">
