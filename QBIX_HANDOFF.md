@@ -1,5 +1,5 @@
 # Qbix Centre — Project Handoff
-*Last updated: May 2, 2026*
+*Last updated: May 5, 2026*
 
 > **For the next Claude:** Read this top-to-bottom before starting work. The "Recent Decisions" and "Outstanding Issues" sections at the end are the most current.
 
@@ -88,20 +88,24 @@
 
 ```
 Documents/GitHub/NewQbix/
-├── app.py                          ← Main Flask app (~2000 lines)
+├── app.py                          ← Main Flask app (~2700 lines)
 ├── requirements.txt
 ├── .env.example
 ├── templates/
 │   ├── admin/
-│   │   └── dashboard.html          ← Main admin UI (~5000 lines, all-in-one)
+│   │   ├── dashboard.html          ← Main admin UI (~6700 lines, all-in-one)
+│   │   ├── edit_document.html      ← Standalone Quill editor for House Rules + Agreement
+│   │   ├── login.html, 2fa.html, setup.html
 │   ├── public/
 │   │   ├── home.html               ← One-page site
 │   │   ├── office_detail.html
 │   │   ├── news.html, news_post.html
 │   │   ├── contact.html, privacy.html
+│   │   ├── memberships.html        ← Public Memberships page (links to /guidelines)
+│   │   ├── guidelines.html         ← Public House Rules (renders DB.houseRulesHtml)
 │   │   ├── book_home.html, book_calendar.html
-│   ├── base.html                   ← Shared layout
-│   ├── login.html, setup.html
+│   ├── base.html                   ← Shared layout (overridable site_nav/site_cta/site_footer blocks)
+│   ├── login.html, setup.html, 2fa.html
 │   ├── onboard.html, onboard_home.html, onboard_expired.html
 │   └── ...
 ├── static/
@@ -161,6 +165,31 @@ Two send modes:
 
 **Newsletter typography on /news.** `templates/base.html` applies a global `*{margin:0;padding:0}` reset that flattens Quill HTML. `news_post.html` has a scoped `<style>` block defining `.nl-body p/h1-h4/ul/ol/li/strong/em/a/blockquote` rules to restore prose-style typography only inside the post body. **Don't try to fix this in base.html — the reset is intentional for the rest of the site.**
 
+### Editable Documents (House Rules + Membership Agreement) — May 5, 2026
+
+Two long-form documents are editable from admin and stored in the DB:
+
+- `DB.houseRulesHtml` — drives the public `/guidelines` page directly.
+- `DB.agreementBodyHtml` — sections 1–8 of the Membership Agreement; substituted into the agreement at generation time.
+
+**Defaults.** `DEFAULT_HOUSE_RULES_HTML` and `DEFAULT_AGREEMENT_BODY_HTML` constants in app.py (right after `DEFAULT_DATA`) are the seed values. `load_data()` does `setdefault(...)` so first deploy auto-populates. There are also `/admin/api/reset-house-rules` and `/admin/api/reset-agreement-body` endpoints that re-seed and return the default — wired to "Reset to default" buttons in the editor.
+
+**Editor surface.** Each doc gets its own standalone page:
+- `/admin/edit/house-rules`
+- `/admin/edit/agreement`
+
+Both share `templates/admin/edit_document.html` — a Quill snow editor pre-populated server-side (no client-side race), with Save / Reset / Close / View Public Page actions. Routes are in app.py.
+
+**Critical Quill load detail.** The editor MUST use `quill.clipboard.dangerouslyPasteHTML(0, html, 'silent')` to load initial content — NOT `quill.root.innerHTML = html`. The `innerHTML` path bypasses Quill's parser, so its internal Delta model stays empty and the editor visibly drops bullets, links, and other structures even though they're in the DOM. Round-trip saves then write the stripped version back to the DB. Same applies to the Reset button.
+
+**Agreement placeholders.** The agreement body uses `{{...}}` tokens that `generate_agreement()` substitutes at render time:
+`{{member_name}} {{office_str}} {{dues_str}} {{deposit_str}} {{term_start_str}} {{term_end_str}} {{conf_hours}} {{member_email}} {{member_phone}} {{today_str}} {{proration_clause}} {{setup_fee_clause}}`.
+The header, summary table, signature page, background-check page, and auto-draft page stay hardcoded in the f-string — only the clauses (sections 1–8) come from the editable template. If `DB.agreementBodyHtml` is empty/missing, the generator falls back to the constant so no agreement ever generates blank.
+
+**Background check waiver.** The agreement review modal has a "Waive background check" checkbox; checked = `?waive_bg=true` query param to `/admin/api/generate-agreement/<id>`. The page still appears in the agreement, but a diagonal `WAIVED` watermark is stamped across it via absolute-positioned div with rotated transform.
+
+**Help-text gotcha.** Don't put literal `{{tokens}}` in any Jinja template (like dashboard.html) without wrapping in `{% raw %}` — Jinja will try to evaluate them. The standalone editor pages avoid this by passing the help text in via the route as a raw HTML string with already-escaped `<code>` markers.
+
 ### Search Console API (May 2026 — was missing)
 
 The `/admin/api/searchconsole` route in app.py was missing entirely until May 2026 — frontend had been calling it since the marketing dashboard was built, hitting a 404 silently. The route now uses the same `GA_SERVICE_ACCOUNT_JSON` service account as GA4 analytics, with `SC_SITE_URL=sc-domain:qbixcentre.com` (set in Railway). Two API calls: one for aggregate KPIs (no dimensions = single totals row), one for top 100 queries by clicks (default sort), then re-sorted by impressions client-side and trimmed to top 20. Helpful error messages mapped for 403 (service account permissions) and 404 (property URL mismatch).
@@ -172,6 +201,12 @@ Username + password + SMS 2FA via Twilio (the 2FA code is sent to `ADMIN_PHONE`)
 ### Booking
 
 Phone-based login at `/book`. Files: `templates/public/book_home.html` (phone entry), `templates/public/book_calendar.html` (the calendar + booking UI).
+
+**Booking page chrome (May 5, 2026 rebuild).** `/book/calendar` suppresses the site nav, sticky CTA, and footer entirely — it's a focused workspace, not a normal site page. This works because `base.html` now wraps each of those in a named Jinja block (`site_nav`, `site_cta`, `site_footer`); `book_calendar.html` overrides each with empty content. A thin top strip replaces them: gold "← Back to qbixcentre.com" on the left, "Sign out" on the right. **Don't reuse the same suppression on other pages without thinking** — the welcome card / hours summary live in the right column on the booking page only.
+
+**Conference Room floorplan.** Rocky created a regular office record with `num="Conference Room"` and `status="Occupied"` so the office form's existing floorplan upload is available for it. `get_bookable_resources()` does a case-insensitive name match to pull `office.floorplan` for the virtual `conference_room` resource AND filters that office out of the dropdown so it never appears as a duplicate, even if its status flips to Vacant. Falls back to `bookingSettings.conferenceRoomFloorplan` (no admin field for this yet) if the named office doesn't exist.
+
+**Floorplan link.** Each bookable resource shows a "Click to See Floor Plan" gold underlined link when its `floorplan.url` is set. The link opens the image in a new tab. The dropdown's `<option>` carries `data-floorplan` and `data-label` attributes so JS can update the link without an extra fetch when the user changes selection.
 
 **Auth flow.** `/book/request-code` looks up the phone in **occupants only** (members are intentionally not matched — see "Occupants vs members" below). When Twilio toll-free verification clears, a 6-digit SMS code goes out and `/book/verify` issues a session token. Until then, only `ADMIN_PHONE` (4787379107) bypasses the SMS step — that occupant must exist as Active and linked to an Active member.
 
@@ -203,13 +238,13 @@ Phone-based login at `/book`. Files: `templates/public/book_home.html` (phone en
 2. **Home Page** — WYSIWYG editor for all home page text, landmark photos, attraction tiles
 3. **Marketing** — contact messages, GBP health, action queue, GA4, lead sources, search console
 4. **Media** — Cloudinary library, orphan scanner
-5. **Offices** — tiles, edit/add, per-office amenities
-6. **Members** — active/pending/archive, conf hours, agreements
-7. **Occupants** — people per office
+5. **Offices** — tiles, edit/add, per-office amenities, **floorplan upload (May 4, 2026)**
+6. **Members** — active/pending/archive, conf hours, agreements, **Mailbox field**, **Documents card with buttons that open standalone editors for House Rules and Membership Agreement in new tabs**
+7. **Occupants** — people per office (**Member Company picker filtered to Active members**)
 8. **Waiting List** — prospective tenants
 9. **Notify** — recipient picker → Outlook (no rich text in app, formatting happens in Outlook)
-10. **Newsletter** — AI draft, scheduling, social posts, history
-11. **Bookings** — conference room bookings
+10. **Newsletter** — AI draft, scheduling, social posts, history; **editable category list**; **color/highlight picker in toolbar**
+11. **Bookings** — conference room + vacant office bookings; **admin time selectors and table use 12-hour AM/PM display (values stay HH:MM)**
 
 ---
 
@@ -222,12 +257,15 @@ Phone-based login at `/book`. Files: `templates/public/book_home.html` (phone en
   "sqft": 140, "dormer": null, "listDues": 725, "discount": 0, "confHours": 6,
   "description": "...", "amenities": ["Corner Office"],
   "photos": [{ "url": "...", "public_id": "...", "alt": "..." }],
+  "floorplan": { "url": "...", "public_id": "...", "alt": "" },  // May 4, 2026 — single image, may be null
   "tenantStart": ""
 }
 ```
 
+A pseudo-office record `num="Conference Room"` (Occupied, no member) carries the conference-room floorplan. `get_bookable_resources()` reads its `floorplan` and skips it from the dropdown so it doesn't appear as a separate booking option.
+
 ### Member
-Has email, phone, status (Active/Pending/Archived), conf hours, agreements. Phone field exists but may not be populated for all members — backfill needed before SMS login goes live.
+Has email, phone, **mailbox** (May 5, 2026 — string like "41", appears in agreement mailing address row), status (Active/Pending/Archived), conf hours, agreements. Phone field exists but may not be populated for all members — backfill needed before SMS login goes live.
 
 ### Newsletter post
 ```json
@@ -282,6 +320,11 @@ Use the helper `_booking_billed_to(b)` (returns `b.parentMember or b.memberName`
 }
 ```
 
+### Editable documents (May 5, 2026)
+- `houseRulesHtml` — HTML string. Drives `/guidelines`. Default seeded from `DEFAULT_HOUSE_RULES_HTML`.
+- `agreementBodyHtml` — HTML string with `{{...}}` placeholders. Drives sections 1–8 of generated agreements. Default seeded from `DEFAULT_AGREEMENT_BODY_HTML`.
+- `newsletterCategories` — list of strings. Drives the Newsletter compose page's category dropdown and the `/news` filter chips. Default `['Monthly Update','Member Spotlight','Community','Availability']`.
+
 ### Internal token stores (do not edit by hand)
 
 `_bookingTokens`, `_pending2fa`, `_onboardTokens` — see "Booking" architectural note.
@@ -295,13 +338,28 @@ Use the helper `_booking_billed_to(b)` (returns `b.parentMember or b.memberName`
 --navy:#1a2744; --gold:#c9a84c; --gold2:#e8c97a;
 --light:#f8f6f1; --txt:#2d2d2d; --txt2:#666; --border:#e2ddd5; --r:10px;
 
-/* Admin dashboard */
---bg:#0b0d11; --sur:#13161e; --sur2:#1b1f2b; --bdr:#2e3448;
---acc:#d4a843; --blue:#5b9bd5; --grn:#4db887; --red:#d96060;
---txt:#edf1fb; --txt2:#a8b4cc; --txt3:#6b7a96;
+/* Admin dashboard — light theme (May 5, 2026 conversion from dark) */
+--bg:#f8f6f1; --sur:#ffffff; --sur2:#f3efe7; --bdr:#e2ddd5;
+--acc:#c9a84c; --blue:#2563eb; --grn:#15803d; --red:#dc2626; --purple:#7c3aed;
+--txt:#1a2744; --txt2:#555555; --txt3:#888888;
 ```
 
+**Admin theme conversion (May 5, 2026).** Admin was originally dark mode. Converted to a light palette that matches the public site (cream `#f8f6f1` page bg, white panels, navy text, gold accent). Same vars apply to `templates/login.html`, `templates/2fa.html`, `templates/setup.html`, and the `templates/admin/` versions of those three. Hardcoded dark hex literals were swept (`#0b0d11` → `#f8f6f1`, `#1b1f2b` → `#f3efe7`, `#13161e` → `#ffffff`, etc.) and rgba whites flipped to rgba blacks for subtle highlights. Light-tint accent colors (`#fca5a5`, `#86efac`, `#93c5fd`) were swapped to darker variants for contrast on white. White text on colored buttons was preserved (still correct on light theme). The home-page admin tab's Hero and Contact CTA preview panels were also flattened from navy backgrounds to plain white cards with cream input surfaces.
+
+**Quill editor on light theme.** `.ql-toolbar` uses `var(--sur2)` (cream); `.ql-container` and `.ql-editor` use pure white so editor text contrast is unambiguous (a previous dark-mode bug let pasted dark text become invisible on the dark editor bg).
+
 ---
+
+## Recent Decisions (May 4–5, 2026)
+
+1. **Admin theme is now light, matching the public site.** Cream/white backgrounds, navy text, gold accents — same palette as the public site. Quill editor body is pure white for unambiguous text contrast (the prior dark theme had a real bug where pasted dark text became invisible on the dark editor bg). Dark mode is gone; don't recreate it.
+2. **House Rules and Membership Agreement body are stored in the DB and edited via Quill.** Editable from `/admin/edit/house-rules` and `/admin/edit/agreement` (standalone pages — not inline). The public `/guidelines` page reads from `DB.houseRulesHtml`; the agreement generator reads from `DB.agreementBodyHtml` and substitutes `{{...}}` placeholders. Defaults seeded from constants in app.py; "Reset to default" button restores them.
+3. **Critical Quill load detail.** Always use `quill.clipboard.dangerouslyPasteHTML(0, html, 'silent')` to load HTML into a Quill instance. Setting `root.innerHTML` directly bypasses Quill's parser and visibly drops list items, links, and other structures even though they're in the DOM. The earlier symptom: editor showed only headings, public page showed full content from DB. **If you see a Quill editor that looks "stripped" compared to its source HTML, this is your bug.**
+4. **Conference room floorplan reuses an Occupied office record** named `"Conference Room"`. `get_bookable_resources()` matches it case-insensitively, pulls its `floorplan`, and skips it from the dropdown. No separate admin field for conference-room floorplan — the office form handles it. If Rocky deletes that office record, the conference-room floorplan link silently disappears.
+5. **Booking page (`/book/calendar`) drops site chrome.** No nav, no sticky CTA, no footer — just a thin top strip with "← Back to qbixcentre.com" + "Sign out". Achieved via overridable `{% block site_nav %}` / `site_cta` / `site_footer` blocks in `base.html`. Don't remove the blocks — other pages may need to suppress chrome someday too.
+6. **Public nav uses a hamburger below 900px.** Home/Memberships/News/Contact collapse into a `☰` dropdown on small viewports. Logo, gold "Book A Meeting Space" CTA, and Admin link stay visible at every width. Public site has no Offices or Amenities link anymore — those pages still exist but aren't in the nav.
+7. **Admin booking times display 12-hour AM/PM.** Stored values stay as 24-hour `HH:MM` strings — only display labels changed. New helper `fmt12(hhmm)`. Public booking page already used AM/PM (untouched).
+8. **Newsletter category list is editable** (`DB.newsletterCategories`); Newsletter compose page has an "Edit categories…" link that opens a manager modal. The public `/news` page shows category chips at top + a clickable badge on each post card (filters via `?category=...`).
 
 ## Recent Decisions (May 2026)
 
@@ -325,15 +383,42 @@ Use the helper `_booking_billed_to(b)` (returns `b.parentMember or b.memberName`
 
 ## Outstanding Issues
 
-1. **Upgrade Twilio from trial to paid plan** — toll-free verification cleared May 2026 and SMS is working end-to-end. Trial account caps recipients to numbers Rocky has explicitly verified in the Twilio console. Upgrade in console.twilio.com → Billing → Upgrade. Expect ~$3-5/month total (toll-free number ~$2 + per-SMS $0.0079, ~50-100 SMS/month). No code changes needed; Railway env vars stay the same.
-2. **Rotate AWS SES IAM keys** — Rocky to delete user `ses-smtp-user.20260401-160520` in AWS Console (those keys were committed to GitHub before being removed).
-3. **Rotate Twilio Auth Token** — has been parked from earlier session.
-4. **Delete leftover Railway env vars** — SMTP_PASS, SMTP_HOST, SMTP_PORT, SMTP_USER, SENDGRID_API_KEY, FROM_EMAIL, FROM_NAME if any still exist.
-5. **Cancel WhatSpot ($192/yr)** — new booking system has been working; safe to cut.
-6. **Cancel GoDaddy** — domain has been transferred away from them.
-7. **JSON-LD geo coordinates** — currently approximate (32.9, -83.7); update with exact from Google Maps.
-8. **Verify GA_MEASUREMENT_ID is in Railway** — was not visible in environment variable list during last review.
-9. **Confirm Rolando is set up correctly** — must be an Active occupant with phone 4787379107, `company` field pointing at an Active member, for the admin bypass login to work end-to-end.
+1. **Rotate AWS SES IAM keys** — Rocky to delete user `ses-smtp-user.20260401-160520` in AWS Console (those keys were committed to GitHub before being removed).
+2. **Rotate Twilio Auth Token** — has been parked from earlier session.
+3. **Delete leftover Railway env vars** — SMTP_PASS, SMTP_HOST, SMTP_PORT, SMTP_USER, SENDGRID_API_KEY, FROM_EMAIL, FROM_NAME if any still exist.
+4. **Cancel WhatSpot ($192/yr)** — new booking system has been working; safe to cut.
+5. **Cancel GoDaddy** — domain has been transferred away from them.
+6. **JSON-LD geo coordinates** — currently approximate (32.9, -83.7); update with exact from Google Maps.
+7. **Verify GA_MEASUREMENT_ID is in Railway** — was not visible in environment variable list during last review.
+8. **Public Memberships page still says "Coming Soon"** — Rocky needs to add membership pricing/plan content to `templates/public/memberships.html`. The House Rules card below it works; it's just the top section that's a placeholder.
+9. **House Rules link is on the Memberships page only** — Rocky said "we'll need to move it later." When he picks a permanent home (footer? main nav? Booking page?), the link in `memberships.html` can stay or be removed depending.
+10. **No admin field for conference room floorplan separately** — the floorplan is pulled from an office record named "Conference Room" (Occupied). If Rocky deletes that record, the link disappears silently. Document the dependency in admin tooltips someday or add a dedicated upload to the Booking Settings panel.
+
+### Resolved this session (May 4–5, 2026)
+
+- ~~Twilio still on trial plan~~ → upgraded to paid (May 5, 2026)
+- ~~House Rules / Agreement editors showed only headings on first open~~ → Quill init bug fixed AND Rocky did the Reset-to-default + Save pass on both docs to repopulate the DB with the full content
+- ~~Public booking page chrome too busy~~ → site nav + CTA + footer suppressed; thin top strip only
+- ~~Floorplan link missing on booking page~~ → "Click to See Floor Plan" gold link beside the resource picker
+- ~~Conference room floorplan source~~ → reuses an Occupied office record named "Conference Room"
+- ~~Pip on calendar showed booker name~~ → now shows meeting title; Title input has a "This will show on calendar" hint
+- ~~Booking panel had no way to dismiss before clicking save~~ → close × added top-right of `#booking-panel`
+- ~~Welcome banner / hours card removed in chrome strip~~ → restored at top of right column above the booking form
+- ~~Resource label not visible on calendar~~ → added top-left of calendar pane next to the Calendar/List toggle
+- ~~Public booking page didn't say which space was selected~~ → resource label up-top + dropdown moved next to "My Upcoming Bookings"
+- ~~Nav menu collided at mid-screen widths (~700–900px)~~ → hamburger ☰ kicks in below 900px; CTA + Admin always visible
+- ~~Admin booking modal showed military time~~ → 12-hour AM/PM display; values still stored HH:MM
+- ~~Occupant form Member Company picker showed Pending/Archived members~~ → filtered to Active only (with edge case for already-saved Archived linkage)
+- ~~Admin was dark mode, hard to read~~ → full conversion to light theme matching public site palette
+- ~~Newsletter "Save to Website" left a draft as draft~~ → flips `draft:false` and refreshes the publication date
+- ~~Newsletter categories were hardcoded~~ → editable list in `DB.newsletterCategories` with admin manager modal
+- ~~No category filter on /news~~ → filter chips at top + clickable badges on each post card
+- ~~Quill toolbar lacked color/highlight pickers~~ → added `color` + `background` to Newsletter and Documents editors
+- ~~House Rules document didn't exist~~ → editable HTML doc, public `/guidelines` page, link from `/memberships`
+- ~~Membership Agreement was hardcoded~~ → body extracted to `DB.agreementBodyHtml` with `{{placeholder}}` substitution; standalone editor at `/admin/edit/agreement`
+- ~~Mailbox not on agreement~~ → `member.mailbox` field; mailing-address row appears in agreement Member Summary when set
+- ~~Background-check page printed even when waived~~ → diagonal "WAIVED" watermark stamped when `waive_bg=true`
+- ~~Editable docs editor showed only headings (no bullets) on first open~~ → was using `quill.root.innerHTML = ...` which bypasses Quill's parser; fixed by switching to `quill.clipboard.dangerouslyPasteHTML(0, html, 'silent')` for both initial load and reset
 
 ### Resolved this session (May 2, 2026)
 
@@ -347,6 +432,67 @@ Use the helper `_booking_billed_to(b)` (returns `b.parentMember or b.memberName`
 ---
 
 ## Recent Completed Work
+
+### May 4–5, 2026 session — Booking page rebuild, light admin theme, editable docs
+
+**Public site polish**
+- Home page hero: removed "Schedule a Tour" / "View Available Offices" buttons; tightened hero padding so the Open Offices section sits closer to the top
+- Public nav restructured: removed Offices and Amenities; added Memberships; added hamburger menu for viewports ≤ 900px (logo, gold CTA, and Admin link stay visible at every width)
+- New `/memberships` placeholder page with a House Rules card linking to `/guidelines`
+- New `/guidelines` page rendering `DB.houseRulesHtml` in styled wrapper with Print/Save-as-PDF button
+
+**Booking module — major UI rebuild**
+- `/book/calendar` suppresses site nav, sticky CTA, and footer (via new overridable `site_nav` / `site_cta` / `site_footer` blocks in `base.html`); thin top strip with "← Back to qbixcentre.com" + "Sign out"
+- Layout widened (max-width:none), calendar day cells enlarged (130px), day numbers bumped to 18px navy
+- Resource label appears top-left of calendar pane (next to Calendar/List toggle); 3-column grid keeps the toggle centered
+- Slot pips show meeting title (not booker name); wrapping allowed
+- Booking panel × close button (top-right) returns to pre-click state
+- "Welcome, X" + hours summary card moved to top of right column; booking form sits below it; resource picker moved above My Upcoming Bookings
+- Resource picker shows "Click to See Floor Plan" gold link when the selected resource has a floorplan
+- Booking title input has a "This will show on calendar." hint
+- New: Office model includes `floorplan` (single Cloudinary image); admin form has upload + library picker + remove
+- Conference room floorplan: `get_bookable_resources()` matches an office named "Conference Room" (case-insensitive), pulls its floorplan, and filters that office out of the dropdown
+- Booking login: when the phone isn't on file, browser navigates to `/memberships` instead of showing a red error toast
+
+**Admin: light theme conversion**
+- Master CSS variables in `dashboard.html` flipped to a light palette (cream `#f8f6f1` page bg, white panels, navy text, gold accent); same applied to `templates/login.html`, `2fa.html`, `setup.html`, and `templates/admin/login.html`, `2fa.html`, `setup.html`
+- ~40 hardcoded dark hex literals swept (`#0b0d11`, `#1b1f2b`, `#13161e`, etc.) and ~20 `rgba(255,...)` whites flipped to `rgba(0,...)` blacks
+- Light-tint accent colors (`#fca5a5`, `#86efac`, `#93c5fd`) swapped for darker variants for contrast on white
+- Quill editor: toolbar on cream surface, editor body pure white with navy text — fixes the prior dark-mode bug where pasted dark text was invisible
+- Home Page admin tab: Hero + Contact CTA preview panels also flattened from navy to white cards
+
+**Admin booking time format**
+- New `fmt12(hhmm)` helper converts 24-hour values to 12-hour AM/PM for display only; option values stay HH:MM so backend / sorting / select.value all keep working unchanged
+- Applied to admin Add/Edit Booking modal, bookings table, admin month-calendar pips, and conference-hours usage rows / email body
+
+**Members tab**
+- New `mailbox` field on Member form; persists to `member.mailbox`
+- Agreement Member Summary now includes a "Qbix Centre Mailing Address" row when mailbox is set: "Member Name / 500A Northside Crossing, Box NN / Macon, GA 31210-2377"
+- Documents card at top of Members tab — two buttons that open standalone Quill editors at `/admin/edit/house-rules` and `/admin/edit/agreement` in new tabs
+
+**Editable documents architecture**
+- `DEFAULT_HOUSE_RULES_HTML` and `DEFAULT_AGREEMENT_BODY_HTML` constants in app.py are seed values for `DB.houseRulesHtml` and `DB.agreementBodyHtml`
+- New routes: `GET /admin/edit/house-rules` and `GET /admin/edit/agreement` (both render `templates/admin/edit_document.html` with different config); `POST /admin/api/save-house-rules`, `/save-agreement-body`, `/reset-house-rules`, `/reset-agreement-body`
+- Standalone editor: full-page Quill snow with toolbar (B/I/U + color + highlight + lists + headings + link + clean), Save button (Ctrl+S also saves), Reset to default, Close window, View Public Page (House Rules only)
+- Agreement body uses `{{placeholders}}` substituted at generate time; help banner on the agreement editor lists every placeholder with a warning to leave them in place
+- `generate_agreement()` refactored: header, summary table, signature page, background-check page, and auto-draft page stay hardcoded; sections 1–8 come from `DB.agreementBodyHtml` (or default fallback)
+- **Critical Quill detail:** initial HTML loads via `quill.clipboard.dangerouslyPasteHTML(0, html, 'silent')` — NOT `quill.root.innerHTML = ...`. The `innerHTML` path bypasses Quill's parser and visibly drops bullets/links/etc. even though the markup is in the DOM. Same fix applied to the Reset button.
+
+**Membership Agreement enhancements**
+- "Waive background check ($35)" toggle in agreement review modal now passes `?waive_bg=true` to the generator (was unwired before)
+- Diagonal "WAIVED" watermark stamped across the Background Check page when waived: large (96pt), light red (rgba 0.18 alpha), rotated -22°, absolute-positioned within the page-break section
+
+**Newsletter improvements**
+- "Save to Website" on a draft now flips `draft:false` and refreshes the publication date so the post appears on `/news`
+- Editable category list (`DB.newsletterCategories`); "Edit categories…" link opens manager modal (mirrors amenities manager pattern)
+- Color + highlight (background) pickers added to Quill toolbar; output uses inline `style="color:..."` so colors survive on `/news` and the Outlook clipboard-paste flow
+- Public `/news`: filter chips at top of page (active chip highlighted navy), gold category badge on each post card linking to filter
+
+**Occupant form**
+- Member Company picker filters to Active members only; if editing an occupant whose saved company is non-Active, that one company stays in the list so the form opens on its saved value
+
+**Booking instructions doc**
+- Created `Booking_Guide_For_Occupants.docx` (US Letter, navy header, gold accents) — covers sign in, picking a meeting space, picking date/time, hours, edit/cancel, house rules. Saved to Cowork workspace folder.
 
 ### May 2, 2026 session — Newsletter rebuild + domain transfer + perf
 
@@ -439,11 +585,12 @@ Use the helper `_booking_billed_to(b)` (returns `b.parentMember or b.memberName`
 
 ## Build Queue — What's Next
 
-1. **Twilio SMS auth turn-on** — when toll-free verification clears: enable the real `/book/verify` flow (right now only `ADMIN_PHONE` bypass works). Backfill member/occupant phone numbers as needed; remove the test-mode block in `book_request_code`.
-2. **Conference Room public page** — `/conference-room` for SEO (people search "meeting space Macon")
-3. **Marketing Campaign Tracker** — manual log: platform, dates, spend, impressions, inquiries, conversions
-4. **House Guidelines Document** — `/guidelines` page or downloadable PDF
+1. **Membership pricing/plans on `/memberships`** — public page is currently a placeholder. Rocky needs to provide the plan tiers / pricing copy.
+2. **Permanent home for House Rules link** — currently only on `/memberships`. Maybe footer, main nav, or a member-only spot.
+3. **Conference Room public page** — `/conference-room` for SEO (people search "meeting space Macon")
+4. **Marketing Campaign Tracker** — manual log: platform, dates, spend, impressions, inquiries, conversions
 5. **PWA evaluation** — admin installable as phone app
+6. **Apex domain redirect** — `qbixcentre.com` (no www) currently 404s; set up apex → www in Railway custom domains.
 
 ---
 

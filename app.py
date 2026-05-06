@@ -2497,6 +2497,27 @@ def generate_agreement(member_id):
     memail     = member.get('email', '')
     mphone     = member.get('phone', '')
     mbox       = (member.get('mailbox') or '').strip()
+
+    # Emergency contact — prefills from the member record (collected on the
+    # public onboarding form and editable from the admin Member form). When
+    # any field is missing, that field renders as a blank underline so the
+    # member can fill it in by hand at signing.
+    ec_name  = (member.get('emergencyName')  or '').strip()
+    ec_phone = (member.get('emergencyPhone') or '').strip()
+    ec_rel   = (member.get('emergencyRel')   or '').strip()
+    def _ec_field(value, label, flex):
+        cls = 'sig-field prefilled' if value else 'sig-field'
+        return (f'<div style="flex:{flex}">'
+                f'<div class="{cls}">{value}</div>'
+                f'<div class="sig-label">{label}</div></div>')
+    emergency_block = (
+        '<h2 class="sec-head" style="margin-top:30px">Emergency Contact</h2>'
+        '<div class="sig-row">'
+        f'{_ec_field(ec_name,  "Name",         2)}'
+        f'{_ec_field(ec_rel,   "Relationship", 1)}'
+        f'{_ec_field(ec_phone, "Phone",        1)}'
+        '</div>'
+    )
     # Members get a mailing address at the building once a mailbox number
     # is assigned. The agreement summary shows the full address; if no
     # mailbox is set yet, we leave the row off so it doesn't appear blank.
@@ -2621,7 +2642,8 @@ ul.clauses li{{margin-bottom:7px;line-height:1.55;font-size:9.5pt}}
       {fld('Deposit Collected', deposit_str)}
       {fld('Term', f'{term_start_str} &ndash; {term_end_str}')}
     </table>
-    <h2 class="sec-head">Member</h2>
+    {emergency_block}
+    <h2 class="sec-head" style="margin-top:30px">Member</h2>
     <div class="sig-row"><div style="flex:2"><div class="sig-field"></div><div class="sig-label">Member Signature</div></div><div style="flex:1"><div class="sig-field"></div><div class="sig-label">Date</div></div></div>
     <div class="sig-row"><div style="flex:2"><div class="sig-field prefilled">{mname}</div><div class="sig-label">Print Name</div></div><div style="flex:1"><div class="sig-field"></div><div class="sig-label">Title / Position</div></div></div>
     <h2 class="sec-head" style="margin-top:36px">Qbix Centre Acceptance</h2>
@@ -2655,14 +2677,9 @@ ul.clauses li{{margin-bottom:7px;line-height:1.55;font-size:9.5pt}}
     <div class="sig-row"><div style="flex:2"><div class="sig-field prefilled">{mname}</div><div class="sig-label">Account Holder Name</div></div><div style="flex:2"><div class="sig-field"></div><div class="sig-label">Bank Name</div></div></div>
     <div class="sig-row"><div style="flex:1"><div class="sig-field"></div><div class="sig-label">Account Number</div></div><div style="flex:1"><div class="sig-field"></div><div class="sig-label">Routing Number</div></div></div>
     <p style="font-size:9pt;color:#666;margin-top:10px;font-style:italic">(Attach a voided check if preferred.)</p>
-    <h2 class="sec-head" style="margin-top:20px">Monthly Draft Amount</h2>
-    <table class="fields" style="margin-top:8px">
-      {fld('Authorized Monthly Amount', f'<strong>{dues_str}</strong>')}
-      {pro_ach}
-    </table>
-    <p style="font-size:9pt;color:#555;margin-top:8px">Draft date: 1st of each month. If the 1st falls on a weekend or holiday, draft processes the next business day.</p>
+    <p style="font-size:9pt;color:#555;margin-top:10px">Drafts process on or about the first business day of each month.</p>
     <h2 class="sec-head" style="margin-top:20px">Authorization</h2>
-    <p style="font-size:9.5pt;line-height:1.6;margin-top:6px">I/We authorize Bill.com, Inc., on behalf of RoseAn Properties, LLC (Qbix Centre), to initiate recurring ACH debit entries to the bank account above in the amount of <strong>{dues_str}</strong>, beginning <strong>{term_start_str}</strong>. This authorization remains in effect until canceled in writing at least ten (10) business days prior to the desired cancellation date.</p>
+    <p style="font-size:9.5pt;line-height:1.6;margin-top:6px">I hereby authorize Bill.com, Inc., on behalf of RoseAn Properties, LLC, to initiate entries to the bank accounts that I enter, or enable RoseAn Properties, LLC to enter, on the Bill.com, Inc. web site in order to pay amounts that I owe to RoseAn Properties, LLC in accordance with instructions entered by RoseAn Properties, LLC on the Bill.com web site and, if necessary, to initiate adjustments for any transactions credited or debited in error. I represent that I have authority to bind the member that owns the bank accounts, and to authorize all transactions to the bank accounts that are initiated through Bill.com, Inc. I acknowledge that transactions initiated to the bank accounts must comply with the provisions of U.S. law. This authorization will remain in effect until the member notifies Bill.com, Inc. in writing to cancel it in such time as to afford Bill.com, Inc. and the bank reasonable opportunity to act on it.</p>
     <div class="sig-row"><div style="flex:2"><div class="sig-field"></div><div class="sig-label">Account Holder Signature</div></div><div style="flex:1"><div class="sig-field"></div><div class="sig-label">Date</div></div></div>
     <div class="sig-row"><div style="flex:2"><div class="sig-field prefilled">{mname}</div><div class="sig-label">Print Name</div></div></div>
   </div>
