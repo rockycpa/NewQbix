@@ -2593,7 +2593,18 @@ ul.clauses li{{margin-bottom:7px;line-height:1.55;font-size:9.5pt}}
 @media print{{
   body{{background:#fff;padding:0}}
   .page{{box-shadow:none;padding:40px 50px;max-width:100%}}
-  .no-print{{display:none}}
+  /* !important required because the on-screen print helper bar carries an
+     inline style="display:flex" that would otherwise win over the class
+     rule and leave the bar showing in the saved PDF. */
+  .no-print{{display:none !important}}
+  /* Real page breaks — make the background-check page and auto-draft page
+     each start on a fresh sheet of paper. The class also paints a navy
+     divider on screen; we strip those visual cues in print so the new
+     page starts cleanly. The .no-pb-print modifier opts a section out of
+     the page break (used on the signature block, which should flow with
+     the agreement clauses, not start a new page). */
+  .page-break{{break-before:page;page-break-before:always;border-top:none;margin-top:0;padding-top:0}}
+  .page-break.no-pb-print{{break-before:auto;page-break-before:auto;border-top:2px solid #1a2744;margin-top:48px;padding-top:32px}}
   /* Force browsers to print the watermark color even when "background
      graphics" is off — most still respect this on transparent text. */
   .waived-stamp{{-webkit-print-color-adjust:exact;print-color-adjust:exact;color:rgba(217,38,38,0.20)}}
@@ -2630,10 +2641,8 @@ ul.clauses li{{margin-bottom:7px;line-height:1.55;font-size:9.5pt}}
   </div>
   {agreement_body_rendered}
 
-  <!-- Signature Page -->
-  <div class="page-break">
-    <div class="sec-title">SIGNATURE PAGE</div>
-    <div class="sec-sub">Qbix Centre Membership Agreement</div>
+  <!-- Signature section — flows after Section 8, no forced page break. -->
+  <div class="page-break no-pb-print">
     <p style="font-size:9.5pt;line-height:1.6;margin-bottom:20px">By signing below, Member acknowledges that they have read, understand, and agree to all terms and conditions of this Membership Agreement, and acknowledges receipt of and agreement to abide by the Qbix Centre House Guidelines (as may be updated from time to time). Member represents that they have authority to enter into this Agreement on behalf of themselves and/or their company.</p>
     <table class="fields" style="margin-bottom:24px">
       {fld('Office(s) Assigned', office_str)}
