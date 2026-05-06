@@ -8,6 +8,7 @@ v2 — office detail pages, agreement status, contrast improvements
 
 import json
 import os
+import re
 import secrets
 import threading
 import time
@@ -2535,6 +2536,23 @@ def generate_agreement(member_id):
     # {{placeholder}} tokens with member-specific values. Falls back to the
     # built-in default if the saved value is empty for any reason.
     body_template = (data.get('agreementBodyHtml') or '').strip() or DEFAULT_AGREEMENT_BODY_HTML
+
+    # Quill normalizes saved HTML and wraps loose text inside <ul> with its
+    # own <li>. Our list-item placeholders ({{proration_clause}} and
+    # {{setup_fee_clause}}) expand to '<li>…</li>' or to '' (empty). When
+    # Quill has wrapped them as '<li>{{proration_clause}}</li>', plain text
+    # substitution produces nested '<li><li>…</li></li>' or empty
+    # '<li></li>' — both render as stray bullets in the agreement. Unwrap
+    # any single-placeholder <li> or <p> container BEFORE substitution so
+    # the resulting list items are clean siblings of the rest of the list.
+    for _ph in ('{{proration_clause}}', '{{setup_fee_clause}}'):
+        body_template = re.sub(
+            r'<li[^>]*>\s*' + re.escape(_ph) + r'\s*</li>',
+            _ph, body_template)
+        body_template = re.sub(
+            r'<p[^>]*>\s*' + re.escape(_ph) + r'\s*</p>',
+            _ph, body_template)
+
     _replacements = {
         '{{member_name}}':      mname,
         '{{office_str}}':       office_str,
@@ -2552,6 +2570,12 @@ def generate_agreement(member_id):
     agreement_body_rendered = body_template
     for _k, _v in _replacements.items():
         agreement_body_rendered = agreement_body_rendered.replace(_k, _v)
+
+    # Final sweep: strip any truly-empty <li></li> Quill may have left as
+    # artifacts (e.g., when a member taps Enter inside a bullet list and
+    # then deletes the text — Quill keeps the empty bullet structurally).
+    agreement_body_rendered = re.sub(
+        r'<li[^>]*>\s*</li>', '', agreement_body_rendered)
 
     html = f"""<!DOCTYPE html>
 <html lang="en">
