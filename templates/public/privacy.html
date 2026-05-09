@@ -61,7 +61,7 @@
 
 <div class="privacy-body">
 
-  <p>RoseAn Properties, LLC (&ldquo;we,&rdquo; &ldquo;us,&rdquo; or &ldquo;our&rdquo;) operates Qbix Centre, a coworking facility located at 500A Northside Crossing, Macon, GA 31210, and the website at qbixcentre.com. This Privacy Policy explains how we collect, use, and protect your personal information when you use our website or services.</p>
+  <p>RoseAn Properties, LLC (&ldquo;we,&rdquo; &ldquo;us,&rdquo; or &ldquo;our&rdquo;) operates Qbix Centre, a coworking facility located at {{ site_info.address }}, and the website at qbixcentre.com. This Privacy Policy explains how we collect, use, and protect your personal information when you use our website or services.</p>
 
   <h2>1. Information We Collect</h2>
   <p>We collect the following types of personal information:</p>
@@ -116,9 +116,9 @@
     <strong>Questions about this policy?</strong><br>
     Contact us at:<br>
     Qbix Centre &mdash; RoseAn Properties, LLC<br>
-    500A Northside Crossing, Macon, GA 31210<br>
-    <a href="mailto:qbixcentre@outlook.com">qbixcentre@outlook.com</a><br>
-    <a href="tel:4782162876">(478) 216-2876</a>
+    {{ site_info.address }}<br>
+    <a href="mailto:{{ site_info.email }}">{{ site_info.email }}</a><br>
+    <a href="tel:{{ site_info.phone | phone_digits }}">{{ site_info.phone }}</a>
   </div>
 
 </div>

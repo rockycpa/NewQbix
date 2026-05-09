@@ -15,6 +15,17 @@
         <h2>Send Us a Message</h2>
         <p class="subtitle">We typically respond within one business day.</p>
         <form method="POST" action="/contact">
+          {# Spam protection. The "website" field is a honeypot — visually
+             hidden and not focusable, so real visitors never fill it. Bots
+             that fill every field they see get caught here. The "_t" field
+             is a page-load timestamp (ms); the server rejects submissions
+             that arrive too quickly to be a real human typing. #}
+          <div aria-hidden="true" style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden">
+            <label>Website (leave blank)</label>
+            <input type="text" name="website" tabindex="-1" autocomplete="off">
+          </div>
+          <input type="hidden" name="_t" id="contact-form-t" value="">
+          <script>document.getElementById('contact-form-t').value = Date.now();</script>
           <div class="form-group">
             <label>Your Name *</label>
             <input type="text" name="name" required placeholder="First and last name">
@@ -59,21 +70,21 @@
           <span style="font-size:24px">📍</span>
           <div>
             <strong style="display:block;margin-bottom:4px">Address</strong>
-            <span style="color:var(--txt2)">500A Northside Crossing<br>Macon, GA 31210</span>
+            <span style="color:var(--txt2)">{{ site_info.address }}</span>
           </div>
         </div>
         <div style="display:flex;gap:16px;align-items:flex-start">
           <span style="font-size:24px">📞</span>
           <div>
             <strong style="display:block;margin-bottom:4px">Phone</strong>
-            <a href="tel:4782162876" style="color:var(--navy)">(478) 216-2876</a>
+            <a href="tel:{{ site_info.phone | phone_digits }}" style="color:var(--navy)">{{ site_info.phone }}</a>
           </div>
         </div>
         <div style="display:flex;gap:16px;align-items:flex-start">
           <span style="font-size:24px">✉️</span>
           <div>
             <strong style="display:block;margin-bottom:4px">Email</strong>
-            <a href="mailto:qbixcentre@outlook.com" style="color:var(--navy)">qbixcentre@outlook.com</a>
+            <a href="mailto:{{ site_info.email }}" style="color:var(--navy)">{{ site_info.email }}</a>
           </div>
         </div>
         <div style="display:flex;gap:16px;align-items:flex-start">

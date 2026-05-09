@@ -46,8 +46,8 @@
   "name": "Qbix Centre",
   "description": "Furnished private offices and coworking space at Northside Crossing in north Macon, GA. Flexible memberships, 24/7 access, AT&T Gigabit fiber, Starbucks coffee, conference room included.",
   "url": "{{ canonical_url if canonical_url is defined else 'https://www.qbixcentre.com' }}",
-  "telephone": "+14782162876",
-  "email": "qbixcentre@outlook.com",
+  "telephone": "+1{{ site_info.phone | phone_digits }}",
+  "email": "{{ site_info.email }}",
   "address": {
     "@type": "PostalAddress",
     "streetAddress": "500A Northside Crossing",
@@ -270,7 +270,7 @@ footer a:hover{color:var(--gold)}
 
 {% block site_cta %}
 <div class="sticky-cta">
-  <span class="sticky-cta-text">Ready to see a space? Call us at <a href="tel:4782162876">(478) 216-2876</a></span>
+  <span class="sticky-cta-text">Ready to see a space? Call us at <a href="tel:{{ site_info.phone | phone_digits }}">{{ site_info.phone }}</a></span>
   <a href="/contact" class="btn btn-gold btn-sm">Schedule a Tour</a>
 </div>
 {% endblock %}
@@ -293,7 +293,7 @@ footer a:hover{color:var(--gold)}
     <div>
       <div class="footer-brand">Qbix Centre</div>
       <p>Professional coworking and private office space in Macon, Georgia. A community built for productivity.</p>
-      <p style="margin-top:12px">500A Northside Crossing<br>Macon, GA 31210</p>
+      <p style="margin-top:12px">{{ site_info.address }}</p>
     </div>
     <div>
       <h4>Quick Links</h4>
@@ -304,8 +304,8 @@ footer a:hover{color:var(--gold)}
     </div>
     <div>
       <h4>Contact</h4>
-      <a href="tel:4782162876">(478) 216-2876</a>
-      <a href="mailto:qbixcentre@outlook.com">qbixcentre@outlook.com</a>
+      <a href="tel:{{ site_info.phone | phone_digits }}">{{ site_info.phone }}</a>
+      <a href="mailto:{{ site_info.email }}">{{ site_info.email }}</a>
       <p style="margin-top:16px;font-size:13px">Open 24/7 for members</p>
     </div>
   </div>

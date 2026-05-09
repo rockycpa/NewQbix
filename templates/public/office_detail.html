@@ -178,7 +178,7 @@
       <a href="{{ url_for('offices_page') }}" style="color:#e8a020;text-decoration:none;">← All Available Offices</a>
     </p>
     <h1>Office {{ office.num }}</h1>
-    <p style="font-size:1.15rem;color:#c0cce0;margin:0">Qbix Centre · 500A Northside Crossing, Macon, GA 31210</p>
+    <p style="font-size:1.15rem;color:#c0cce0;margin:0">Qbix Centre · {{ site_info.address }}</p>
     <div class="badge-row">
       {% if office.sqft %}
         <span class="od-badge">{{ office.sqft }} sq ft</span>
@@ -244,7 +244,7 @@
       <h3>Interested in Office {{ office.num }}?</h3>
       <p>Schedule a tour or reach out — we'd love to show you around Qbix Centre.</p>
       <a href="{{ url_for('contact') }}?office={{ office.num }}" class="btn-primary">Request a Tour</a>
-      <a href="tel:4782162876" class="btn-secondary">📞 (478) 216-2876</a>
+      <a href="tel:{{ site_info.phone | phone_digits }}" class="btn-secondary">📞 {{ site_info.phone }}</a>
     </div>
 
     {# Prev / Next navigation #}

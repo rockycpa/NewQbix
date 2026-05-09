@@ -499,6 +499,23 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
   <!-- MARKETING ACTION QUEUE -->
   <div id="mkt-alerts-wrap" style="display:none;margin-bottom:14px"></div>
 
+  <!-- SITE INFORMATION (editable contact info shown across the public site
+       and on the membership agreement) -->
+  <div class="card" id="site-info-card" style="margin-bottom:16px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div class="ct" style="margin-bottom:0">&#9742;&#65039; Site Information</div>
+      <button id="site-info-save" onclick="saveSiteInfo()" style="background:var(--acc);border:none;border-radius:7px;padding:7px 14px;font-size:13px;color:#fff;cursor:pointer;font-weight:600;font-family:'IBM Plex Sans',sans-serif">Save</button>
+    </div>
+    <div style="font-size:12px;color:var(--txt2);margin-bottom:12px">
+      Public phone, email, and address. Updates the website footer, contact pages, and the agreement header. Tap-to-call and mailto: links derive automatically from these values.
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 14px">
+      <div class="fl"><label>Phone</label><input id="si-phone" placeholder="(478) 216-2876"></div>
+      <div class="fl"><label>Email</label><input id="si-email" placeholder="qbixcentre@outlook.com"></div>
+      <div class="fl" style="grid-column:1/-1"><label>Address</label><input id="si-address" placeholder="500A Northside Crossing, Macon, GA 31210"></div>
+    </div>
+  </div>
+
   <!-- CONTACT MESSAGES -->
   <div class="card" id="contact-messages-card" style="margin-bottom:16px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
@@ -4654,9 +4671,47 @@ async function deleteContactMessage(id){
   } catch(e){ toast('Could not delete','var(--red)'); }
 }
 
+// ── Site Information (Marketing tab — public-facing contact info) ───────
+async function loadSiteInfo(){
+  try {
+    const r = await fetch('/admin/api/site-info');
+    if(!r.ok) return;
+    const si = await r.json();
+    const el = (id) => document.getElementById(id);
+    if(el('si-phone'))   el('si-phone').value   = si.phone   || '';
+    if(el('si-email'))   el('si-email').value   = si.email   || '';
+    if(el('si-address')) el('si-address').value = si.address || '';
+  } catch(e){ /* silent */ }
+}
+
+async function saveSiteInfo(){
+  const btn = document.getElementById('site-info-save');
+  const orig = btn ? btn.textContent : '';
+  if(btn){ btn.textContent = 'Saving...'; btn.disabled = true; }
+  try {
+    const payload = {
+      phone:   (document.getElementById('si-phone')?.value   || '').trim(),
+      email:   (document.getElementById('si-email')?.value   || '').trim(),
+      address: (document.getElementById('si-address')?.value || '').trim(),
+    };
+    const r = await fetch('/admin/api/site-info', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(payload),
+    });
+    if(!r.ok) throw new Error('save failed');
+    toast('Site info saved &#10003;');
+  } catch(e) {
+    toast('Could not save site info', 'var(--red)');
+  } finally {
+    if(btn){ btn.textContent = orig || 'Save'; btn.disabled = false; }
+  }
+}
+
 function buildMarketing(){
   if(!document.getElementById('page-marketing')) return;
   loadContactMessages();
+  loadSiteInfo();
 
   // ── Marketing action queue & GBP health ───────────────────────────────────
   renderMarketingAlerts();

@@ -40,8 +40,8 @@
   {{ rules_html | safe }}
 
   <div class="no-print" style="margin-top:48px;padding-top:24px;border-top:1px solid var(--border);text-align:center;font-size:13px;color:var(--txt2)">
-    Questions? Contact us at <a href="mailto:qbixcentre@outlook.com" style="color:var(--gold);font-weight:600">qbixcentre@outlook.com</a> or
-    <a href="tel:4782162876" style="color:var(--gold);font-weight:600">(478) 216-2876</a>.
+    Questions? Contact us at <a href="mailto:{{ site_info.email }}" style="color:var(--gold);font-weight:600">{{ site_info.email }}</a> or
+    <a href="tel:{{ site_info.phone | phone_digits }}" style="color:var(--gold);font-weight:600">{{ site_info.phone }}</a>.
   </div>
 </div>
 {% endblock %}

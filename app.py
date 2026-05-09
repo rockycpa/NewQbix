@@ -399,6 +399,15 @@ DEFAULT_DATA = {
     # admins; there is no booking-only tier (occupants book on the public
     # /book flow with their own phone-based auth).
     "users": [],
+    # Public-facing contact info — phone, email, address. Edited from the
+    # Marketing tab. Templates pull from `site_info` (injected via context
+    # processor below); the agreement reads from data['siteInfo'] directly.
+    # Use the `phone_digits` filter for tel: links — strips non-digits.
+    "siteInfo": {
+        "phone":   "(478) 216-2876",
+        "email":   "qbixcentre@outlook.com",
+        "address": "500A Northside Crossing, Macon, GA 31210",
+    },
 }
 
 
@@ -630,6 +639,12 @@ def load_data():
         # Quill editor on the Members → Documents panel.
         d.setdefault('houseRulesHtml',    DEFAULT_HOUSE_RULES_HTML)
         d.setdefault('agreementBodyHtml', DEFAULT_AGREEMENT_BODY_HTML)
+        # Public-facing contact info — phone, email, address. Edited from
+        # the Marketing tab.
+        d.setdefault('siteInfo',          dict(DEFAULT_DATA['siteInfo']))
+        # Backfill missing inner keys without clobbering admin edits.
+        for _k, _v in DEFAULT_DATA['siteInfo'].items():
+            d['siteInfo'].setdefault(_k, _v)
         for m in d.get('members', []):
             m.setdefault('attachments', [])
             m.setdefault('discount', 0)
@@ -954,7 +969,23 @@ def generate_code():
 # ── Template context ─────────────────────────────────────────────────────────
 @app.context_processor
 def inject_globals():
-    return {'now': datetime.now()}
+    # site_info — public-facing contact info from the DB (admin edits it on
+    # the Marketing tab). Falls back to the DEFAULT_DATA values if the key
+    # is missing. Templates can reference {{ site_info.phone }},
+    # {{ site_info.email }}, {{ site_info.address }} anywhere.
+    try:
+        _data = get_db()
+        _si = _data.get('siteInfo') or DEFAULT_DATA['siteInfo']
+    except Exception:
+        _si = DEFAULT_DATA['siteInfo']
+    return {'now': datetime.now(), 'site_info': _si}
+
+
+# Strip non-digit characters from a string — used to build tel: links from a
+# formatted phone number (e.g. "(478) 216-2876" → "4782162876").
+@app.template_filter('phone_digits')
+def phone_digits(s):
+    return re.sub(r'\D', '', s or '')
 
 
 @app.template_filter('cl_optimize')
@@ -1227,6 +1258,26 @@ def sms_optin():
 
 @app.route('/contact', methods=['POST'])
 def contact_submit():
+    # ── Spam guards ─────────────────────────────────────────────────────────
+    # 1) Honeypot: the public form has a hidden "website" field that real
+    #    visitors never see. If it's filled in, this is a bot — pretend the
+    #    submission worked but drop it on the floor.
+    # 2) Time check: the form stamps a page-load time (ms) into "_t". If the
+    #    submission arrives sooner than ~3 seconds after page load, treat as
+    #    a bot. Real visitors take longer than that to type a message.
+    if (request.form.get('website') or '').strip():
+        flash('Thank you! We will be in touch shortly.', 'success')
+        return redirect(url_for('contact'))
+    try:
+        _t = int(request.form.get('_t', '0') or 0)
+    except (TypeError, ValueError):
+        _t = 0
+    if _t > 0:
+        elapsed_ms = (datetime.now().timestamp() * 1000) - _t
+        if elapsed_ms < 3000:
+            flash('Thank you! We will be in touch shortly.', 'success')
+            return redirect(url_for('contact'))
+
     name    = request.form.get('name', '')
     email   = request.form.get('email', '')
     phone   = request.form.get('phone', '')
@@ -1267,6 +1318,28 @@ def api_site_settings():
     db['siteSettings'] = data
     save_data(db)
     return jsonify({'ok': True})
+
+
+@app.route('/admin/api/site-info', methods=['GET', 'POST'])
+@login_required
+def api_site_info():
+    """Public-facing contact info (phone / email / address) edited from the
+    Marketing tab. Templates and the agreement read from the same source."""
+    db = get_db()
+    if request.method == 'GET':
+        return jsonify(db.get('siteInfo', dict(DEFAULT_DATA['siteInfo'])))
+    payload = request.get_json(force=True) or {}
+    # Whitelist fields so the admin form can't drop unrelated keys into the
+    # blob. Strip whitespace and fall back to existing values for blanks.
+    current = db.get('siteInfo') or dict(DEFAULT_DATA['siteInfo'])
+    new = {
+        'phone':   (payload.get('phone',   current.get('phone',   ''))   or '').strip(),
+        'email':   (payload.get('email',   current.get('email',   ''))   or '').strip(),
+        'address': (payload.get('address', current.get('address', '')) or '').strip(),
+    }
+    db['siteInfo'] = new
+    save_data(db)
+    return jsonify({'ok': True, 'siteInfo': new})
 
 @app.route('/admin/api/home-gallery', methods=['GET', 'POST'])
 @login_required
@@ -2476,6 +2549,12 @@ def generate_agreement(member_id):
 
     conf_hours = len(offices) * 6
 
+    # Site contact info — admin edits these on the Marketing tab. Falls back
+    # to the DEFAULT_DATA values if siteInfo is missing for any reason.
+    _si        = data.get('siteInfo') or DEFAULT_DATA['siteInfo']
+    site_phone = _si.get('phone',   DEFAULT_DATA['siteInfo']['phone'])
+    site_addr  = _si.get('address', DEFAULT_DATA['siteInfo']['address'])
+
     def fld(label, value):
         return f'<tr><td class="fl">{label}</td><td class="fv">{value}</td></tr>'
 
@@ -2649,7 +2728,7 @@ ul.clauses li, .agreement-body ul li{{margin-bottom:7px;line-height:1.55;font-si
   <div class="hdr">
     <div class="hdr-title">QBIX CENTRE</div>
     <div class="hdr-sub">Membership Agreement</div>
-    <div class="hdr-addr">500A Northside Crossing, Macon, GA 31210 &bull; (478) 216-2876 &bull; qbixcentre.com</div>
+    <div class="hdr-addr">{site_addr} &bull; {site_phone} &bull; qbixcentre.com</div>
     <div class="hdr-date">Agreement Date: {today_str}</div>
   </div>
   <div class="summary">
