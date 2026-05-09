@@ -4629,7 +4629,10 @@ function renderContactMessages(){
     return;
   }
   el.innerHTML = _contactMessages.map(m => {
-    const dt = m.timestamp ? new Date(m.timestamp).toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}) : '';
+    // contact_submit stores the received time as `date`; older records
+    // may have used `timestamp`. Read both so legacy entries still show.
+    const _ts = m.date || m.timestamp;
+    const dt = _ts ? new Date(_ts).toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}) : '';
     const isUnread = !m.read;
     return `<div id="cmsg-${m.id}" style="border:1px solid ${isUnread?'var(--acc)':'var(--bdr)'};border-radius:9px;padding:14px 16px;margin-bottom:10px;background:${isUnread?'rgba(212,168,67,.06)':'var(--sur2)'};transition:all .3s">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:8px">

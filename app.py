@@ -1278,6 +1278,17 @@ def contact_submit():
             flash('Thank you! We will be in touch shortly.', 'success')
             return redirect(url_for('contact'))
 
+    # 3) Phone format: optional field, but if the visitor enters anything in
+    #    it, it must contain exactly 10 digits (US format). Bots often dump
+    #    junk text into the phone slot or use foreign numbers; this catches
+    #    those without rejecting visitors who leave phone blank.
+    phone_raw = (request.form.get('phone') or '').strip()
+    if phone_raw:
+        phone_digits_only = re.sub(r'\D', '', phone_raw)
+        if len(phone_digits_only) != 10:
+            flash('Thank you! We will be in touch shortly.', 'success')
+            return redirect(url_for('contact'))
+
     name    = request.form.get('name', '')
     email   = request.form.get('email', '')
     phone   = request.form.get('phone', '')
