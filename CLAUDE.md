@@ -1,4 +1,4 @@
-# Qbix Centre — CLAUDE.md
+# Qbix Centre — CLAUDE.md 
 
 Codebase guide for AI-assisted development. Update this file whenever significant changes are made.
 
