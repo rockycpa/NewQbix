@@ -1149,7 +1149,6 @@ def sitemap():
     urls = [
         {'loc': APP_URL + '/',            'priority': '1.0', 'changefreq': 'weekly',  'lastmod': today},
         {'loc': APP_URL + '/memberships', 'priority': '0.9', 'changefreq': 'monthly', 'lastmod': today},
-        {'loc': APP_URL + '/amenities',   'priority': '0.8', 'changefreq': 'monthly', 'lastmod': today},
         {'loc': APP_URL + '/news',        'priority': '0.7', 'changefreq': 'weekly',  'lastmod': today},
         {'loc': APP_URL + '/contact',     'priority': '0.8', 'changefreq': 'monthly', 'lastmod': today},
         {'loc': APP_URL + '/book',        'priority': '0.6', 'changefreq': 'monthly', 'lastmod': today},
@@ -1279,6 +1278,8 @@ def privacy():
     privacy_sms_html = data.get('bookingSettings', {}).get('privacySmsHtml', '')
     return render_template('public/privacy.html',
                            privacy_sms_html=privacy_sms_html,
+                           page_title='Privacy Policy | Qbix Centre Macon GA',
+                           page_desc='Read the Qbix Centre privacy policy covering how we collect, use, and protect your personal information.',
                            ga_id=GA_MEASUREMENT_ID)
 
 @app.route('/sms-optin')
@@ -1565,6 +1566,8 @@ def book_home():
     bs   = data.get('bookingSettings', {})
     return render_template('public/book_home.html',
         opt_in_disclosure=bs.get('optInDisclosure', ''),
+        page_title='Book a Conference Room | Qbix Centre Macon GA',
+        page_desc='Reserve the Qbix Centre conference room online. Members can book by the hour — 24/7 access, no hassle.',
         ga_id=GA_MEASUREMENT_ID)
 
 @app.route('/book/request-code', methods=['POST'])
@@ -2284,7 +2287,6 @@ def indexnow_ping_all():
     urls = [
         f'{APP_URL}/',
         f'{APP_URL}/memberships',
-        f'{APP_URL}/amenities',
         f'{APP_URL}/news',
         f'{APP_URL}/contact',
         f'{APP_URL}/book',
