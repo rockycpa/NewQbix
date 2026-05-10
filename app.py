@@ -1475,7 +1475,7 @@ def news_post(post_id):
 def onboard_home():
     track_pageview('/onboard')
     """Landing page linked from website — general interest form."""
-    return render_template('public/onboard_home.html', ga_id=GA_MEASUREMENT_ID)
+    return render_template('public/onboard_home.html', noindex=True, ga_id=GA_MEASUREMENT_ID)
 
 @app.route('/onboard/<token>')
 def onboard(token):
@@ -1483,8 +1483,8 @@ def onboard(token):
     data = get_db()
     info = _ot_get(data, token)   # filters expired
     if not info:
-        return render_template('public/onboard_expired.html')
-    return render_template('public/onboard.html', token=token, info=info, ga_id=GA_MEASUREMENT_ID)
+        return render_template('public/onboard_expired.html', noindex=True)
+    return render_template('public/onboard.html', token=token, info=info, noindex=True, ga_id=GA_MEASUREMENT_ID)
 
 @app.route('/onboard/<token>/submit', methods=['POST'])
 def onboard_submit(token):
@@ -1670,6 +1670,7 @@ def book_calendar():
         min_year=now.year,   min_month=now.month,
         max_year=next_dt.year, max_month=next_dt.month,
         opt_in_disclosure=bs.get('optInDisclosure', ''),
+        noindex=True,
         ga_id=GA_MEASUREMENT_ID)
 
 @app.route('/book/slots')
