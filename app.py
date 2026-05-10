@@ -3893,36 +3893,40 @@ def get_bing_search():
     try:
         # ── Keyword stats ─────────────────────────────────────────────────────
         params = urllib.parse.urlencode({
-            'apikey':    api_key,
-            'siteUrl':   site_url,
+            'apikey':  api_key,
+            'siteUrl': site_url,
             'startDate': start_date.strftime('%Y-%m-%d'),
             'endDate':   end_date.strftime('%Y-%m-%d'),
-            'query':     '',
-            'country':   'all',
-            'language':  'all',
         })
-        kw_url = f'{base}/GetKeywordStats?{params}'
+        kw_url = f'{base}/GetSearchKeywordStats?{params}'
         req = urllib.request.Request(kw_url, headers={'Accept': 'application/json'})
         try:
             with urllib.request.urlopen(req, timeout=10) as resp:
                 kw_data = json.loads(resp.read().decode())
+            print(f"[Bing API] Success — keys: {list(kw_data.keys())}, sample: {str(kw_data)[:200]}")
         except urllib.error.HTTPError as he:
             body = he.read().decode('utf-8', errors='replace')
-            print(f"[Bing API] HTTP {he.code} — URL: {kw_url}")
-            print(f"[Bing API] Response body: {body}")
+            print(f"[Bing API] HTTP {he.code} error: {body}")
             return jsonify({'ok': False, 'error': f'Bing API HTTP {he.code}: {body[:300]}'})
 
         queries = []
         total_clicks      = 0
         total_impressions = 0
 
-        for row in (kw_data.get('d') or []):
-            clicks      = int(row.get('Clicks', 0))
-            impressions = int(row.get('Impressions', 0))
-            position    = round(float(row.get('AvgPosition', 0)), 1)
+        rows = kw_data.get('d') or kw_data.get('value') or kw_data.get('results') or []
+        if isinstance(rows, dict):
+            rows = rows.get('value') or rows.get('results') or []
+        print(f"[Bing API] Row count: {len(rows)}, first row sample: {str(rows[:1])}")
+        for row in rows:
+            clicks      = int(row.get('Clicks', row.get('clicks', 0)))
+            impressions = int(row.get('Impressions', row.get('impressions', 0)))
+            position    = round(float(row.get('AvgPosition', row.get('avgPosition', row.get('position', 0)))), 1)
+            query_text  = row.get('Query', row.get('query', row.get('Keyword', '')))
             ctr         = round((clicks / impressions * 100) if impressions else 0, 1)
+            if not query_text:
+                continue
             queries.append({
-                'query':       row.get('Query', ''),
+                'query':       query_text,
                 'clicks':      clicks,
                 'impressions': impressions,
                 'ctr':         ctr,
