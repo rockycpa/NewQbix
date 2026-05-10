@@ -12,6 +12,7 @@ import re
 import secrets
 import threading
 import time
+import urllib.request
 import pyotp
 from datetime import datetime, timedelta, date as datetime_date
 from functools import wraps
@@ -918,6 +919,29 @@ def get_member_hours_used(data, member_name, year, month):
     return total
 
 
+# ── IndexNow helper ──────────────────────────────────────────────────────────
+INDEXNOW_KEY = '12a5fb7e1c2143cd93db267462ec654c'
+
+def ping_indexnow(urls):
+    """Notify Bing IndexNow of new or updated URLs. urls is a list of full URLs."""
+    try:
+        payload = json.dumps({
+            'host': 'www.qbixcentre.com',
+            'key': INDEXNOW_KEY,
+            'keyLocation': f'https://www.qbixcentre.com/{INDEXNOW_KEY}.txt',
+            'urlList': urls
+        }).encode('utf-8')
+        req = urllib.request.Request(
+            'https://api.indexnow.org/IndexNow',
+            data=payload,
+            headers={'Content-Type': 'application/json; charset=utf-8'},
+            method='POST'
+        )
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            print(f"[IndexNow] Pinged {len(urls)} URL(s) — status {resp.status}")
+    except Exception as e:
+        print(f"[IndexNow] Ping failed: {e}")
+
 # ── SMS helper (Twilio) ───────────────────────────────────────────────────────
 def send_sms(to_phone, message):
     """Send SMS via Twilio. Phone number should be 10 digits, e.g. 4787379107.
@@ -1123,10 +1147,12 @@ def sitemap():
 
     # Static pages
     urls = [
-        {'loc': APP_URL + '/',        'priority': '1.0', 'changefreq': 'weekly',  'lastmod': today},
-        {'loc': APP_URL + '/news',    'priority': '0.7', 'changefreq': 'weekly',  'lastmod': today},
-        {'loc': APP_URL + '/contact', 'priority': '0.8', 'changefreq': 'monthly', 'lastmod': today},
-        {'loc': APP_URL + '/book',    'priority': '0.6', 'changefreq': 'monthly', 'lastmod': today},
+        {'loc': APP_URL + '/',            'priority': '1.0', 'changefreq': 'weekly',  'lastmod': today},
+        {'loc': APP_URL + '/memberships', 'priority': '0.9', 'changefreq': 'monthly', 'lastmod': today},
+        {'loc': APP_URL + '/amenities',   'priority': '0.8', 'changefreq': 'monthly', 'lastmod': today},
+        {'loc': APP_URL + '/news',        'priority': '0.7', 'changefreq': 'weekly',  'lastmod': today},
+        {'loc': APP_URL + '/contact',     'priority': '0.8', 'changefreq': 'monthly', 'lastmod': today},
+        {'loc': APP_URL + '/book',        'priority': '0.6', 'changefreq': 'monthly', 'lastmod': today},
     ]
 
     # Vacant office detail pages
@@ -3183,6 +3209,13 @@ def publish_newsletter():
     })
     ms['marketingAlerts'] = alerts
     save_data(data)
+
+    # Notify Bing of the new news post
+    threading.Thread(
+        target=ping_indexnow,
+        args=([f'{APP_URL}/news/{post_id}', f'{APP_URL}/news'],),
+        daemon=True
+    ).start()
 
     if send:
         active_with_email = [m for m in data['members']
