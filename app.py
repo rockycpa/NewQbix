@@ -13,6 +13,7 @@ import secrets
 import smtplib
 import threading
 import time
+import urllib.parse
 import urllib.request
 import pyotp
 import base64 as _b64
@@ -74,7 +75,14 @@ TOTP_SECRET = os.environ.get('TOTP_SECRET', pyotp.random_base32())
 SMTP_EMAIL    = os.environ.get('SMTP_EMAIL', '')
 SMTP_PASSWORD = os.environ.get('SMTP_PASSWORD', '')
 SMTP_HOST     = 'smtp.office365.com'
-SMTP_PORT     = 587
+SMTP_PORT     = 465
+
+# ── Microsoft Graph API email (preferred — works through cloud firewalls) ─────
+# Register an app in Azure AD, grant Mail.Send application permission,
+# and add these three values as Railway environment variables.
+AZURE_TENANT_ID     = os.environ.get('AZURE_TENANT_ID', '')
+AZURE_CLIENT_ID     = os.environ.get('AZURE_CLIENT_ID', '')
+AZURE_CLIENT_SECRET = os.environ.get('AZURE_CLIENT_SECRET', '')
 
 # ── Cloudinary config ────────────────────────────────────────────────────────
 if _cloudinary_available:
@@ -212,7 +220,78 @@ def _ot_prune(data):
     for k in [k for k, v in list(store.items()) if str(v.get('expires','')) < now_iso]:
         store.pop(k, None)
 
-# ── Email sending (Microsoft 365 SMTP) ───────────────────────────────────────
+# ── Microsoft Graph API email helpers ────────────────────────────────────────
+
+_graph_token_cache = {'token': '', 'expires': 0.0}
+
+def _graph_token():
+    """Return a cached OAuth2 client-credentials token for the Graph API.
+    Fetches a fresh one when the cached token is within 60 s of expiry."""
+    import time
+    if _graph_token_cache['token'] and time.time() < _graph_token_cache['expires'] - 60:
+        return _graph_token_cache['token']
+    body = urllib.parse.urlencode({
+        'grant_type':    'client_credentials',
+        'client_id':     AZURE_CLIENT_ID,
+        'client_secret': AZURE_CLIENT_SECRET,
+        'scope':         'https://graph.microsoft.com/.default',
+    }).encode()
+    url = f'https://login.microsoftonline.com/{AZURE_TENANT_ID}/oauth2/v2.0/token'
+    req = urllib.request.Request(url, data=body,
+                                  headers={'Content-Type': 'application/x-www-form-urlencoded'})
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        data = json.loads(resp.read())
+    _graph_token_cache['token']   = data['access_token']
+    _graph_token_cache['expires'] = time.time() + int(data.get('expires_in', 3600))
+    return _graph_token_cache['token']
+
+
+def _send_via_graph(to_email, to_name, subject, body_html, attachment=None):
+    """Send one email via Microsoft Graph API (HTTPS — never blocked by firewalls).
+    attachment = {'name': str, 'data': base64-str, 'type': mime-type-str} or None.
+    Returns (True, None) on success or (False, error_string) on failure."""
+    try:
+        token   = _graph_token()
+        message = {
+            'subject': subject,
+            'body':    {'contentType': 'HTML',
+                        'content':     _email_html_wrapper(subject, body_html)},
+            'toRecipients': [{'emailAddress': {
+                'address': to_email,
+                'name':    to_name or to_email,
+            }}],
+        }
+        if attachment:
+            message['attachments'] = [{
+                '@odata.type':  '#microsoft.graph.fileAttachment',
+                'name':         attachment.get('name', 'attachment'),
+                'contentType':  attachment.get('type', 'application/octet-stream'),
+                'contentBytes': attachment['data'],   # already base64
+            }]
+        payload = json.dumps({'message': message, 'saveToSentItems': True}).encode()
+        url = f'https://graph.microsoft.com/v1.0/users/{SMTP_EMAIL}/sendMail'
+        req = urllib.request.Request(url, data=payload, headers={
+            'Authorization': f'Bearer {token}',
+            'Content-Type':  'application/json',
+        })
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            pass  # 202 Accepted = queued successfully
+        app.logger.info('_send_via_graph: sent to=%s subject=%r', to_email, subject)
+        return True, None
+    except urllib.error.HTTPError as exc:
+        body = exc.read().decode('utf-8', errors='replace')[:400]
+        app.logger.error('_send_via_graph HTTP %s to=%s: %s', exc.code, to_email, body)
+        return False, f'Graph API error {exc.code}: {body}'
+    except Exception as exc:
+        app.logger.error('_send_via_graph error to=%s: %s', to_email, exc)
+        return False, str(exc)
+
+
+def _graph_configured():
+    return bool(AZURE_TENANT_ID and AZURE_CLIENT_ID and AZURE_CLIENT_SECRET and SMTP_EMAIL)
+
+
+# ── Email sending (Graph API preferred; SMTP fallback) ────────────────────────
 
 def _email_html_wrapper(subject, body_html):
     """Wrap body_html in a clean, branded email shell."""
@@ -250,13 +329,17 @@ def _email_html_wrapper(subject, body_html):
 
 
 def send_email(to_email, to_name, subject, body_html):
-    """Send an HTML email via Microsoft 365 SMTP.
-    Returns True on success, False on failure or misconfiguration."""
-    if not SMTP_EMAIL or not SMTP_PASSWORD:
-        app.logger.warning('send_email: SMTP_EMAIL or SMTP_PASSWORD not set — skipping')
-        return False
+    """Send an HTML email. Prefers Graph API when Azure credentials are set;
+    falls back to SMTP. Returns True on success, False on failure."""
     if not to_email:
-        app.logger.warning('send_email: no recipient address — skipping')
+        return False
+    # ── Graph API path (HTTPS — works even when SMTP ports are blocked) ───────
+    if _graph_configured():
+        ok, _ = _send_via_graph(to_email, to_name, subject, body_html)
+        return ok
+    # ── SMTP fallback ─────────────────────────────────────────────────────────
+    if not SMTP_EMAIL or not SMTP_PASSWORD:
+        app.logger.warning('send_email: neither Graph API nor SMTP configured — skipping')
         return False
     try:
         msg = MIMEMultipart('alternative')
@@ -265,18 +348,14 @@ def send_email(to_email, to_name, subject, body_html):
         msg['To']      = f'{to_name} <{to_email}>' if to_name else to_email
         msg['Reply-To'] = SMTP_EMAIL
         msg.attach(MIMEText(_email_html_wrapper(subject, body_html), 'html'))
-
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=15) as smtp:
-            smtp.ehlo()
-            smtp.starttls()
+        with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, timeout=15) as smtp:
             smtp.ehlo()
             smtp.login(SMTP_EMAIL, SMTP_PASSWORD)
             smtp.sendmail(SMTP_EMAIL, to_email, msg.as_string())
-
-        app.logger.info('send_email: sent to=%s subject=%r', to_email, subject)
+        app.logger.info('send_email (SMTP): sent to=%s subject=%r', to_email, subject)
         return True
     except Exception as exc:
-        app.logger.error('send_email error to=%s: %s — hint: check SMTP AUTH is enabled in M365 admin for %s', to_email, exc, SMTP_EMAIL)
+        app.logger.error('send_email (SMTP) error to=%s: %s', to_email, exc)
         return False
 
 
@@ -291,10 +370,16 @@ def send_email_async(to_email, to_name, subject, body_html):
 
 def _send_notify_email(to_email, to_name, subject, body_html, attachment=None):
     """Send an HTML email with an optional file attachment.
-    attachment = {'name': str, 'data': base64-str, 'type': mime-type-str} or None.
+    Prefers Graph API; falls back to SMTP.
     Returns (True, None) on success or (False, error_string) on failure."""
-    if not SMTP_EMAIL or not SMTP_PASSWORD or not to_email:
-        return False, 'SMTP credentials or recipient missing'
+    if not to_email:
+        return False, 'No recipient address'
+    # ── Graph API path ────────────────────────────────────────────────────────
+    if _graph_configured():
+        return _send_via_graph(to_email, to_name, subject, body_html, attachment)
+    # ── SMTP fallback ─────────────────────────────────────────────────────────
+    if not SMTP_EMAIL or not SMTP_PASSWORD:
+        return False, 'Neither Graph API nor SMTP configured'
     try:
         msg = MIMEMultipart('mixed')
         msg['Subject'] = subject
@@ -318,8 +403,8 @@ def _send_notify_email(to_email, to_name, subject, body_html, attachment=None):
                             filename=attachment.get('name', 'attachment'))
             msg.attach(part)
 
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=15) as smtp:
-            smtp.ehlo(); smtp.starttls(); smtp.ehlo()
+        with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, timeout=15) as smtp:
+            smtp.ehlo()
             smtp.login(SMTP_EMAIL, SMTP_PASSWORD)
             smtp.sendmail(SMTP_EMAIL, to_email, msg.as_string())
 
