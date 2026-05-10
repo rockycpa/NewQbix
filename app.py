@@ -3885,20 +3885,27 @@ def get_bing_search():
 
     end_date   = datetime_date.today()
     start_date = end_date - timedelta(days=days_int)
-    fmt = lambda d: d.strftime('%m/%d/%Y')
     site_url   = 'https://www.qbixcentre.com/'
 
+    import urllib.parse
     base = 'https://ssl.bing.com/webmaster/api.svc/json'
 
     try:
         # ── Keyword stats ─────────────────────────────────────────────────────
-        kw_url = (f'{base}/GetKeywordStats?apikey={api_key}'
-                  f'&siteUrl={site_url}'
-                  f'&startDate={fmt(start_date)}&endDate={fmt(end_date)}'
-                  f'&query=&country=all&language=all')
+        params = urllib.parse.urlencode({
+            'apikey':    api_key,
+            'siteUrl':   site_url,
+            'startDate': start_date.strftime('%Y-%m-%d'),
+            'endDate':   end_date.strftime('%Y-%m-%d'),
+            'query':     '',
+            'country':   'all',
+            'language':  'all',
+        })
+        kw_url = f'{base}/GetKeywordStats?{params}'
         req = urllib.request.Request(kw_url, headers={'Accept': 'application/json'})
         with urllib.request.urlopen(req, timeout=10) as resp:
             kw_data = json.loads(resp.read().decode())
+        print(f"[Bing API] Response keys: {list(kw_data.keys())}")
 
         queries = []
         total_clicks      = 0
