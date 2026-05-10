@@ -3903,9 +3903,14 @@ def get_bing_search():
         })
         kw_url = f'{base}/GetKeywordStats?{params}'
         req = urllib.request.Request(kw_url, headers={'Accept': 'application/json'})
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            kw_data = json.loads(resp.read().decode())
-        print(f"[Bing API] Response keys: {list(kw_data.keys())}")
+        try:
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                kw_data = json.loads(resp.read().decode())
+        except urllib.error.HTTPError as he:
+            body = he.read().decode('utf-8', errors='replace')
+            print(f"[Bing API] HTTP {he.code} — URL: {kw_url}")
+            print(f"[Bing API] Response body: {body}")
+            return jsonify({'ok': False, 'error': f'Bing API HTTP {he.code}: {body[:300]}'})
 
         queries = []
         total_clicks      = 0
