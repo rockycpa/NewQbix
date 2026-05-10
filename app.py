@@ -3861,6 +3861,82 @@ def get_search_console():
         return jsonify({'ok': False, 'error': msg})
 
 
+# ── Bing Webmaster API ───────────────────────────────────────────────────────
+
+@app.route('/admin/api/bingsearch')
+@login_required
+def get_bing_search():
+    """Return Bing Webmaster Tools search analytics.
+    Requires env var BING_WMT_API_KEY (from Bing Webmaster Tools > Settings > API Access).
+    Accepts ?days=7|28|90. Returns KPIs + top 20 queries by impressions.
+    """
+    api_key = os.environ.get('BING_WMT_API_KEY', '')
+    if not api_key:
+        return jsonify({'ok': False, 'setup': True,
+                        'error': 'BING_WMT_API_KEY not configured'})
+
+    days = request.args.get('days', '28')
+    try:
+        days_int = int(days)
+        if days_int not in (7, 28, 90):
+            days_int = 28
+    except ValueError:
+        days_int = 28
+
+    end_date   = datetime_date.today()
+    start_date = end_date - timedelta(days=days_int)
+    fmt = lambda d: d.strftime('%m/%d/%Y')
+    site_url   = 'https://www.qbixcentre.com/'
+
+    base = 'https://ssl.bing.com/webmaster/api.svc/json'
+
+    try:
+        # ── Keyword stats ─────────────────────────────────────────────────────
+        kw_url = (f'{base}/GetKeywordStats?apikey={api_key}'
+                  f'&siteUrl={site_url}'
+                  f'&startDate={fmt(start_date)}&endDate={fmt(end_date)}'
+                  f'&query=&country=all&language=all')
+        req = urllib.request.Request(kw_url, headers={'Accept': 'application/json'})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            kw_data = json.loads(resp.read().decode())
+
+        queries = []
+        total_clicks      = 0
+        total_impressions = 0
+
+        for row in (kw_data.get('d') or []):
+            clicks      = int(row.get('Clicks', 0))
+            impressions = int(row.get('Impressions', 0))
+            position    = round(float(row.get('AvgPosition', 0)), 1)
+            ctr         = round((clicks / impressions * 100) if impressions else 0, 1)
+            queries.append({
+                'query':       row.get('Query', ''),
+                'clicks':      clicks,
+                'impressions': impressions,
+                'ctr':         ctr,
+                'position':    position,
+            })
+            total_clicks      += clicks
+            total_impressions += impressions
+
+        queries.sort(key=lambda q: q['impressions'], reverse=True)
+        avg_position = (round(sum(q['position'] for q in queries) / len(queries), 1)
+                        if queries else 0.0)
+
+        return jsonify({
+            'ok':                True,
+            'total_clicks':      total_clicks,
+            'total_impressions': total_impressions,
+            'avg_position':      avg_position,
+            'queries':           queries[:20],
+            'start_date':        start_date.isoformat(),
+            'end_date':          end_date.isoformat(),
+        })
+
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)})
+
+
 # ── Setup route (first run only) ─────────────────────────────────────────────
 
 @app.context_processor
