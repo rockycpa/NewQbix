@@ -587,6 +587,16 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
     </div>
   </div>
 
+  <!-- BING INDEXNOW -->
+  <div class="card" style="margin-bottom:16px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <div class="ct" style="margin-bottom:0">&#128269; Bing IndexNow</div>
+      <button onclick="pingIndexNow()" id="indexnow-btn" style="background:var(--acc);border:none;border-radius:8px;padding:7px 16px;font-size:13px;color:#000;font-weight:700;cursor:pointer;font-family:'IBM Plex Sans',sans-serif">&#9889; Ping Bing</button>
+    </div>
+    <div style="font-size:12px;color:var(--txt2);margin-bottom:10px">Instantly notify Bing of all your public pages. Run this after publishing new content or making site changes.</div>
+    <div id="indexnow-result" style="display:none;font-size:12px;padding:8px 12px;border-radius:6px;margin-top:4px"></div>
+  </div>
+
   <!-- LEAD SOURCE EDITOR (hidden by default) -->
   <div id="ls-editor" style="display:none;background:var(--sur);border:1px solid var(--bdr);border-radius:10px;padding:16px;margin-bottom:16px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
@@ -5445,6 +5455,37 @@ function toggleGbpEdit(){
     document.getElementById('gbp-in-replied').value = gbp.lastReplied || '';
     rv.style.display = 'none'; ev.style.display = ''; btn.textContent = '✎ Editing';
   }
+}
+
+async function pingIndexNow(){
+  const btn = document.getElementById('indexnow-btn');
+  const result = document.getElementById('indexnow-result');
+  btn.disabled = true;
+  btn.textContent = '⏳ Pinging…';
+  result.style.display = 'none';
+  try {
+    const r = await fetch('/admin/api/indexnow-ping', {method:'POST'});
+    const d = await r.json();
+    if(d.ok){
+      result.style.background = 'var(--grn-bg, #e6f9ee)';
+      result.style.color = 'var(--grn, #1a7f37)';
+      result.style.border = '1px solid var(--grn, #1a7f37)';
+      result.textContent = `✓ Pinged Bing with ${d.pinged} URL${d.pinged!==1?'s':''}`;
+    } else {
+      result.style.background = 'var(--red-bg, #ffeef0)';
+      result.style.color = 'var(--red, #cf222e)';
+      result.style.border = '1px solid var(--red, #cf222e)';
+      result.textContent = 'Ping failed — check server logs';
+    }
+  } catch(e){
+    result.style.background = 'var(--red-bg, #ffeef0)';
+    result.style.color = 'var(--red, #cf222e)';
+    result.style.border = '1px solid var(--red, #cf222e)';
+    result.textContent = 'Network error — try again';
+  }
+  result.style.display = 'block';
+  btn.disabled = false;
+  btn.textContent = '⚡ Ping Bing';
 }
 
 async function saveGbpHealth(){

@@ -2276,6 +2276,28 @@ def api_backup():
     except Exception as e:
         return jsonify({'ok': False, 'error': str(e)}), 500
 
+@app.route('/admin/api/indexnow-ping', methods=['POST'])
+@login_required
+def indexnow_ping_all():
+    """Ping Bing IndexNow with all public URLs."""
+    data = get_db()
+    urls = [
+        f'{APP_URL}/',
+        f'{APP_URL}/memberships',
+        f'{APP_URL}/amenities',
+        f'{APP_URL}/news',
+        f'{APP_URL}/contact',
+        f'{APP_URL}/book',
+    ]
+    for o in data.get('offices', []):
+        if o.get('status') == 'Vacant':
+            urls.append(f'{APP_URL}/offices/{o["id"]}')
+    for p in data.get('newsletter', []):
+        if not p.get('draft') and p.get('id'):
+            urls.append(f'{APP_URL}/news/{p["id"]}')
+    ping_indexnow(urls)
+    return jsonify({'ok': True, 'pinged': len(urls), 'urls': urls})
+
 @app.route('/admin/api/import-data', methods=['POST'])
 @login_required
 def import_data():
