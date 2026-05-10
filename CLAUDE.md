@@ -246,8 +246,10 @@ Do NOT add `requests` to requirements — use `urllib.request` instead. All curr
   - **Onboarding link:** Email to prospect when admin generates an onboard link
   - **Onboarding complete:** Welcome email to new member + admin notification on form submission
   - **Newsletter:** Bulk email to all Active members on publish (background thread)
+- **Notify tab email templates:** Templates stored in `DB.templates` (part of main JSON store). Default templates seeded in `DEFAULT_DATA` (Power Outage, Monthly Dues Reminder, Building Maintenance, General Notice, Welcome Email). Backfill in `load_data()` adds any missing default templates to existing DBs. Template chips show a delete ✕ button; clicking a template loads its name into the save field so edits can be saved back under the same name. Auto-sends for welcome/booking/onboarding emails are intentionally left wired but the admin sends manually via the Notify tab for now.
 - **Bing SEO optimization:** IndexNow setup, unique meta descriptions on all pages, intentional noindex on member-only pages, Bing Search Queries widget in admin Marketing tab
 - **Microsoft Clarity:** Added to `base.html` `<head>` (project `wp0905qqxv`)
 - **Admin member view:** Emergency contacts now visible in view mode (not just edit mode); phone numbers formatted with `fmtPhone()`
 - **Contact messages:** Phone numbers formatted with `fmtPhone()` in the contact messages list
 - **Book page title:** Fixed hardcoded short title to use `page_title` variable for proper Bing SEO
+- **DKIM:** Enabled for qbixcentre.com via Microsoft 365 security portal after adding two CNAME records to GoDaddy DNS. Emails now cryptographically signed; deliverability confirmed (Gmail inbox, Hotmail junk expected for new domain reputation).

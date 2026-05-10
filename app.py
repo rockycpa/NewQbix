@@ -602,6 +602,7 @@ DEFAULT_DATA = {
         {"id":"t2","name":"Monthly Dues Reminder","subject":"Monthly Dues Reminder — Qbix Centre","body":"Dear {name},\n\nThis is a friendly reminder that your monthly dues of {dues} are due. Please arrange payment at your earliest convenience.\n\nThank you,\nQbix Centre Management"},
         {"id":"t3","name":"Building Maintenance","subject":"Planned Maintenance Notice — Qbix Centre","body":"Dear {name},\n\nWe wanted to notify you that Qbix Centre will be undergoing scheduled maintenance. During this time, some services may be temporarily unavailable.\n\nBest regards,\nQbix Centre Management"},
         {"id":"t4","name":"General Notice","subject":"Important Notice from Qbix Centre","body":"Dear {name},\n\n[Your message here]\n\nBest regards,\nQbix Centre Management"},
+        {"id":"t5","name":"Welcome Email","subject":"Welcome to Qbix Centre!","body":"Dear {name},\n\nWelcome to Qbix Centre! We are thrilled to have you as a member of our community.\n\nYour office is ready and waiting for you at 500A Northside Crossing, Macon, GA 31210. If you have any questions as you get settled in, don't hesitate to reach out — we're here to help.\n\nA few things to keep in mind:\n- Building access is available during our posted business hours\n- Conference room bookings can be made through the member portal at qbixcentre.com/book\n- Please review the house rules posted in common areas\n\nWe look forward to seeing you thrive here. Welcome aboard!\n\nWarm regards,\nRocky Davidson\nQbix Centre\n(478) 394-0417\ninfo@qbixcentre.com"},
     ],
     "lastBackup": "",
     "newsletter": [],
@@ -854,6 +855,12 @@ def load_data():
             'Drive-by / Signage', 'Facebook', 'Nextdoor',
             'Referral from Member', 'Google Search', 'Website', 'Other'
         ])
+        # Backfill any default templates that don't exist yet in the DB.
+        d.setdefault('templates', [])
+        existing_tpl_ids = {t['id'] for t in d['templates']}
+        for tpl in DEFAULT_DATA['templates']:
+            if tpl['id'] not in existing_tpl_ids:
+                d['templates'].append(tpl)
         # Editable documents — seed with built-in defaults the first time the
         # admin opens them. Both keys store HTML produced/consumed by the
         # Quill editor on the Members → Documents panel.
