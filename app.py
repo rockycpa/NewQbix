@@ -10,10 +10,13 @@ import json
 import os
 import re
 import secrets
+import smtplib
 import threading
 import time
 import urllib.request
 import pyotp
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from datetime import datetime, timedelta, date as datetime_date
 from functools import wraps
 from pathlib import Path
@@ -63,6 +66,12 @@ TWILIO_PHONE_NUMBER = os.environ.get('TWILIO_PHONE_NUMBER', '')
 
 # TOTP secret for 2FA (generated once and stored in env)
 TOTP_SECRET = os.environ.get('TOTP_SECRET', pyotp.random_base32())
+
+# ── SMTP email config (Microsoft 365) ────────────────────────────────────────
+SMTP_EMAIL    = os.environ.get('SMTP_EMAIL', '')
+SMTP_PASSWORD = os.environ.get('SMTP_PASSWORD', '')
+SMTP_HOST     = 'smtp.office365.com'
+SMTP_PORT     = 587
 
 # ── Cloudinary config ────────────────────────────────────────────────────────
 if _cloudinary_available:
@@ -200,18 +209,81 @@ def _ot_prune(data):
     for k in [k for k, v in list(store.items()) if str(v.get('expires','')) < now_iso]:
         store.pop(k, None)
 
-# ── Email sending ─────────────────────────────────────────────────────────────
-# Email delivery from the app has been disabled. All outbound email is now
-# handled manually through the Notify section (which opens the admin's email
-# client with recipients pre-populated). This stub keeps call sites intact so
-# the app does not crash if an old code path references it. Returns False so
-# any caller that counts successes will see zero sent.
+# ── Email sending (Microsoft 365 SMTP) ───────────────────────────────────────
+
+def _email_html_wrapper(subject, body_html):
+    """Wrap body_html in a clean, branded email shell."""
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{subject}</title></head>
+<body style="margin:0;padding:0;background:#f4f4f5;font-family:Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:32px 0;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.08);">
+        <!-- Header -->
+        <tr><td style="background:#1a1a2e;padding:24px 32px;">
+          <span style="color:#ffffff;font-size:22px;font-weight:bold;letter-spacing:.5px;">Qbix Centre</span>
+          <span style="color:#a0aec0;font-size:13px;margin-left:12px;">Macon, GA</span>
+        </td></tr>
+        <!-- Body -->
+        <tr><td style="padding:32px;color:#1a202c;font-size:15px;line-height:1.7;">
+          {body_html}
+        </td></tr>
+        <!-- Footer -->
+        <tr><td style="background:#f8fafc;padding:20px 32px;border-top:1px solid #e2e8f0;">
+          <p style="margin:0;font-size:12px;color:#718096;">
+            Qbix Centre &mdash; 500A Northside Crossing, Macon GA 31210<br>
+            <a href="https://www.qbixcentre.com" style="color:#2563eb;text-decoration:none;">www.qbixcentre.com</a>
+            &nbsp;&middot;&nbsp;
+            <a href="mailto:info@qbixcentre.com" style="color:#2563eb;text-decoration:none;">info@qbixcentre.com</a>
+          </p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>"""
+
+
 def send_email(to_email, to_name, subject, body_html):
-    app.logger.info(
-        'send_email stub invoked; app-side email is disabled. '
-        'to=%s subject=%r', to_email, subject
-    )
-    return False
+    """Send an HTML email via Microsoft 365 SMTP.
+    Returns True on success, False on failure or misconfiguration."""
+    if not SMTP_EMAIL or not SMTP_PASSWORD:
+        app.logger.warning('send_email: SMTP_EMAIL or SMTP_PASSWORD not set — skipping')
+        return False
+    if not to_email:
+        app.logger.warning('send_email: no recipient address — skipping')
+        return False
+    try:
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = subject
+        msg['From']    = f'Qbix Centre <{SMTP_EMAIL}>'
+        msg['To']      = f'{to_name} <{to_email}>' if to_name else to_email
+        msg['Reply-To'] = SMTP_EMAIL
+        msg.attach(MIMEText(_email_html_wrapper(subject, body_html), 'html'))
+
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=15) as smtp:
+            smtp.ehlo()
+            smtp.starttls()
+            smtp.ehlo()
+            smtp.login(SMTP_EMAIL, SMTP_PASSWORD)
+            smtp.sendmail(SMTP_EMAIL, to_email, msg.as_string())
+
+        app.logger.info('send_email: sent to=%s subject=%r', to_email, subject)
+        return True
+    except Exception as exc:
+        app.logger.error('send_email error to=%s: %s', to_email, exc)
+        return False
+
+
+def send_email_async(to_email, to_name, subject, body_html):
+    """Fire-and-forget wrapper — sends in a daemon thread so it never blocks."""
+    threading.Thread(
+        target=send_email,
+        args=(to_email, to_name, subject, body_html),
+        daemon=True
+    ).start()
 
 # ── Newsletter prompt defaults ───────────────────────────────────────────────
 # These are the starting point. Once a deploy seeds them into DB.newsletterSettings,
@@ -1347,6 +1419,42 @@ def contact_submit():
     sms_text = f'New Qbix website message from {name}: {message[:100]}'
     send_sms(ADMIN_PHONE, sms_text)
 
+    # Email alert to admin with full message details
+    phone_display = phone if phone else 'not provided'
+    admin_body = (
+        f'<p>A new message was submitted through the Qbix Centre contact form.</p>'
+        f'<table style="border-collapse:collapse;width:100%;">'
+        f'<tr><td style="padding:8px;border:1px solid #e2e8f0;font-weight:bold;width:120px;">Name</td>'
+        f'<td style="padding:8px;border:1px solid #e2e8f0;">{name}</td></tr>'
+        f'<tr><td style="padding:8px;border:1px solid #e2e8f0;font-weight:bold;">Email</td>'
+        f'<td style="padding:8px;border:1px solid #e2e8f0;"><a href="mailto:{email}">{email}</a></td></tr>'
+        f'<tr><td style="padding:8px;border:1px solid #e2e8f0;font-weight:bold;">Phone</td>'
+        f'<td style="padding:8px;border:1px solid #e2e8f0;">{phone_display}</td></tr>'
+        f'<tr><td style="padding:8px;border:1px solid #e2e8f0;font-weight:bold;">Subject</td>'
+        f'<td style="padding:8px;border:1px solid #e2e8f0;">{subject}</td></tr>'
+        f'<tr><td style="padding:8px;border:1px solid #e2e8f0;font-weight:bold;">Message</td>'
+        f'<td style="padding:8px;border:1px solid #e2e8f0;">{message}</td></tr>'
+        f'</table>'
+        f'<p style="margin-top:16px;"><a href="{APP_URL}/admin" '
+        f'style="background:#1a1a2e;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;">'
+        f'View in Dashboard</a></p>'
+    )
+    send_email_async(ADMIN_EMAIL, 'Qbix Centre Admin',
+                     f'New contact message from {name}', admin_body)
+
+    # Auto-reply to the submitter
+    if email:
+        reply_body = (
+            f'<p>Hi {name},</p>'
+            f'<p>Thanks for reaching out to Qbix Centre! We received your message and will get back to you shortly.</p>'
+            f'<p>In the meantime, feel free to explore our website at '
+            f'<a href="https://www.qbixcentre.com">www.qbixcentre.com</a> '
+            f'or give us a call at (478) 216-2876.</p>'
+            f'<p>We look forward to connecting with you!</p>'
+            f'<p>— The Qbix Centre Team</p>'
+        )
+        send_email_async(email, name, 'We received your message — Qbix Centre', reply_body)
+
     flash('Thank you! We will be in touch shortly.', 'success')
     return redirect(url_for('contact'))
 
@@ -1540,7 +1648,7 @@ def onboard_submit(token):
     save_data(data)
 
     # Notify admin
-    send_email(
+    send_email_async(
         ADMIN_EMAIL, 'Qbix Centre Admin',
         f'New onboarding submission: {member["name"]}',
         f'<p>A new prospect has completed the onboarding form.</p>'
@@ -1548,8 +1656,30 @@ def onboard_submit(token):
         f'<b>Company:</b> {member["name"]}<br>'
         f'<b>Email:</b> {member["email"]}<br>'
         f'<b>Phone:</b> {member["phone"]}</p>'
-        f'<p>Log in to your Qbix Centre dashboard to review and activate.</p>'
+        f'<p><a href="{APP_URL}/admin" '
+        f'style="background:#1a1a2e;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;">'
+        f'Review in Dashboard</a></p>'
     )
+
+    # Welcome email to the new member
+    if member.get('email'):
+        welcome_body = (
+            f'<p>Hi {occupant["name"]},</p>'
+            f'<p>Thanks for completing your Qbix Centre application! We have received your information and '
+            f'our team will review it and be in touch soon to get you all set up.</p>'
+            f'<p>Here is a quick look at what to expect next:</p>'
+            f'<ul>'
+            f'<li>We will review your application and confirm your membership details.</li>'
+            f'<li>You will receive your membership agreement to sign.</li>'
+            f'<li>Once active, you can book the conference room online anytime at '
+            f'<a href="{APP_URL}/book">{APP_URL}/book</a>.</li>'
+            f'</ul>'
+            f'<p>Questions? Reply to this email or call us at (478) 216-2876.</p>'
+            f'<p>We look forward to welcoming you to Qbix Centre!</p>'
+            f'<p>— The Qbix Centre Team</p>'
+        )
+        send_email_async(member['email'], occupant['name'],
+                         'Welcome to Qbix Centre — Application Received', welcome_body)
 
     _ot_del(data, token)
     save_data(data)
@@ -1860,6 +1990,33 @@ def book_create():
     if sms_phone:
         send_sms(sms_phone, render_sms_template(
             bs.get('smsConfirmationTemplate', ''), sms_ctx))
+
+    # Booking confirmation email to the occupant
+    occupant_email = entry.get('email', '')
+    if occupant_email:
+        try:
+            booking_date_fmt = datetime.strptime(date_str, '%Y-%m-%d').strftime('%A, %B %-d, %Y')
+        except Exception:
+            booking_date_fmt = date_str
+        confirm_body = (
+            f'<p>Hi {occupant_name},</p>'
+            f'<p>Your booking at Qbix Centre is confirmed. Here are the details:</p>'
+            f'<table style="border-collapse:collapse;width:100%;max-width:480px;">'
+            f'<tr><td style="padding:8px;border:1px solid #e2e8f0;font-weight:bold;width:120px;">Space</td>'
+            f'<td style="padding:8px;border:1px solid #e2e8f0;">{res_label}</td></tr>'
+            f'<tr><td style="padding:8px;border:1px solid #e2e8f0;font-weight:bold;">Date</td>'
+            f'<td style="padding:8px;border:1px solid #e2e8f0;">{booking_date_fmt}</td></tr>'
+            f'<tr><td style="padding:8px;border:1px solid #e2e8f0;font-weight:bold;">Time</td>'
+            f'<td style="padding:8px;border:1px solid #e2e8f0;">{start_time} – {end_time}</td></tr>'
+            f'</table>'
+            f'<p>Need to make a change? Visit '
+            f'<a href="{APP_URL}/book">your bookings page</a> to edit or cancel.</p>'
+            f'<p>See you then!</p>'
+            f'<p>— The Qbix Centre Team</p>'
+        )
+        send_email_async(occupant_email, occupant_name,
+                         f'Booking confirmed — {res_label} on {booking_date_fmt}',
+                         confirm_body)
 
     # Schedule reminder (24h before) in background thread
     def send_reminder():
@@ -2405,12 +2562,12 @@ def generate_onboard_link():
 
     # Email the link to the prospect
     if email:
-        send_email(
+        send_email_async(
             email, name,
             'Welcome to Qbix Centre — Complete Your Application',
             f'<p>Hi {name},</p>'
             f'<p>Thank you for your interest in Qbix Centre! Please click the link below to complete your membership application:</p>'
-            f'<p><a href="{link}" style="background:#2563eb;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;display:inline-block">Complete My Application</a></p>'
+            f'<p><a href="{link}" style="background:#2563eb;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;display:inline-block;">Complete My Application</a></p>'
             f'<p>This link expires in 7 days.</p>'
             f'<p>If you have any questions, reply to this email or call (478) 216-2876.</p>'
             f'<p>We look forward to welcoming you!</p>'
@@ -3245,12 +3402,18 @@ def publish_newsletter():
     if send:
         active_with_email = [m for m in data['members']
                              if m['status'] == 'Active' and m.get('email')]
-        sent_count = 0
-        for m in active_with_email:
-            ok = send_email(m['email'], m['name'], subject, body)
-            if ok:
-                sent_count += 1
-        return jsonify({'ok': True, 'sent': sent_count, 'postId': post_id})
+
+        def _send_newsletter_emails(recipients, subj, html_body):
+            for m in recipients:
+                send_email(m['email'], m['name'], subj, html_body)
+
+        threading.Thread(
+            target=_send_newsletter_emails,
+            args=(active_with_email, subject, body),
+            daemon=True
+        ).start()
+
+        return jsonify({'ok': True, 'sent': len(active_with_email), 'postId': post_id})
 
     return jsonify({'ok': True, 'sent': 0, 'postId': post_id})
 
