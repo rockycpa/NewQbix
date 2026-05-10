@@ -1112,9 +1112,9 @@ def robots_txt():
     ]
     return '\n'.join(lines), 200, {'Content-Type': 'text/plain'}
 
-@app.route('/c3aec4360fd5421cb34e5ffd475b60d3.txt')
+@app.route('/12a5fb7e1c2143cd93db267462ec654c.txt')
 def indexnow_key():
-    return 'c3aec4360fd5421cb34e5ffd475b60d3', 200, {'Content-Type': 'text/plain'}
+    return '12a5fb7e1c2143cd93db267462ec654c', 200, {'Content-Type': 'text/plain'}
 
 @app.route('/sitemap.xml')
 def sitemap():
