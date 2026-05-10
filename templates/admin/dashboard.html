@@ -1831,6 +1831,7 @@ function toast(msg,col,dur){
   t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),dur||2800);
 }
 function fileToB64(file){ return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res({name:file.name,type:file.type,data:r.result});r.onerror=rej;r.readAsDataURL(file);}); }
+function fmtPhone(p){if(!p)return'';const d=(p+'').replace(/\D/g,'');if(d.length===10)return`(${d.slice(0,3)}) ${d.slice(3,6)}-${d.slice(6)}`;if(d.length===11&&d[0]==='1')return`(${d.slice(1,4)}) ${d.slice(4,7)}-${d.slice(7)}`;return p;}
 function openAttachment(att){ if(!att)return; const w=window.open('','_blank'); if(att.type&&att.type.startsWith('image/')){w.document.write('<!DOCTYPE html><html><body style="margin:0;background:#111"><img src="'+att.data+'" style="max-width:100%;height:auto"></body></html>');}else{const a=w.document.createElement('a');a.href=att.data;a.download=att.name;w.document.body.appendChild(a);a.click();setTimeout(()=>w.close(),500);} }
 
 // === DASHBOARD ===
@@ -3699,7 +3700,13 @@ function openMemberMo(id){
   h+='<div class="di"><label>Deposit</label><value class="mono">'+f$(m.deposit)+'</value></div>';
   h+='<div class="di"><label>End Date</label><value style="color:'+(m.end?'var(--red)':'var(--txt3)')+'">'+fD(m.end)+'</value></div>';
   h+='<div class="di"><label>Email</label><value style="font-size:12px">'+eml(m.email)+'</value></div>';
-  h+='<div class="di"><label>Phone</label><value class="mono">'+(m.phone||'-')+'</value></div>';
+  h+='<div class="di"><label>Phone</label><value class="mono">'+fmtPhone(m.phone)+'</value></div>';
+  if(m.emergencyName||m.emergencyPhone){
+    h+='<div class="divr"></div>';
+    h+='<div class="di full"><label style="text-transform:uppercase;font-size:10px;letter-spacing:.08em;color:var(--txt3)">Emergency Contact</label></div>';
+    if(m.emergencyName)h+='<div class="di"><label>Name</label><value>'+m.emergencyName+(m.emergencyRel?' <span style="color:var(--txt3);font-size:12px">('+m.emergencyRel+')</span>':'')+'</value></div>';
+    if(m.emergencyPhone)h+='<div class="di"><label>Phone</label><value class="mono">'+fmtPhone(m.emergencyPhone)+'</value></div>';
+  }
   if(m.notes)h+='<div class="di full"><label>Notes</label><div class="notebox">'+m.notes+'</div></div>';
   if(m.leadSource)h+='<div class="di"><label>Found Us Via</label><value style="color:var(--blue)">'+m.leadSource+'</value></div>';
   h+='<div class="di"><label>Agreement Status</label><value><span class="badge '+(m.agreementStatus==='Received'?'bg':m.agreementStatus==='Sent'?'ba':m.agreementStatus==='N/A'?'':'br')+'">'+(m.agreementStatus||'Pending')+'</span></value></div>';
@@ -4781,7 +4788,7 @@ function renderContactMessages(){
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
           <span style="font-weight:700;font-size:15px;color:var(--txt)">${esc(m.name||'Unknown')}</span>
           ${isUnread ? '<span style="background:var(--acc);color:#1a0e00;border-radius:8px;font-size:10px;font-weight:700;padding:2px 7px;text-transform:uppercase;letter-spacing:.05em">New</span>' : ''}
-          ${m.phone ? `<a href="tel:${m.phone.replace(/\D/g,'')}" style="font-size:13px;color:var(--blue);text-decoration:none">📞 ${esc(m.phone)}</a>` : ''}
+          ${m.phone ? `<a href="tel:${m.phone.replace(/\D/g,'')}" style="font-size:13px;color:var(--blue);text-decoration:none">📞 ${fmtPhone(m.phone)}</a>` : ''}
           ${m.email ? `<a href="mailto:${m.email}" style="font-size:13px;color:var(--blue);text-decoration:none">✉️ ${esc(m.email)}</a>` : ''}
         </div>
         <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
