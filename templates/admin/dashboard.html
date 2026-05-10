@@ -1202,10 +1202,16 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
         </div>
       </div>
       <div class="notify-actions">
-        <button class="n-btn n-email" onclick="sendEmail()">&#128231; Open in Email Client</button>
+        <button class="n-btn n-email" id="notify-send-btn" onclick="sendEmailViaApp()">&#128231; Send Email</button>
         <button class="n-btn n-text" onclick="copyPhones()">&#128241; Copy Phones</button>
         <button class="n-btn n-copy" onclick="copyEmails()">&#128203; Copy Emails</button>
         <button class="n-btn n-copy" style="margin-left:auto" onclick="previewMessages()">&#128065; Preview</button>
+      </div>
+      <div style="margin-top:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 0;border-top:1px solid var(--bdr)">
+        <span style="font-size:12px;color:var(--txt2);white-space:nowrap">&#128206; Attachment:</span>
+        <input type="file" id="notify-attachment" style="font-size:12px;color:var(--txt);flex:1;min-width:0">
+        <button onclick="document.getElementById('notify-attachment').value=''" style="font-size:11px;color:var(--txt3);background:none;border:1px solid var(--bdr);border-radius:5px;padding:3px 8px;cursor:pointer">Clear</button>
+        <span id="notify-send-status" style="font-size:12px;color:var(--grn);font-weight:600"></span>
       </div>
       <div class="result-box" id="result-box"></div>
       <div style="margin-top:12px;padding-top:11px;border-top:1px solid var(--bdr);display:flex;gap:8px;align-items:center">
@@ -4066,13 +4072,38 @@ function getUniqPeople(group){
   return people;
 }
 function selectGroup(group,btn){document.querySelectorAll('.group-btn').forEach(b=>b.classList.remove('on'));btn.classList.add('on');selectedRecipients=getUniqPeople(group);renderRecipients();syncCheckboxes();}
-function toggleIndividual(id,name,email,phone,office,company,type){const idx=selectedRecipients.findIndex(r=>r.id===id);if(idx>=0)selectedRecipients.splice(idx,1);else{selectedRecipients.push({id,name,email,phone,office,company,type,dues:0});if(type==='member'){const m=getMemberById(id);if(m)selectedRecipients[selectedRecipients.length-1].dues=net(m);}}document.querySelectorAll('.group-btn').forEach(b=>b.classList.remove('on'));renderRecipients();syncCheckboxes();}
+function toggleIndividual(id,name,email,phone,office,company,type){const gA=document.querySelector('.group-btn.on');if(gA){selectedRecipients=[];document.querySelectorAll('.group-btn').forEach(b=>b.classList.remove('on'));selectedRecipients.push({id,name,email,phone,office,company,type,dues:0});if(type==='member'){const m=getMemberById(id);if(m)selectedRecipients[0].dues=net(m);}}else{const idx=selectedRecipients.findIndex(r=>r.id===id);if(idx>=0)selectedRecipients.splice(idx,1);else{selectedRecipients.push({id,name,email,phone,office,company,type,dues:0});if(type==='member'){const m=getMemberById(id);if(m)selectedRecipients[selectedRecipients.length-1].dues=net(m);}}}renderRecipients();syncCheckboxes();}
 function syncCheckboxes(){const ids=new Set(selectedRecipients.map(r=>r.id));document.querySelectorAll('[id^="indv-chk-"]').forEach(el=>{const pid=el.id.replace('indv-chk-','');el.textContent=ids.has(pid)?'&#10003;':'';el.style.borderColor=ids.has(pid)?'var(--blue)':'var(--bdr)';el.style.background=ids.has(pid)?'var(--blue)':'var(--sur2)';el.style.color='#fff';});}
 function renderRecipients(){const withEmail=selectedRecipients.filter(r=>r.email);const withPhone=selectedRecipients.filter(r=>r.phone&&!r.email);document.getElementById('recipient-area').innerHTML=[...withEmail.map(r=>'<span class="chip">'+r.name+'<button class="chip-rm" onclick="removeRecipient(\''+r.id+'\')">&#x2715;</button></span>'),...withPhone.map(r=>'<span class="chip phone-chip">&#128241; '+r.name+'<button class="chip-rm" onclick="removeRecipient(\''+r.id+'\')">&#x2715;</button></span>')].join('');document.getElementById('recip-count').textContent='('+selectedRecipients.length+' &mdash; '+withEmail.length+' email &mdash; '+selectedRecipients.filter(r=>r.phone).length+' phone)';}
 function removeRecipient(id){selectedRecipients=selectedRecipients.filter(r=>r.id!==id);document.querySelectorAll('.group-btn').forEach(b=>b.classList.remove('on'));renderRecipients();syncCheckboxes();}
 function insertMerge(tag){const ta=document.getElementById('msg-body');const s=ta.selectionStart,e=ta.selectionEnd;ta.value=ta.value.slice(0,s)+tag+ta.value.slice(e);ta.selectionStart=ta.selectionEnd=s+tag.length;ta.focus();}
 function applyMerge(tpl,p){return tpl.replace(/\{name\}/g,p.name||'').replace(/\{office\}/g,p.office?'Office '+p.office:'').replace(/\{company\}/g,p.company||'').replace(/\{dues\}/g,p.dues?'$'+Number(p.dues).toLocaleString():'');}
-function sendEmail(){const emails=selectedRecipients.filter(r=>r.email).map(r=>r.email);if(!emails.length){toast('No email recipients','var(--red)');return;}window.open('mailto:?bcc='+encodeURIComponent(emails.join(','))+'&subject='+encodeURIComponent(document.getElementById('msg-subject').value||'Message from Qbix Centre')+'&body='+encodeURIComponent(document.getElementById('msg-body').value||''));toast('Opening email with '+emails.length+' BCC recipients');}
+async function sendEmailViaApp(){
+  const recips=selectedRecipients.filter(r=>r.email);
+  if(!recips.length){toast('No email recipients selected','var(--red)');return;}
+  const subject=(document.getElementById('msg-subject').value||'Message from Qbix Centre').trim();
+  const body=document.getElementById('msg-body').value||'';
+  if(!body.trim()){toast('Write a message first','var(--red)');return;}
+  const btn=document.getElementById('notify-send-btn');
+  const status=document.getElementById('notify-send-status');
+  btn.disabled=true;btn.textContent='Sending…';if(status)status.textContent='';
+  const payload={recipients:recips.map(r=>({email:r.email,name:r.name})),subject,body};
+  const attInput=document.getElementById('notify-attachment');
+  if(attInput&&attInput.files[0]){
+    const f=attInput.files[0];
+    try{
+      const b64obj=await fileToB64(f);
+      payload.attachment={name:f.name,data:b64obj.data.split(',')[1],type:f.type||'application/octet-stream'};
+    }catch(e){toast('Could not read attachment','var(--red)');btn.disabled=false;btn.textContent='\u{1F4E7} Send Email';return;}
+  }
+  try{
+    const res=await fetch('/admin/api/notify-send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    const j=await res.json();
+    if(j.ok){toast('✓ Sent to '+j.sent+' recipient'+(j.sent===1?'':'s'),'var(--grn)');if(status)status.textContent='✓ Sent to '+j.sent;}
+    else toast('Error: '+(j.error||'unknown'),'var(--red)');
+  }catch(e){toast('Network error sending email','var(--red)');}
+  btn.disabled=false;btn.textContent='\u{1F4E7} Send Email';
+}
 function copyPhones(){const phones=selectedRecipients.filter(r=>r.phone).map(r=>r.phone.replace(/\D/g,''));if(!phones.length){toast('No phone numbers','var(--red)');return;}navigator.clipboard.writeText(phones.join(', ')).then(()=>toast('&#128241; '+phones.length+' numbers copied')).catch(()=>{const rb=document.getElementById('result-box');rb.style.display='block';rb.textContent='Phone numbers:\n'+phones.join('\n');});}
 function copyEmails(){const emails=selectedRecipients.filter(r=>r.email).map(r=>r.email);if(!emails.length){toast('No emails','var(--red)');return;}navigator.clipboard.writeText(emails.join('; ')).then(()=>toast('&#128203; '+emails.length+' emails copied')).catch(()=>{const rb=document.getElementById('result-box');rb.style.display='block';rb.textContent=emails.join('\n');});}
 function previewMessages(){const body=document.getElementById('msg-body').value;if(!body.trim()){toast('Write a message first','var(--red)');return;}const wc=selectedRecipients.filter(r=>r.email||r.phone);if(!wc.length){toast('No contactable recipients','var(--red)');return;}const rb=document.getElementById('result-box');rb.style.display='block';rb.textContent=wc.slice(0,5).map(r=>'--- To: '+r.name+' '+(r.email?'<'+r.email+'>':'phone '+r.phone)+' ---\n'+applyMerge(body,r)).join('\n\n')+(wc.length>5?'\n\n... and '+(wc.length-5)+' more':'');}

@@ -15,6 +15,9 @@ import threading
 import time
 import urllib.request
 import pyotp
+import base64 as _b64
+from email import encoders as _encoders
+from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from datetime import datetime, timedelta, date as datetime_date
@@ -284,6 +287,46 @@ def send_email_async(to_email, to_name, subject, body_html):
         args=(to_email, to_name, subject, body_html),
         daemon=True
     ).start()
+
+
+def _send_notify_email(to_email, to_name, subject, body_html, attachment=None):
+    """Send an HTML email with an optional file attachment.
+    attachment = {'name': str, 'data': base64-str, 'type': mime-type-str} or None."""
+    if not SMTP_EMAIL or not SMTP_PASSWORD or not to_email:
+        return False
+    try:
+        msg = MIMEMultipart('mixed')
+        msg['Subject'] = subject
+        msg['From']    = f'Qbix Centre <{SMTP_EMAIL}>'
+        msg['To']      = f'{to_name} <{to_email}>' if to_name else to_email
+        msg['Reply-To'] = SMTP_EMAIL
+
+        # HTML body
+        alt = MIMEMultipart('alternative')
+        alt.attach(MIMEText(_email_html_wrapper(subject, body_html), 'html'))
+        msg.attach(alt)
+
+        # Optional attachment
+        if attachment:
+            raw = _b64.b64decode(attachment['data'])
+            maintype, subtype = (attachment.get('type') or 'application/octet-stream').split('/', 1)
+            part = MIMEBase(maintype, subtype)
+            part.set_payload(raw)
+            _encoders.encode_base64(part)
+            part.add_header('Content-Disposition', 'attachment',
+                            filename=attachment.get('name', 'attachment'))
+            msg.attach(part)
+
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=15) as smtp:
+            smtp.ehlo(); smtp.starttls(); smtp.ehlo()
+            smtp.login(SMTP_EMAIL, SMTP_PASSWORD)
+            smtp.sendmail(SMTP_EMAIL, to_email, msg.as_string())
+
+        app.logger.info('_send_notify_email: sent to=%s subject=%r', to_email, subject)
+        return True
+    except Exception as exc:
+        app.logger.error('_send_notify_email error to=%s: %s', to_email, exc)
+        return False
 
 # ── Newsletter prompt defaults ───────────────────────────────────────────────
 # These are the starting point. Once a deploy seeds them into DB.newsletterSettings,
@@ -2543,6 +2586,42 @@ def test_sms():
         'message': f'Test SMS sent to {ADMIN_PHONE}! Check your phone.' if ok else 'FAILED: Check Railway Twilio variables.'
     })
 
+
+
+@app.route('/admin/api/notify-send', methods=['POST'])
+@login_required
+def notify_send():
+    """Send a composed message from the Notify tab to selected recipients via email."""
+    payload    = request.get_json(force=True) or {}
+    recipients = payload.get('recipients', [])   # [{email, name}, ...]
+    subject    = (payload.get('subject') or 'Message from Qbix Centre').strip()
+    body_text  = (payload.get('body') or '').strip()
+    attachment = payload.get('attachment')        # {name, data (base64), type} or None
+
+    if not recipients:
+        return jsonify({'ok': False, 'error': 'No recipients provided'}), 400
+    if not body_text:
+        return jsonify({'ok': False, 'error': 'Message body is empty'}), 400
+    if not SMTP_EMAIL or not SMTP_PASSWORD:
+        return jsonify({'ok': False, 'error': 'SMTP not configured — add SMTP_EMAIL and SMTP_PASSWORD in Railway'}), 500
+
+    # Convert plain-text body to simple HTML (preserve paragraph breaks and line breaks)
+    body_html = '<p>' + body_text.replace('\r\n', '\n').replace('\r', '\n').replace('\n\n', '</p><p>').replace('\n', '<br>') + '</p>'
+
+    sent = 0
+    errors = []
+    for r in recipients:
+        to_email = (r.get('email') or '').strip()
+        to_name  = (r.get('name')  or '').strip()
+        if not to_email:
+            continue
+        ok = _send_notify_email(to_email, to_name, subject, body_html, attachment)
+        if ok:
+            sent += 1
+        else:
+            errors.append(to_email)
+
+    return jsonify({'ok': True, 'sent': sent, 'errors': errors})
 
 
 @app.route('/admin/api/onboard-link', methods=['POST'])
