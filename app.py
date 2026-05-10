@@ -3895,15 +3895,13 @@ def get_bing_search():
         params = urllib.parse.urlencode({
             'apikey':  api_key,
             'siteUrl': site_url,
-            'startDate': start_date.strftime('%Y-%m-%d'),
-            'endDate':   end_date.strftime('%Y-%m-%d'),
         })
-        kw_url = f'{base}/GetSearchKeywordStats?{params}'
+        kw_url = f'{base}/GetQueryStats?{params}'
         req = urllib.request.Request(kw_url, headers={'Accept': 'application/json'})
         try:
-            with urllib.request.urlopen(req, timeout=10) as resp:
+            with urllib.request.urlopen(req, timeout=15) as resp:
                 kw_data = json.loads(resp.read().decode())
-            print(f"[Bing API] Success — keys: {list(kw_data.keys())}, sample: {str(kw_data)[:200]}")
+            print(f"[Bing API] Success — sample: {str(kw_data)[:300]}")
         except urllib.error.HTTPError as he:
             body = he.read().decode('utf-8', errors='replace')
             print(f"[Bing API] HTTP {he.code} error: {body}")
@@ -3913,30 +3911,44 @@ def get_bing_search():
         total_clicks      = 0
         total_impressions = 0
 
-        rows = kw_data.get('d') or kw_data.get('value') or kw_data.get('results') or []
-        if isinstance(rows, dict):
-            rows = rows.get('value') or rows.get('results') or []
-        print(f"[Bing API] Row count: {len(rows)}, first row sample: {str(rows[:1])}")
+        rows = kw_data.get('d') or []
+        print(f"[Bing API] Row count: {len(rows)}, sample: {str(rows[:2])}")
+
+        # Aggregate rows by query (API returns one row per query per day)
+        query_map = {}
         for row in rows:
-            clicks      = int(row.get('Clicks', row.get('clicks', 0)))
-            impressions = int(row.get('Impressions', row.get('impressions', 0)))
-            position    = round(float(row.get('AvgPosition', row.get('avgPosition', row.get('position', 0)))), 1)
-            query_text  = row.get('Query', row.get('query', row.get('Keyword', '')))
-            ctr         = round((clicks / impressions * 100) if impressions else 0, 1)
-            if not query_text:
+            q      = row.get('Query', '')
+            if not q:
                 continue
+            clicks      = int(row.get('Clicks', 0))
+            impressions = int(row.get('Impressions', 0))
+            position    = float(row.get('AvgImpressionPosition', 0))
+            if q not in query_map:
+                query_map[q] = {'clicks': 0, 'impressions': 0, 'pos_sum': 0, 'pos_count': 0}
+            query_map[q]['clicks']      += clicks
+            query_map[q]['impressions'] += impressions
+            if position > 0:
+                query_map[q]['pos_sum']   += position
+                query_map[q]['pos_count'] += 1
+
+        for q, agg in query_map.items():
+            avg_pos = round(agg['pos_sum'] / agg['pos_count'], 1) if agg['pos_count'] else 0.0
+            ctr     = round((agg['clicks'] / agg['impressions'] * 100) if agg['impressions'] else 0, 1)
             queries.append({
-                'query':       query_text,
-                'clicks':      clicks,
-                'impressions': impressions,
+                'query':       q,
+                'clicks':      agg['clicks'],
+                'impressions': agg['impressions'],
                 'ctr':         ctr,
-                'position':    position,
+                'position':    avg_pos,
             })
+            total_clicks      += agg['clicks']
+            total_impressions += agg['impressions']
             total_clicks      += clicks
             total_impressions += impressions
 
         queries.sort(key=lambda q: q['impressions'], reverse=True)
-        avg_position = (round(sum(q['position'] for q in queries) / len(queries), 1)
+        avg_position = (round(sum(q['position'] for q in queries if q['position'] > 0) /
+                              max(sum(1 for q in queries if q['position'] > 0), 1), 1)
                         if queries else 0.0)
 
         return jsonify({
