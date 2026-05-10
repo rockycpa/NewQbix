@@ -281,10 +281,28 @@ def _send_via_graph(to_email, to_name, subject, body_html, attachment=None):
     except urllib.error.HTTPError as exc:
         body = exc.read().decode('utf-8', errors='replace')[:400]
         app.logger.error('_send_via_graph HTTP %s to=%s: %s', exc.code, to_email, body)
+        if exc.code in (401, 403):
+            # Force a fresh token on the next attempt
+            _graph_token_cache['token'] = ''
         return False, f'Graph API error {exc.code}: {body}'
     except Exception as exc:
         app.logger.error('_send_via_graph error to=%s: %s', to_email, exc)
         return False, str(exc)
+
+
+def _send_via_graph_with_retry(to_email, to_name, subject, body_html,
+                                attachment=None, retries=2):
+    """Wraps _send_via_graph with up to `retries` extra attempts on failure."""
+    import time as _time
+    for attempt in range(retries + 1):
+        ok, err = _send_via_graph(to_email, to_name, subject, body_html, attachment)
+        if ok:
+            return ok, err
+        app.logger.warning('_send_via_graph attempt %d/%d failed: %s',
+                           attempt + 1, retries + 1, err)
+        if attempt < retries:
+            _time.sleep(2)   # brief pause before retry
+    return False, err
 
 
 def _graph_configured():
@@ -335,7 +353,7 @@ def send_email(to_email, to_name, subject, body_html):
         return False
     # ── Graph API path (HTTPS — works even when SMTP ports are blocked) ───────
     if _graph_configured():
-        ok, _ = _send_via_graph(to_email, to_name, subject, body_html)
+        ok, _ = _send_via_graph_with_retry(to_email, to_name, subject, body_html)
         return ok
     # ── SMTP fallback ─────────────────────────────────────────────────────────
     if not SMTP_EMAIL or not SMTP_PASSWORD:
@@ -376,7 +394,7 @@ def _send_notify_email(to_email, to_name, subject, body_html, attachment=None):
         return False, 'No recipient address'
     # ── Graph API path ────────────────────────────────────────────────────────
     if _graph_configured():
-        return _send_via_graph(to_email, to_name, subject, body_html, attachment)
+        return _send_via_graph_with_retry(to_email, to_name, subject, body_html, attachment)
     # ── SMTP fallback ─────────────────────────────────────────────────────────
     if not SMTP_EMAIL or not SMTP_PASSWORD:
         return False, 'Neither Graph API nor SMTP configured'
@@ -2702,7 +2720,13 @@ def notify_send():
         to_name  = (r.get('name')  or '').strip()
         if not to_email:
             continue
-        ok, err = _send_notify_email(to_email, to_name, subject, body_html, attachment)
+        # Apply merge fields per recipient
+        merged_html = (body_html
+            .replace('{name}',    to_name)
+            .replace('{company}', r.get('company', ''))
+            .replace('{office}',  r.get('office', ''))
+            .replace('{dues}',    str(r.get('dues', ''))))
+        ok, err = _send_notify_email(to_email, to_name, subject, merged_html, attachment)
         if ok:
             sent += 1
         else:

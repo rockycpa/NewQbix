@@ -4087,7 +4087,7 @@ async function sendEmailViaApp(){
   const btn=document.getElementById('notify-send-btn');
   const status=document.getElementById('notify-send-status');
   btn.disabled=true;btn.textContent='Sending…';if(status)status.textContent='';
-  const payload={recipients:recips.map(r=>({email:r.email,name:r.name})),subject,body};
+  const payload={recipients:recips.map(r=>({email:r.email,name:r.name,company:r.company||'',office:r.office||'',dues:r.dues||0})),subject,body};
   const attInput=document.getElementById('notify-attachment');
   if(attInput&&attInput.files[0]){
     const f=attInput.files[0];
