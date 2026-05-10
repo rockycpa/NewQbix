@@ -276,7 +276,7 @@ def send_email(to_email, to_name, subject, body_html):
         app.logger.info('send_email: sent to=%s subject=%r', to_email, subject)
         return True
     except Exception as exc:
-        app.logger.error('send_email error to=%s: %s', to_email, exc)
+        app.logger.error('send_email error to=%s: %s — hint: check SMTP AUTH is enabled in M365 admin for %s', to_email, exc, SMTP_EMAIL)
         return False
 
 
@@ -291,9 +291,10 @@ def send_email_async(to_email, to_name, subject, body_html):
 
 def _send_notify_email(to_email, to_name, subject, body_html, attachment=None):
     """Send an HTML email with an optional file attachment.
-    attachment = {'name': str, 'data': base64-str, 'type': mime-type-str} or None."""
+    attachment = {'name': str, 'data': base64-str, 'type': mime-type-str} or None.
+    Returns (True, None) on success or (False, error_string) on failure."""
     if not SMTP_EMAIL or not SMTP_PASSWORD or not to_email:
-        return False
+        return False, 'SMTP credentials or recipient missing'
     try:
         msg = MIMEMultipart('mixed')
         msg['Subject'] = subject
@@ -323,10 +324,10 @@ def _send_notify_email(to_email, to_name, subject, body_html, attachment=None):
             smtp.sendmail(SMTP_EMAIL, to_email, msg.as_string())
 
         app.logger.info('_send_notify_email: sent to=%s subject=%r', to_email, subject)
-        return True
+        return True, None
     except Exception as exc:
         app.logger.error('_send_notify_email error to=%s: %s', to_email, exc)
-        return False
+        return False, str(exc)
 
 # ── Newsletter prompt defaults ───────────────────────────────────────────────
 # These are the starting point. Once a deploy seeds them into DB.newsletterSettings,
@@ -2610,16 +2611,22 @@ def notify_send():
 
     sent = 0
     errors = []
+    last_error = None
     for r in recipients:
         to_email = (r.get('email') or '').strip()
         to_name  = (r.get('name')  or '').strip()
         if not to_email:
             continue
-        ok = _send_notify_email(to_email, to_name, subject, body_html, attachment)
+        ok, err = _send_notify_email(to_email, to_name, subject, body_html, attachment)
         if ok:
             sent += 1
         else:
             errors.append(to_email)
+            if err:
+                last_error = err
+
+    if sent == 0 and last_error:
+        return jsonify({'ok': False, 'sent': 0, 'error': last_error, 'errors': errors})
 
     return jsonify({'ok': True, 'sent': sent, 'errors': errors})
 
