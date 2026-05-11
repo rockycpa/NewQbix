@@ -1192,11 +1192,8 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
       <div class="compose-field"><label>Subject (for email)</label><input id="msg-subject" placeholder="e.g. Important Notice from Qbix Centre"></div>
       <div class="compose-field">
         <label>Message Body</label>
-        <div style="display:flex;gap:6px;margin-bottom:5px">
-          <button onclick="insertLink()" style="background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt2);font-size:11px;padding:4px 10px;cursor:pointer;font-family:'IBM Plex Sans',sans-serif">&#128279; Insert Link</button>
-        </div>
-        <textarea id="msg-body" placeholder="Type your message here..."></textarea>
-        <div style="margin-top:6px;font-size:11px;color:var(--txt3)">Merge fields:</div>
+        <div id="notify-body-editor" style="background:var(--sur);color:var(--txt);min-height:180px"></div>
+        <div style="margin-top:6px;font-size:11px;color:var(--txt3)">Merge fields — click to insert at cursor:</div>
         <div class="merge-tags">
           <span class="mtag" onclick="insertMerge('{first_name}')">{first_name}</span>
           <span class="mtag" onclick="insertMerge('{last_name}')">{last_name}</span>
@@ -4061,7 +4058,23 @@ function renderWaitlist(){
 
 // === NOTIFY ===
 let selectedRecipients=[];
+let notifyQuill=null;
+function initNotifyQuill(){
+  if(notifyQuill) return;
+  notifyQuill = new Quill('#notify-body-editor',{
+    theme:'snow',
+    modules:{toolbar:[
+      ['bold','italic','underline'],
+      [{'color':[]},{'background':[]}],
+      [{'list':'ordered'},{'list':'bullet'}],
+      ['link'],
+      ['clean']
+    ]},
+    placeholder:'Type your message here...'
+  });
+}
 function buildNotify(){
+  initNotifyQuill();
   const all=getUniqPeople('everyone');
   document.getElementById('gc-members').textContent=DB.members.filter(m=>m.status==='Active').length;
   document.getElementById('gc-occupants').textContent=DB.occupants.filter(o=>o.status==='Active').length;
@@ -4094,19 +4107,11 @@ function toggleIndividual(id,name,email,phone,office,company,type){
 function syncCheckboxes(){const ids=new Set(selectedRecipients.map(r=>r.id));document.querySelectorAll('[id^="indv-chk-"]').forEach(el=>{const pid=el.id.replace('indv-chk-','');el.textContent=ids.has(pid)?'&#10003;':'';el.style.borderColor=ids.has(pid)?'var(--blue)':'var(--bdr)';el.style.background=ids.has(pid)?'var(--blue)':'var(--sur2)';el.style.color='#fff';});}
 function renderRecipients(){const withEmail=selectedRecipients.filter(r=>r.email);const withPhone=selectedRecipients.filter(r=>r.phone&&!r.email);document.getElementById('recipient-area').innerHTML=[...withEmail.map(r=>'<span class="chip">'+r.name+'<button class="chip-rm" onclick="removeRecipient(\''+r.id+'\')">&#x2715;</button></span>'),...withPhone.map(r=>'<span class="chip phone-chip">&#128241; '+r.name+'<button class="chip-rm" onclick="removeRecipient(\''+r.id+'\')">&#x2715;</button></span>')].join('');document.getElementById('recip-count').textContent='('+selectedRecipients.length+' &mdash; '+withEmail.length+' email &mdash; '+selectedRecipients.filter(r=>r.phone).length+' phone)';}
 function removeRecipient(id){selectedRecipients=selectedRecipients.filter(r=>r.id!==id);document.querySelectorAll('.group-btn').forEach(b=>b.classList.remove('on'));renderRecipients();syncCheckboxes();}
-function insertMerge(tag){const ta=document.getElementById('msg-body');const s=ta.selectionStart,e=ta.selectionEnd;ta.value=ta.value.slice(0,s)+tag+ta.value.slice(e);ta.selectionStart=ta.selectionEnd=s+tag.length;ta.focus();}
-function insertLink(){
-  const ta=document.getElementById('msg-body');
-  const selected=(ta.value.slice(ta.selectionStart,ta.selectionEnd)||'').trim();
-  const text=prompt('Link text (what the reader clicks):',selected||'Click here');
-  if(!text)return;
-  const url=prompt('URL (web address):','https://');
-  if(!url||url==='https://')return;
-  const tag='<a href="'+url+'">'+text+'</a>';
-  const s=ta.selectionStart,e=ta.selectionEnd;
-  ta.value=ta.value.slice(0,s)+tag+ta.value.slice(e);
-  ta.selectionStart=ta.selectionEnd=s+tag.length;
-  ta.focus();
+function insertMerge(tag){
+  if(!notifyQuill) return;
+  const range=notifyQuill.getSelection(true);
+  notifyQuill.insertText(range?range.index:notifyQuill.getLength()-1, tag, 'user');
+  notifyQuill.focus();
 }
 function splitFirst(n){const p=(n||'').trim().split(/\s+/);return p[0]||'';}
 function splitLast(n){const p=(n||'').trim().split(/\s+/);return p.length>1?p[p.length-1]:'';}
@@ -4115,8 +4120,8 @@ async function sendEmailViaApp(){
   const recips=selectedRecipients.filter(r=>r.email);
   if(!recips.length){toast('No email recipients selected','var(--red)');return;}
   const subject=(document.getElementById('msg-subject').value||'Message from Qbix Centre').trim();
-  const body=document.getElementById('msg-body').value||'';
-  if(!body.trim()){toast('Write a message first','var(--red)');return;}
+  const body=notifyQuill?_quillHtmlToEmailHtml(notifyQuill.root.innerHTML):'';
+  if(!body.trim()||notifyQuill&&!notifyQuill.getText().trim()){toast('Write a message first','var(--red)');return;}
   const btn=document.getElementById('notify-send-btn');
   const status=document.getElementById('notify-send-status');
   btn.disabled=true;btn.textContent='Sending…';if(status)status.textContent='';
@@ -4139,11 +4144,11 @@ async function sendEmailViaApp(){
 }
 function copyPhones(){const phones=selectedRecipients.filter(r=>r.phone).map(r=>r.phone.replace(/\D/g,''));if(!phones.length){toast('No phone numbers','var(--red)');return;}navigator.clipboard.writeText(phones.join(', ')).then(()=>toast('&#128241; '+phones.length+' numbers copied')).catch(()=>{const rb=document.getElementById('result-box');rb.style.display='block';rb.textContent='Phone numbers:\n'+phones.join('\n');});}
 function copyEmails(){const emails=selectedRecipients.filter(r=>r.email).map(r=>r.email);if(!emails.length){toast('No emails','var(--red)');return;}navigator.clipboard.writeText(emails.join('; ')).then(()=>toast('&#128203; '+emails.length+' emails copied')).catch(()=>{const rb=document.getElementById('result-box');rb.style.display='block';rb.textContent=emails.join('\n');});}
-function previewMessages(){const body=document.getElementById('msg-body').value;if(!body.trim()){toast('Write a message first','var(--red)');return;}const wc=selectedRecipients.filter(r=>r.email||r.phone);if(!wc.length){toast('No contactable recipients','var(--red)');return;}const rb=document.getElementById('result-box');rb.style.display='block';rb.textContent=wc.slice(0,5).map(r=>'--- To: '+r.name+' '+(r.email?'<'+r.email+'>':'phone '+r.phone)+' ---\n'+applyMerge(body,r)).join('\n\n')+(wc.length>5?'\n\n... and '+(wc.length-5)+' more':'');}
+function previewMessages(){const body=notifyQuill?notifyQuill.root.innerHTML:'';const text=notifyQuill?notifyQuill.getText().trim():'';if(!text){toast('Write a message first','var(--red)');return;}const wc=selectedRecipients.filter(r=>r.email||r.phone);if(!wc.length){toast('No contactable recipients','var(--red)');return;}const rb=document.getElementById('result-box');rb.style.display='block';rb.innerHTML=wc.slice(0,5).map(r=>'<div style="border-top:1px solid var(--bdr);padding:10px 0"><div style="font-size:11px;color:var(--txt3);margin-bottom:6px">To: <strong>'+esc(r.name)+'</strong> '+(r.email?'&lt;'+esc(r.email)+'&gt;':'phone '+esc(r.phone||''))+'</div><div>'+applyMerge(body,r)+'</div></div>').join('')+(wc.length>5?'<div style="font-size:12px;color:var(--txt3);padding:8px 0">… and '+(wc.length-5)+' more</div>':'');}
 function renderTemplates(){document.getElementById('tpl-strip').innerHTML=(DB.templates||[]).map(t=>'<span class="tpl-btn" title="'+esc(t.subject)+'"><span onclick="loadTemplate(\''+esc(t.id)+'\')" style="cursor:pointer">'+esc(t.name)+'</span><span onclick="deleteTemplate(\''+esc(t.id)+'\')" title="Delete template" style="margin-left:5px;color:var(--txt3);font-size:10px;cursor:pointer;opacity:.6" onmouseover="this.style.opacity=1;this.style.color=\'var(--red)\'" onmouseout="this.style.opacity=.6;this.style.color=\'var(--txt3)\'">&#10005;</span></span>').join('');}
-function loadTemplate(id){const t=(DB.templates||[]).find(x=>x.id===id);if(!t)return;document.getElementById('msg-subject').value=t.subject;document.getElementById('msg-body').value=t.body;document.getElementById('tpl-name').value=t.name;}
+function loadTemplate(id){const t=(DB.templates||[]).find(x=>x.id===id);if(!t)return;document.getElementById('msg-subject').value=t.subject;if(notifyQuill){notifyQuill.clipboard.dangerouslyPasteHTML(t.body||'');}document.getElementById('tpl-name').value=t.name;}
 function deleteTemplate(id){if(!confirm('Delete this template?'))return;DB.templates=(DB.templates||[]).filter(t=>t.id!==id);renderTemplates();saveData();toast('Template deleted');}
-function saveTemplate(){const name=document.getElementById('tpl-name').value.trim();const subject=document.getElementById('msg-subject').value.trim();const body=document.getElementById('msg-body').value.trim();if(!name||!body){toast('Enter name and message','var(--red)');return;}if(!DB.templates)DB.templates=[];const ex=DB.templates.find(t=>t.name===name);if(ex){ex.subject=subject;ex.body=body;}else DB.templates.push({id:uid(),name,subject,body});renderTemplates();document.getElementById('tpl-name').value='';saveData();toast('Template saved');}
+function saveTemplate(){const name=document.getElementById('tpl-name').value.trim();const subject=document.getElementById('msg-subject').value.trim();const body=notifyQuill?notifyQuill.root.innerHTML:'';const bodyText=notifyQuill?notifyQuill.getText().trim():'';if(!name||!bodyText){toast('Enter name and message','var(--red)');return;}if(!DB.templates)DB.templates=[];const ex=DB.templates.find(t=>t.name===name);if(ex){ex.subject=subject;ex.body=body;}else DB.templates.push({id:uid(),name,subject,body});renderTemplates();document.getElementById('tpl-name').value='';saveData();toast('Template saved');}
 
 // === FORMS ===
 let formType=null,formId=null,pendingFiles=[];

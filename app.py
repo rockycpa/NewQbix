@@ -2741,8 +2741,13 @@ def notify_send():
     if not SMTP_EMAIL or not SMTP_PASSWORD:
         return jsonify({'ok': False, 'error': 'SMTP not configured — add SMTP_EMAIL and SMTP_PASSWORD in Railway'}), 500
 
-    # Convert plain-text body to simple HTML (preserve paragraph breaks and line breaks)
-    body_html = '<p>' + body_text.replace('\r\n', '\n').replace('\r', '\n').replace('\n\n', '</p><p>').replace('\n', '<br>') + '</p>'
+    # If the body already contains HTML tags (from Quill editor), use it directly;
+    # otherwise convert plain-text to simple HTML.
+    import re as _re
+    if _re.search(r'<[a-zA-Z]', body_text):
+        body_html = body_text
+    else:
+        body_html = '<p>' + body_text.replace('\r\n', '\n').replace('\r', '\n').replace('\n\n', '</p><p>').replace('\n', '<br>') + '</p>'
 
     sent = 0
     errors = []
@@ -4378,8 +4383,6 @@ def get_bing_search():
             'queries':           queries[:20],
             'start_date':        start_date.isoformat(),
             'end_date':          end_date.isoformat(),
-            '_debug_sample_row': rows[0] if rows else None,
-            '_debug_row_count':  len(rows),
         })
 
     except Exception as e:
