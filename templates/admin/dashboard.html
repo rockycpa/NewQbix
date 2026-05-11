@@ -7225,6 +7225,72 @@ function scrollHelp(id){
   }
 }
 document.addEventListener('keydown', e => { if(e.key==='Escape') closeHelp(); });
+
+// ── Inactivity timeout ────────────────────────────────────────────────────────
+// Warn at 55 minutes, hard logout at 60 minutes of no activity.
+(function(){
+  const TIMEOUT_MS  = 60 * 60 * 1000;  // 60 minutes
+  const WARN_MS     = 55 * 60 * 1000;  // warn at 55 minutes
+  let   warnTimer, logoutTimer, countdownInterval;
+  let   warned = false;
+
+  function resetTimers(){
+    if(warned) return;           // don't reset once warning is showing
+    clearTimeout(warnTimer);
+    clearTimeout(logoutTimer);
+    warnTimer   = setTimeout(showWarning,  WARN_MS);
+    logoutTimer = setTimeout(doLogout,     TIMEOUT_MS);
+  }
+
+  function showWarning(){
+    warned = true;
+    document.getElementById('inactivity-modal').style.display = 'flex';
+    let secs = 300; // 5 minutes
+    const el = document.getElementById('inactivity-countdown');
+    el.textContent = '5:00';
+    countdownInterval = setInterval(()=>{
+      secs--;
+      const m = Math.floor(secs/60);
+      const s = String(secs%60).padStart(2,'0');
+      el.textContent = m+':'+s;
+      if(secs <= 0){ clearInterval(countdownInterval); doLogout(); }
+    }, 1000);
+  }
+
+  function stayLoggedIn(){
+    warned = false;
+    clearInterval(countdownInterval);
+    document.getElementById('inactivity-modal').style.display = 'none';
+    resetTimers();
+  }
+
+  function doLogout(){
+    window.location.href = '/admin/logout';
+  }
+
+  // Expose for button onclick
+  window.stayLoggedIn = stayLoggedIn;
+
+  // Track activity
+  ['mousemove','mousedown','keydown','scroll','touchstart'].forEach(ev=>{
+    document.addEventListener(ev, resetTimers, {passive:true});
+  });
+
+  // Start timers on page load
+  resetTimers();
+})();
 </script>
+
+<!-- Inactivity warning modal -->
+<div id="inactivity-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;align-items:center;justify-content:center">
+  <div style="background:var(--sur);border:1px solid var(--bdr);border-radius:14px;padding:32px 36px;max-width:380px;width:90%;text-align:center;box-shadow:0 8px 40px rgba(0,0,0,.3)">
+    <div style="font-size:32px;margin-bottom:12px">⏱️</div>
+    <div style="font-family:'Playfair Display',serif;font-size:20px;font-weight:700;color:var(--txt);margin-bottom:10px">Still there?</div>
+    <div style="font-size:14px;color:var(--txt2);line-height:1.6;margin-bottom:18px">You've been inactive for 55 minutes. For security, you'll be logged out in</div>
+    <div id="inactivity-countdown" style="font-size:42px;font-weight:700;color:var(--red);font-family:'IBM Plex Mono',monospace;margin-bottom:22px">5:00</div>
+    <button onclick="stayLoggedIn()" style="background:var(--acc);color:#000;border:none;border-radius:8px;padding:12px 28px;font-size:15px;font-weight:700;cursor:pointer;font-family:'IBM Plex Sans',sans-serif;width:100%">Stay Logged In</button>
+  </div>
+</div>
+
 </body>
 </html>
