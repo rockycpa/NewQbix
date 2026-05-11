@@ -4281,12 +4281,31 @@ def get_bing_search():
         rows = kw_data.get('d') or []
         print(f"[Bing API] Row count: {len(rows)}, sample: {str(rows[:2])}")
 
-        # Aggregate rows by query (API returns one row per query per day)
+        # Aggregate rows by query (API returns one row per query per day).
+        # Filter by date range in Python since the API may return all historical
+        # data regardless of the startDate/endDate parameters passed.
+        start_str = start_date.strftime('%Y-%m-%d')
+        end_str   = end_date.strftime('%Y-%m-%d')
+
         query_map = {}
         for row in rows:
             q      = row.get('Query', '')
             if not q:
                 continue
+            # Bing returns date as '/Date(timestamp)/' or 'YYYY-MM-DD' depending
+            # on API version — normalise and filter.
+            row_date = row.get('Date', '') or row.get('date', '')
+            if row_date:
+                # Handle /Date(1234567890000)/ format
+                if row_date.startswith('/Date('):
+                    try:
+                        ts_ms = int(row_date[6:row_date.index(')')])
+                        from datetime import datetime as _dt
+                        row_date = _dt.utcfromtimestamp(ts_ms / 1000).strftime('%Y-%m-%d')
+                    except Exception:
+                        row_date = ''
+                if row_date and not (start_str <= row_date <= end_str):
+                    continue
             clicks      = int(row.get('Clicks', 0))
             impressions = int(row.get('Impressions', 0))
             position    = float(row.get('AvgImpressionPosition', 0))
