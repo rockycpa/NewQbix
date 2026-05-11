@@ -33,6 +33,12 @@ button:hover{opacity:.85}
     {% endfor %}
   {% endwith %}
 
+  {% if request.args.get('reason') == 'timeout' %}
+    <div class="alert" style="background:#fef3c7;color:#92400e;border-color:#fcd34d">
+      ⏱️ You were logged out after 1 hour of inactivity.
+    </div>
+  {% endif %}
+
   <form method="POST">
     <label>Phone Number</label>
     <input type="tel" name="phone" inputmode="tel" autocomplete="tel"

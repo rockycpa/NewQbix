@@ -353,7 +353,7 @@
   <p>{{ page_content['contact-sub'] if page_content and page_content.get('contact-sub') else "No pressure — just come take a look and see if it's the right fit for your business. We're happy to show you around." }}</p>
   <div class="contact-info">
     <a href="tel:{{ site_info.phone | phone_digits }}">📞 {{ site_info.phone }}</a>
-    <a href="mailto:{{ site_info.email }}">✉️ {{ site_info.email }}</a>
+    <a href="/contact">✉️ Send Us a Message</a>
     <span style="color:rgba(255,255,255,.6)">📍 {{ site_info.address }}</span>
   </div>
   <a href="/contact" class="btn btn-gold" style="font-size:16px;padding:14px 36px">Schedule Your Tour Today</a>

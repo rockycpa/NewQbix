@@ -1204,11 +1204,22 @@ def send_sms(to_phone, message):
 
 
 # ── Auth helpers ──────────────────────────────────────────────────────────────
+ADMIN_SESSION_TIMEOUT = 60 * 60  # 1 hour in seconds
+
 def login_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         if not session.get('admin_authenticated'):
             return redirect(url_for('admin_login'))
+        # Check inactivity timeout — if last activity was more than 1 hour ago,
+        # expire the session and send back to login.
+        last_active = session.get('last_active')
+        now = datetime.utcnow().timestamp()
+        if last_active and (now - last_active) > ADMIN_SESSION_TIMEOUT:
+            session.clear()
+            return redirect(url_for('admin_login') + '?reason=timeout')
+        # Refresh last active timestamp on every authenticated request.
+        session['last_active'] = now
         return f(*args, **kwargs)
     return decorated
 
