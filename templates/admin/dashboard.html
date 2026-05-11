@@ -1192,6 +1192,9 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
       <div class="compose-field"><label>Subject (for email)</label><input id="msg-subject" placeholder="e.g. Important Notice from Qbix Centre"></div>
       <div class="compose-field">
         <label>Message Body</label>
+        <div style="display:flex;gap:6px;margin-bottom:5px">
+          <button onclick="insertLink()" style="background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt2);font-size:11px;padding:4px 10px;cursor:pointer;font-family:'IBM Plex Sans',sans-serif">&#128279; Insert Link</button>
+        </div>
         <textarea id="msg-body" placeholder="Type your message here..."></textarea>
         <div style="margin-top:6px;font-size:11px;color:var(--txt3)">Merge fields:</div>
         <div class="merge-tags">
@@ -4086,6 +4089,19 @@ function syncCheckboxes(){const ids=new Set(selectedRecipients.map(r=>r.id));doc
 function renderRecipients(){const withEmail=selectedRecipients.filter(r=>r.email);const withPhone=selectedRecipients.filter(r=>r.phone&&!r.email);document.getElementById('recipient-area').innerHTML=[...withEmail.map(r=>'<span class="chip">'+r.name+'<button class="chip-rm" onclick="removeRecipient(\''+r.id+'\')">&#x2715;</button></span>'),...withPhone.map(r=>'<span class="chip phone-chip">&#128241; '+r.name+'<button class="chip-rm" onclick="removeRecipient(\''+r.id+'\')">&#x2715;</button></span>')].join('');document.getElementById('recip-count').textContent='('+selectedRecipients.length+' &mdash; '+withEmail.length+' email &mdash; '+selectedRecipients.filter(r=>r.phone).length+' phone)';}
 function removeRecipient(id){selectedRecipients=selectedRecipients.filter(r=>r.id!==id);document.querySelectorAll('.group-btn').forEach(b=>b.classList.remove('on'));renderRecipients();syncCheckboxes();}
 function insertMerge(tag){const ta=document.getElementById('msg-body');const s=ta.selectionStart,e=ta.selectionEnd;ta.value=ta.value.slice(0,s)+tag+ta.value.slice(e);ta.selectionStart=ta.selectionEnd=s+tag.length;ta.focus();}
+function insertLink(){
+  const ta=document.getElementById('msg-body');
+  const selected=(ta.value.slice(ta.selectionStart,ta.selectionEnd)||'').trim();
+  const text=prompt('Link text (what the reader clicks):',selected||'Click here');
+  if(!text)return;
+  const url=prompt('URL (web address):','https://');
+  if(!url||url==='https://')return;
+  const tag='<a href="'+url+'">'+text+'</a>';
+  const s=ta.selectionStart,e=ta.selectionEnd;
+  ta.value=ta.value.slice(0,s)+tag+ta.value.slice(e);
+  ta.selectionStart=ta.selectionEnd=s+tag.length;
+  ta.focus();
+}
 function splitFirst(n){const p=(n||'').trim().split(/\s+/);return p[0]||'';}
 function splitLast(n){const p=(n||'').trim().split(/\s+/);return p.length>1?p[p.length-1]:'';}
 function applyMerge(tpl,p){return tpl.replace(/\{first_name\}/g,p.firstName||splitFirst(p.name||'')).replace(/\{last_name\}/g,p.lastName||splitLast(p.name||'')).replace(/\{name\}/g,p.name||'').replace(/\{office\}/g,p.office?'Office '+p.office:'').replace(/\{company\}/g,p.company||'').replace(/\{dues\}/g,p.dues?'$'+Number(p.dues).toLocaleString():'');}
