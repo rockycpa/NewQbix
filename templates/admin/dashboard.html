@@ -3712,6 +3712,9 @@ function openMemberMo(id){
   h+='<div class="di"><label>End Date</label><value style="color:'+(m.end?'var(--red)':'var(--txt3)')+'">'+fD(m.end)+'</value></div>';
   h+='<div class="di"><label>Email</label><value style="font-size:12px">'+eml(m.email)+'</value></div>';
   h+='<div class="di"><label>Phone</label><value class="mono">'+fmtPhone(m.phone)+'</value></div>';
+  const mFN=m.firstName!==undefined?m.firstName:splitFirst(m.name);
+  const mLN=m.lastName!==undefined?m.lastName:splitLast(m.name);
+  if(mFN||mLN){h+='<div class="di"><label>First Name</label><value>'+esc(mFN||'-')+'</value></div>'+'<div class="di"><label>Last Name</label><value>'+esc(mLN||'-')+'</value></div>';}
   if(m.emergencyName||m.emergencyPhone){
     h+='<div class="divr"></div>';
     h+='<div class="di full"><label style="text-transform:uppercase;font-size:10px;letter-spacing:.08em;color:var(--txt3)">Emergency Contact</label></div>';
@@ -4023,6 +4026,9 @@ function openOccMo(id){
   if(o.facePhoto){h+='<div class="di full" style="text-align:center;margin-bottom:8px"><img src="'+o.facePhoto.data+'" style="width:80px;height:80px;object-fit:cover;border-radius:50%;border:2px solid var(--acc)"></div>';}
   h+='<div class="di"><label>Status</label><value><span class="badge '+(o.status==='Active'?'bg':o.status==='Pending'?'ba':'br')+'">'+o.status+'</span></value></div>';
   h+='<div class="di"><label>Office</label><value class="mono">'+(o.office?'Office '+o.office:'-')+'</value></div>';
+  const oFN=o.firstName!==undefined?o.firstName:splitFirst(o.name);
+  const oLN=o.lastName!==undefined?o.lastName:splitLast(o.name);
+  if(oFN||oLN){h+='<div class="di"><label>First Name</label><value>'+esc(oFN||'-')+'</value></div>'+'<div class="di"><label>Last Name</label><value>'+esc(oLN||'-')+'</value></div>';}
   h+='<div class="di"><label>Phone</label><value class="mono">'+(o.phone||'-')+'</value></div>';
   h+='<div class="di"><label>Email</label><value style="font-size:12px">'+eml(o.email)+'</value></div>';
   if(o.birthday){
