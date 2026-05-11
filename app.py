@@ -4258,8 +4258,10 @@ def get_bing_search():
     try:
         # ── Keyword stats ─────────────────────────────────────────────────────
         params = urllib.parse.urlencode({
-            'apikey':  api_key,
-            'siteUrl': site_url,
+            'apikey':     api_key,
+            'siteUrl':    site_url,
+            'startDate':  start_date.strftime('%Y-%m-%d'),
+            'endDate':    end_date.strftime('%Y-%m-%d'),
         })
         kw_url = f'{base}/GetQueryStats?{params}'
         req = urllib.request.Request(kw_url, headers={'Accept': 'application/json'})
@@ -4308,8 +4310,6 @@ def get_bing_search():
             })
             total_clicks      += agg['clicks']
             total_impressions += agg['impressions']
-            total_clicks      += clicks
-            total_impressions += impressions
 
         queries.sort(key=lambda q: q['impressions'], reverse=True)
         avg_position = (round(sum(q['position'] for q in queries if q['position'] > 0) /
