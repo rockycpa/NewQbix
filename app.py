@@ -872,11 +872,21 @@ def load_data():
         # Backfill missing inner keys without clobbering admin edits.
         for _k, _v in DEFAULT_DATA['siteInfo'].items():
             d['siteInfo'].setdefault(_k, _v)
+        def _split_name(full):
+            parts = (full or '').strip().split()
+            if not parts:
+                return '', ''
+            return parts[0], (parts[-1] if len(parts) > 1 else '')
+
         for m in d.get('members', []):
             m.setdefault('attachments', [])
             m.setdefault('discount', 0)
             m.setdefault('agreementSent', '')
             m.setdefault('agreementSigned', '')
+            # Backfill first/last name from full name if not yet set
+            if 'firstName' not in m:
+                m['firstName'], m['lastName'] = _split_name(m.get('name', ''))
+            m.setdefault('lastName', '')
             # Migrate agreementStatus — infer from existing fields
             if 'agreementStatus' not in m:
                 if m.get('attachments'):
@@ -892,6 +902,10 @@ def load_data():
         for p in d.get('occupants', []):
             p.setdefault('dlAttachment', None)
             p.setdefault('birthday', '')   # ISO YYYY-MM-DD, empty if unknown
+            # Backfill first/last name from full name if not yet set
+            if 'firstName' not in p:
+                p['firstName'], p['lastName'] = _split_name(p.get('name', ''))
+            p.setdefault('lastName', '')
         # Admin users — bootstrap the first record from ADMIN_PHONE on first
         # deploy so we don't lock anyone out. Subsequent users (backup phone,
         # second admin) are added through the Admin tab → Users panel.
@@ -2738,12 +2752,19 @@ def notify_send():
         to_name  = (r.get('name')  or '').strip()
         if not to_email:
             continue
+        # Derive first/last name — use explicit fields if provided,
+        # otherwise split from full name.
+        name_parts  = to_name.strip().split()
+        first_name  = r.get('firstName') or (name_parts[0] if name_parts else '')
+        last_name   = r.get('lastName')  or (name_parts[-1] if len(name_parts) > 1 else '')
         # Apply merge fields per recipient
         merged_html = (body_html
-            .replace('{name}',    to_name)
-            .replace('{company}', r.get('company', ''))
-            .replace('{office}',  r.get('office', ''))
-            .replace('{dues}',    str(r.get('dues', ''))))
+            .replace('{first_name}', first_name)
+            .replace('{last_name}',  last_name)
+            .replace('{name}',       to_name)
+            .replace('{company}',    r.get('company', ''))
+            .replace('{office}',     r.get('office', ''))
+            .replace('{dues}',       str(r.get('dues', ''))))
         ok, err = _send_notify_email(to_email, to_name, subject, merged_html, attachment)
         if ok:
             sent += 1
