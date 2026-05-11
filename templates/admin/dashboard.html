@@ -4916,8 +4916,8 @@ function buildMarketing(){
   const counts = {};
   const bySource = {}; // source -> [names]
   const tracked = [
-    ...DB.members.filter(m => m.leadSource),
-    ...DB.waitlist.filter(w => w.leadSource)
+    ...(DB.members||[]).filter(m => m.leadSource),
+    ...(DB.waitlist||[]).filter(w => w.leadSource)
   ];
   tracked.forEach(entry => {
     const src = entry.leadSource;

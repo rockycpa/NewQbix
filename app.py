@@ -4292,14 +4292,17 @@ def get_bing_search():
             q      = row.get('Query', '')
             if not q:
                 continue
-            # Bing returns date as '/Date(timestamp)/' or 'YYYY-MM-DD' depending
-            # on API version — normalise and filter.
+            # Bing returns date as '/Date(1737705600000-0800)/' — milliseconds
+            # since epoch followed by a timezone offset. Strip the offset and
+            # parse just the numeric milliseconds portion.
             row_date = row.get('Date', '') or row.get('date', '')
             if row_date:
-                # Handle /Date(1234567890000)/ format
                 if row_date.startswith('/Date('):
                     try:
-                        ts_ms = int(row_date[6:row_date.index(')')])
+                        inner = row_date[6:row_date.index(')')]  # e.g. '1737705600000-0800'
+                        # Keep only leading digits (drop +/-offset)
+                        import re as _re
+                        ts_ms = int(_re.match(r'^-?\d+', inner).group())
                         from datetime import datetime as _dt
                         row_date = _dt.utcfromtimestamp(ts_ms / 1000).strftime('%Y-%m-%d')
                     except Exception:
