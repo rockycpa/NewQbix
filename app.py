@@ -4343,6 +4343,8 @@ def get_bing_search():
             'queries':           queries[:20],
             'start_date':        start_date.isoformat(),
             'end_date':          end_date.isoformat(),
+            '_debug_sample_row': rows[0] if rows else None,
+            '_debug_row_count':  len(rows),
         })
 
     except Exception as e:
