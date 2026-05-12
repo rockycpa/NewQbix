@@ -2728,6 +2728,13 @@ def test_sms():
 @login_required
 def notify_send():
     """Send a composed message from the Notify tab to selected recipients via email."""
+    try:
+        return _notify_send_inner()
+    except Exception as exc:
+        app.logger.error('notify_send unhandled error: %s', exc)
+        return jsonify({'ok': False, 'error': str(exc)}), 500
+
+def _notify_send_inner():
     payload    = request.get_json(force=True) or {}
     recipients = payload.get('recipients', [])   # [{email, name}, ...]
     subject    = (payload.get('subject') or 'Message from Qbix Centre').strip()
@@ -2738,8 +2745,8 @@ def notify_send():
         return jsonify({'ok': False, 'error': 'No recipients provided'}), 400
     if not body_text:
         return jsonify({'ok': False, 'error': 'Message body is empty'}), 400
-    if not SMTP_EMAIL or not SMTP_PASSWORD:
-        return jsonify({'ok': False, 'error': 'SMTP not configured — add SMTP_EMAIL and SMTP_PASSWORD in Railway'}), 500
+    if not _graph_configured() and (not SMTP_EMAIL or not SMTP_PASSWORD):
+        return jsonify({'ok': False, 'error': 'Email not configured — check Railway environment variables'}), 500
 
     # If the body already contains HTML tags (from Quill editor), use it directly;
     # otherwise convert plain-text to simple HTML.
