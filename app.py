@@ -1517,15 +1517,19 @@ def amenities():
 @app.route('/memberships')
 def memberships():
     track_pageview('/memberships')
-    data         = get_db()
-    mbr_settings = (data.get('siteSettings') or {}).get('memberships', {})
-    page_content = data.get('pageContent') or {}
+    try:
+        data = get_db()
+        pc   = data.get('pageContent') or {}
+    except Exception:
+        pc   = {}
     return render_template('public/memberships.html',
-                           page_title=mbr_settings.get('title') or 'Memberships | Qbix Centre Macon GA',
-                           page_desc=mbr_settings.get('description') or 'Flexible office membership plans at Qbix Centre — private offices and coworking space in north Macon, GA without a long-term lease.',
-                           canonical_url=APP_URL+'/memberships',
-                           ga_id=GA_MEASUREMENT_ID,
-                           page_content=page_content)
+                           page_title   = 'Memberships | Qbix Centre Macon GA',
+                           page_desc    = 'Flexible office membership plans at Qbix Centre — private offices and coworking space in north Macon, GA without a long-term lease.',
+                           canonical_url= APP_URL + '/memberships',
+                           ga_id        = GA_MEASUREMENT_ID,
+                           mbr_hero_sub = pc.get('mbr-hero-sub') or '',
+                           mbr_heading  = pc.get('mbr-cs-heading') or 'Memberships',
+                           mbr_body     = pc.get('mbr-cs-body') or '')
 
 @app.route('/contact')
 def contact():
