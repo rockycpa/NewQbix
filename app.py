@@ -1522,7 +1522,7 @@ def memberships():
                            **get_site_settings('memberships'),
                            canonical_url=APP_URL+'/memberships',
                            ga_id=GA_MEASUREMENT_ID,
-                           page_content=data.get('pageContent', {}))
+                           page_content=data.get('pageContent') or {})
 
 @app.route('/contact')
 def contact():
