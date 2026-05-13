@@ -2086,9 +2086,16 @@ async function saveHomePageContent(){
     const el = document.getElementById('hp-'+k);
     if(el) pc[k] = el.value.trim();
   });
-  DB.pageContent       = pc;
-  DB.attractionPhotos  = _attrPhotos;
-  DB.attractionTiles   = _attrTiles;
+  DB.pageContent      = pc;
+  // Only overwrite attraction data if buildHomePage() has actually run
+  // (i.e. _attrPhotos is non-empty or DB already has data). This prevents
+  // a blank save from clobbering saved photos/tiles.
+  if(_attrPhotos.length > 0 || (DB.attractionPhotos && DB.attractionPhotos.length > 0)){
+    DB.attractionPhotos = _attrPhotos.length > 0 ? _attrPhotos : DB.attractionPhotos;
+  }
+  if(_attrTiles.length > 0 || (DB.attractionTiles && DB.attractionTiles.length > 0)){
+    DB.attractionTiles = _attrTiles.length > 0 ? _attrTiles : DB.attractionTiles;
+  }
   try{
     const r = await fetch('/admin/api/save',{
       method:'POST', headers:{'Content-Type':'application/json'},
