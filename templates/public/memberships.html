@@ -12,11 +12,19 @@
   <div style="max-width:640px;margin:0 auto">
     <h2 style="font-family:'Playfair Display',serif;font-size:clamp(24px,3.5vw,34px);color:var(--navy);margin-bottom:14px">{{ mbr_heading }}</h2>
     <div style="color:var(--txt2);font-size:16px;line-height:1.8;margin-bottom:24px;text-align:left">
+      <style>
+        .mbr-body ul,.mbr-body ol{padding-left:1.6em;margin:.5em 0 .75em}
+        .mbr-body li{margin-bottom:.3em}
+        .mbr-body p{margin-bottom:.75em}
+        .mbr-body p:last-child{margin-bottom:0}
+      </style>
+      <div class="mbr-body">
       {% if mbr_body %}
         {{ mbr_body | safe }}
       {% else %}
         <p>We&rsquo;re putting the finishing touches on our membership plans. In the meantime, give us a call or stop by for a tour &mdash; we&rsquo;ll walk you through what&rsquo;s available.</p>
       {% endif %}
+      </div>
     </div>
     <p style="font-size:16px">
       <a href="tel:{{ site_info.phone | phone_digits }}" style="color:var(--gold);font-weight:600">{{ site_info.phone }}</a>
