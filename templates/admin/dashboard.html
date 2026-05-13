@@ -484,6 +484,19 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
     <textarea id="hp-contact-sub" rows="2" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;padding:8px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box;resize:vertical"></textarea>
   </div>
 
+  <!-- ABOUT SECTION -->
+  <div class="card" style="margin-bottom:16px">
+    <div style="font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--acc);font-weight:700;margin-bottom:14px">Our Story Section</div>
+    <label style="font-size:12px;color:var(--txt2);display:block;margin-bottom:6px">Heading</label>
+    <input id="hp-about-heading" type="text" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:8px;color:var(--txt);font-size:16px;font-weight:700;padding:10px 14px;font-family:'Playfair Display',serif;box-sizing:border-box" placeholder="Built From the Ground Up">
+    <label style="font-size:12px;color:var(--txt2);display:block;margin:12px 0 6px">Paragraph 1</label>
+    <textarea id="hp-about-p1" rows="3" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:8px;color:var(--txt);font-size:13px;padding:10px 14px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box;resize:vertical"></textarea>
+    <label style="font-size:12px;color:var(--txt2);display:block;margin:12px 0 6px">Paragraph 2</label>
+    <textarea id="hp-about-p2" rows="3" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:8px;color:var(--txt);font-size:13px;padding:10px 14px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box;resize:vertical"></textarea>
+    <label style="font-size:12px;color:var(--txt2);display:block;margin:12px 0 6px">Paragraph 3</label>
+    <textarea id="hp-about-p3" rows="3" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:8px;color:var(--txt);font-size:13px;padding:10px 14px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box;resize:vertical"></textarea>
+  </div>
+
   <div style="display:flex;justify-content:flex-end;padding-bottom:24px">
     <button onclick="saveHomePageContent()" style="background:var(--acc);color:#000;border:none;border-radius:8px;padding:10px 28px;font-size:14px;font-weight:700;cursor:pointer;font-family:'IBM Plex Sans',sans-serif">&#128190; Save Home Page</button>
   </div>
@@ -1926,7 +1939,8 @@ function buildHomePage(){
     'gallery-label','gallery-heading',
     'location-label','location-heading','location-sub',
     'amenities-label','amenities-heading','amenities-sub',
-    'contact-label','contact-heading','contact-sub'
+    'contact-label','contact-heading','contact-sub',
+    'about-heading','about-p1','about-p2','about-p3'
   ];
   textFields.forEach(k => {
     const el = document.getElementById('hp-'+k);
@@ -2064,7 +2078,8 @@ async function saveHomePageContent(){
     'gallery-label','gallery-heading',
     'location-label','location-heading','location-sub',
     'amenities-label','amenities-heading','amenities-sub',
-    'contact-label','contact-heading','contact-sub'
+    'contact-label','contact-heading','contact-sub',
+    'about-heading','about-p1','about-p2','about-p3'
   ];
   const pc = DB.pageContent || {};
   textFields.forEach(k => {

@@ -346,6 +346,29 @@
 </section>
 {% endif %}
 
+<!-- ABOUT -->
+<section style="padding:72px 5%;background:#fff;text-align:center">
+  <div style="max-width:680px;margin:0 auto">
+    <div class="sect-label">Our Story</div>
+    <h2 style="font-family:'Playfair Display',serif;font-size:clamp(24px,3.5vw,36px);color:var(--navy);margin-bottom:20px">{{ page_content.get('about-heading') if page_content and page_content.get('about-heading') else 'Built From the Ground Up' }}</h2>
+    {% if page_content and page_content.get('about-p1') %}
+    <p style="color:var(--txt2);font-size:16px;line-height:1.85;margin-bottom:16px">{{ page_content['about-p1'] }}</p>
+    {% else %}
+    <p style="color:var(--txt2);font-size:16px;line-height:1.85;margin-bottom:16px">Qbix Centre grew out of a building Rocky Davidson originally constructed for his accounting firm in north Macon. With more space than the firm needed, he occasionally leased portions to other professionals &mdash; and found there was real demand for flexible, quality workspace in the area.</p>
+    {% endif %}
+    {% if page_content and page_content.get('about-p2') %}
+    <p style="color:var(--txt2);font-size:16px;line-height:1.85;margin-bottom:16px">{{ page_content['about-p2'] }}</p>
+    {% else %}
+    <p style="color:var(--txt2);font-size:16px;line-height:1.85;margin-bottom:16px">Over time he built out an additional 2,000 square feet, and after a long-term tenant&rsquo;s lease ran its course, that space joined the mix as well. In 2024 Rocky sold his accounting practice &mdash; and the firm&rsquo;s new owners are now among Qbix Centre&rsquo;s members.</p>
+    {% endif %}
+    {% if page_content and page_content.get('about-p3') %}
+    <p style="color:var(--txt2);font-size:16px;line-height:1.85">{{ page_content['about-p3'] }}</p>
+    {% else %}
+    <p style="color:var(--txt2);font-size:16px;line-height:1.85">In semi-retirement he runs the 7,000 square foot facility full time as a professional coworking space, bringing the same standards he applied to his own firm to every office in the building.</p>
+    {% endif %}
+  </div>
+</section>
+
 <!-- CONTACT / CTA -->
 <section class="contact-section" id="contact">
   <div class="sect-label" style="color:var(--gold2)">{{ page_content['contact-label'] if page_content and page_content.get('contact-label') else 'Ready to Get Started?' }}</div>
