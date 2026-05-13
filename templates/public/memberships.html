@@ -11,9 +11,13 @@
 <section style="padding:64px 5% 24px;background:var(--light);text-align:center">
   <div style="max-width:640px;margin:0 auto">
     <h2 style="font-family:'Playfair Display',serif;font-size:clamp(24px,3.5vw,34px);color:var(--navy);margin-bottom:14px">{{ page_content.get('mbr-cs-heading', 'Coming Soon') }}</h2>
-    <p style="color:var(--txt2);font-size:16px;line-height:1.7;margin-bottom:24px">
-      {{ page_content.get('mbr-cs-body', "We’re putting the finishing touches on our membership plans. In the meantime, give us a call or stop by for a tour — we’ll walk you through what’s available.") }}
-    </p>
+    <div style="color:var(--txt2);font-size:16px;line-height:1.8;margin-bottom:24px;text-align:left">
+      {% if page_content.get(‘mbr-cs-body’) %}
+        {{ page_content[‘mbr-cs-body’] | safe }}
+      {% else %}
+        <p>We’re putting the finishing touches on our membership plans. In the meantime, give us a call or stop by for a tour — we’ll walk you through what’s available.</p>
+      {% endif %}
+    </div>
     <p style="font-size:16px">
       <a href="tel:{{ site_info.phone | phone_digits }}" style="color:var(--gold);font-weight:600">{{ site_info.phone }}</a>
       &nbsp;&middot;&nbsp;

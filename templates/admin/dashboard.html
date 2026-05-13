@@ -511,7 +511,7 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
     <label style="font-size:12px;color:var(--txt2);display:block;margin-bottom:6px">Heading</label>
     <input id="mbr-cs-heading" type="text" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:8px;color:var(--txt);font-size:20px;font-weight:700;padding:10px 14px;font-family:'Playfair Display',serif;box-sizing:border-box" placeholder="Coming Soon">
     <label style="font-size:12px;color:var(--txt2);display:block;margin:12px 0 6px">Body Text</label>
-    <textarea id="mbr-cs-body" rows="4" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:8px;color:var(--txt);font-size:15px;padding:10px 14px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box;resize:vertical" placeholder="We're putting the finishing touches on our membership plans. In the meantime, give us a call or stop by for a tour — we'll walk you through what's available."></textarea>
+    <div id="mbr-cs-body-editor" style="background:#fff;color:#222;min-height:220px;border-radius:0 0 8px 8px"></div>
   </div>
 
   <div style="display:flex;justify-content:flex-end;padding-bottom:24px">
@@ -1926,20 +1926,40 @@ function buildHomePage(){
   renderAttrTilesEditor();
 }
 
+let mbrBodyQuill = null;
+
 function buildMembershipsPage(){
   const pc = DB.pageContent || {};
-  ['hero-sub','cs-heading','cs-body'].forEach(k => {
+  // Plain text fields
+  ['hero-sub','cs-heading'].forEach(k => {
     const el = document.getElementById('mbr-'+k);
     if(el) el.value = pc['mbr-'+k] || '';
   });
+  // Quill rich text body — init once, then load saved HTML
+  if(!mbrBodyQuill){
+    mbrBodyQuill = new Quill('#mbr-cs-body-editor', {
+      theme: 'snow',
+      modules: { toolbar: [
+        ['bold','italic','underline'],
+        [{'size':['small',false,'large']}],
+        [{'color':[]},{'background':[]}],
+        [{'list':'ordered'},{'list':'bullet'}],
+        ['link'],
+        ['clean']
+      ]},
+      placeholder: 'Write your memberships page content here...'
+    });
+  }
+  mbrBodyQuill.clipboard.dangerouslyPasteHTML(pc['mbr-cs-body'] || '');
 }
 
 async function saveMembershipsContent(){
   const pc = DB.pageContent || {};
-  ['hero-sub','cs-heading','cs-body'].forEach(k => {
+  ['hero-sub','cs-heading'].forEach(k => {
     const el = document.getElementById('mbr-'+k);
     if(el) pc['mbr-'+k] = el.value.trim();
   });
+  pc['mbr-cs-body'] = mbrBodyQuill ? mbrBodyQuill.root.innerHTML : '';
   DB.pageContent = pc;
   try{
     const r = await fetch('/admin/api/save',{
