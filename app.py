@@ -1328,6 +1328,11 @@ def get_site_settings(page_key):
             'description': 'Ready to see Qbix Centre in person? Schedule a tour at 500A Northside Crossing, Macon GA 31210. Call (478) 216-2876 or send a message — we respond within one business day.',
             'h1': 'Get in Touch with Qbix Centre',
         },
+        'memberships': {
+            'title': 'Memberships | Qbix Centre Macon GA',
+            'description': 'Flexible office membership plans at Qbix Centre — private offices and coworking space in north Macon, GA without a long-term lease.',
+            'h1': 'Membership Plans',
+        },
     }
     db = get_db()
     saved = db.get('siteSettings', {}).get(page_key, {})
@@ -1512,9 +1517,12 @@ def amenities():
 @app.route('/memberships')
 def memberships():
     track_pageview('/memberships')
+    data = get_db()
     return render_template('public/memberships.html',
+                           **get_site_settings('memberships'),
                            canonical_url=APP_URL+'/memberships',
-                           ga_id=GA_MEASUREMENT_ID)
+                           ga_id=GA_MEASUREMENT_ID,
+                           page_content=data.get('pageContent', {}))
 
 @app.route('/contact')
 def contact():

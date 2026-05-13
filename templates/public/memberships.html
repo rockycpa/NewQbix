@@ -1,19 +1,18 @@
 {% extends "base.html" %}
-{% block title %}Memberships | Qbix Centre Macon GA{% endblock %}
-{% block description %}Membership plans and pricing for Qbix Centre coworking and private offices in North Macon, Georgia.{% endblock %}
+{% block title %}{{ page_title or 'Memberships | Qbix Centre Macon GA' }}{% endblock %}
+{% block description %}{{ page_desc or 'Flexible office membership plans at Qbix Centre — private offices and coworking space in north Macon, GA without a long-term lease.' }}{% endblock %}
 
 {% block content %}
 <div class="hero" style="padding:60px 5%">
   <h1>Membership <span>Plans</span></h1>
-  <p>Information about Qbix Centre membership options is on the way.</p>
+  <p>{{ page_content.get('mbr-hero-sub', 'Information about Qbix Centre membership options is on the way.') }}</p>
 </div>
 
 <section style="padding:64px 5% 24px;background:var(--light);text-align:center">
   <div style="max-width:640px;margin:0 auto">
-    <h2 style="font-family:'Playfair Display',serif;font-size:clamp(24px,3.5vw,34px);color:var(--navy);margin-bottom:14px">Coming Soon</h2>
+    <h2 style="font-family:'Playfair Display',serif;font-size:clamp(24px,3.5vw,34px);color:var(--navy);margin-bottom:14px">{{ page_content.get('mbr-cs-heading', 'Coming Soon') }}</h2>
     <p style="color:var(--txt2);font-size:16px;line-height:1.7;margin-bottom:24px">
-      We&rsquo;re putting the finishing touches on our membership plans. In the meantime,
-      give us a call or stop by for a tour &mdash; we&rsquo;ll walk you through what&rsquo;s available.
+      {{ page_content.get('mbr-cs-body', "We’re putting the finishing touches on our membership plans. In the meantime, give us a call or stop by for a tour — we’ll walk you through what’s available.") }}
     </p>
     <p style="font-size:16px">
       <a href="tel:{{ site_info.phone | phone_digits }}" style="color:var(--gold);font-weight:600">{{ site_info.phone }}</a>

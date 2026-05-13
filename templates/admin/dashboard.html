@@ -275,6 +275,7 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
   <nav>
     <button class="nb on" onclick="showPage('website',this)">&#9998; Content</button>
     <button class="nb" onclick="showPage('homepage',this);buildHomePage()">&#127968; Home Page</button>
+    <button class="nb" onclick="showPage('memberships',this);buildMembershipsPage()">&#128179; Memberships</button>
     <button class="nb" id="nav-marketing-btn" onclick="showPage('marketing',this)">&#128200; Marketing <span id="contact-badge" style="display:none;background:var(--red);color:#fff;border-radius:10px;font-size:11px;font-weight:700;padding:1px 6px;margin-left:4px;vertical-align:middle">0</span></button>
     <button class="nb" onclick="showPage('media',this);loadMedia()">&#128444; Media</button>
     <button class="nb" onclick="showPage('offices',this)">Offices</button>
@@ -485,6 +486,36 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
 
   <div style="display:flex;justify-content:flex-end;padding-bottom:24px">
     <button onclick="saveHomePageContent()" style="background:var(--acc);color:#000;border:none;border-radius:8px;padding:10px 28px;font-size:14px;font-weight:700;cursor:pointer;font-family:'IBM Plex Sans',sans-serif">&#128190; Save Home Page</button>
+  </div>
+</div>
+
+<!-- MEMBERSHIPS PAGE EDITOR -->
+<div class="page" id="page-memberships">
+  <div class="pg-title">&#128179; Memberships Page <a href="/memberships" target="_blank" style="font-size:13px;font-weight:400;color:var(--acc);text-decoration:none;margin-left:10px">View live &#8599;</a></div>
+  <div class="pg-sub">Edit the text on the public memberships page. Changes save when you click Save Memberships Page.</div>
+
+  <div style="display:flex;justify-content:flex-end;margin-bottom:16px">
+    <button onclick="saveMembershipsContent()" style="background:var(--acc);color:#000;border:none;border-radius:8px;padding:10px 28px;font-size:14px;font-weight:700;cursor:pointer;font-family:'IBM Plex Sans',sans-serif">&#128190; Save Memberships Page</button>
+  </div>
+
+  <!-- HERO -->
+  <div class="card" style="margin-bottom:16px">
+    <div style="font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--acc);font-weight:700;margin-bottom:14px">Hero Section</div>
+    <label style="font-size:12px;color:var(--txt2);display:block;margin-bottom:6px">Hero Subtext <span style="font-weight:400;color:var(--txt3)">(below "Membership Plans" heading)</span></label>
+    <textarea id="mbr-hero-sub" rows="2" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:8px;color:var(--txt);font-size:15px;padding:10px 14px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box;resize:vertical" placeholder="Information about Qbix Centre membership options is on the way."></textarea>
+  </div>
+
+  <!-- COMING SOON -->
+  <div class="card" style="margin-bottom:16px">
+    <div style="font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--blue);font-weight:700;margin-bottom:14px">Main Section</div>
+    <label style="font-size:12px;color:var(--txt2);display:block;margin-bottom:6px">Heading</label>
+    <input id="mbr-cs-heading" type="text" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:8px;color:var(--txt);font-size:20px;font-weight:700;padding:10px 14px;font-family:'Playfair Display',serif;box-sizing:border-box" placeholder="Coming Soon">
+    <label style="font-size:12px;color:var(--txt2);display:block;margin:12px 0 6px">Body Text</label>
+    <textarea id="mbr-cs-body" rows="4" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:8px;color:var(--txt);font-size:15px;padding:10px 14px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box;resize:vertical" placeholder="We're putting the finishing touches on our membership plans. In the meantime, give us a call or stop by for a tour — we'll walk you through what's available."></textarea>
+  </div>
+
+  <div style="display:flex;justify-content:flex-end;padding-bottom:24px">
+    <button onclick="saveMembershipsContent()" style="background:var(--acc);color:#000;border:none;border-radius:8px;padding:10px 28px;font-size:14px;font-weight:700;cursor:pointer;font-family:'IBM Plex Sans',sans-serif">&#128190; Save Memberships Page</button>
   </div>
 </div>
 
@@ -1893,6 +1924,32 @@ function buildHomePage(){
   _attrTiles  = JSON.parse(JSON.stringify(DB.attractionTiles  || _DEFAULT_TILES));
   renderAttrPhotoEditor();
   renderAttrTilesEditor();
+}
+
+function buildMembershipsPage(){
+  const pc = DB.pageContent || {};
+  ['hero-sub','cs-heading','cs-body'].forEach(k => {
+    const el = document.getElementById('mbr-'+k);
+    if(el) el.value = pc['mbr-'+k] || '';
+  });
+}
+
+async function saveMembershipsContent(){
+  const pc = DB.pageContent || {};
+  ['hero-sub','cs-heading','cs-body'].forEach(k => {
+    const el = document.getElementById('mbr-'+k);
+    if(el) pc['mbr-'+k] = el.value.trim();
+  });
+  DB.pageContent = pc;
+  try{
+    const r = await fetch('/admin/api/save',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(DB)
+    });
+    const d = await r.json();
+    if(d.ok) toast('Memberships page saved ✓');
+    else toast('Save failed: '+d.error,'var(--red)');
+  } catch(e){ toast('Save failed','var(--red)'); }
 }
 
 function renderAttrPhotoEditor(){
