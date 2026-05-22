@@ -128,7 +128,7 @@
           </div>
           <div id="book-list-body"></div>
         </div>
-        <p style="font-size:12px;color:var(--txt2);margin-top:10px">Showing all bookings from today through the end of next month.</p>
+        <p style="font-size:12px;color:var(--txt2);margin-top:10px">Showing all bookings from today through the end of the month after next.</p>
       </div>
     </div>
 
@@ -285,9 +285,12 @@ function isMine(b){
   return false;
 }
 
-// Two-month booking window — server-supplied. Calendar nav is capped to these.
-const MIN_YEAR  = {{ min_year }},  MIN_MONTH = {{ min_month }};
-const MAX_YEAR  = {{ max_year }},  MAX_MONTH = {{ max_month }};
+// Booking window — server-supplied. Conference room: 3 months; offices: 2 months.
+const MIN_YEAR      = {{ min_year }},      MIN_MONTH      = {{ min_month }};
+const CONF_MAX_YEAR = {{ conf_max_year }}, CONF_MAX_MONTH = {{ conf_max_month }};
+const OFF_MAX_YEAR  = {{ max_year }},      OFF_MAX_MONTH  = {{ max_month }};
+// Active max window — updated when the resource picker changes.
+let MAX_YEAR = CONF_MAX_YEAR, MAX_MONTH = CONF_MAX_MONTH;
 
 let currentYear  = MIN_YEAR;
 let currentMonth = MIN_MONTH;
@@ -355,7 +358,18 @@ function updateHoursSummary(){
 }
 
 function onResourceChange(){
-  // Hide any open booking panels and refresh slot data for the new resource.
+  // Update booking window based on resource type, then refresh.
+  // Conference room: 3-month window. Offices: 2-month window.
+  const rid = currentResourceId();
+  if(rid === 'conference_room'){
+    MAX_YEAR = CONF_MAX_YEAR; MAX_MONTH = CONF_MAX_MONTH;
+  } else {
+    MAX_YEAR = OFF_MAX_YEAR; MAX_MONTH = OFF_MAX_MONTH;
+    // If currently viewing a month beyond the office window, snap back.
+    if(currentYear > MAX_YEAR || (currentYear === MAX_YEAR && currentMonth > MAX_MONTH)){
+      currentYear = MAX_YEAR; currentMonth = MAX_MONTH;
+    }
+  }
   document.getElementById('booking-panel').style.display = 'none';
   document.getElementById('success-panel').style.display = 'none';
   selectedDate = null;
@@ -389,7 +403,7 @@ function updateFloorplanPreview(){
 }
 
 function updateNavButtons(){
-  // Enforce the two-month window — disable prev when on min month, next on max.
+  // Enforce the booking window — disable prev when on min month, next on max.
   const atMin = (currentYear === MIN_YEAR && currentMonth === MIN_MONTH);
   const atMax = (currentYear === MAX_YEAR && currentMonth === MAX_MONTH);
   const prev = document.getElementById('cal-prev');
@@ -745,7 +759,7 @@ function pipTitle(b){
 }
 
 // ── List view ────────────────────────────────────────────────────────────────
-let listBookings = null;        // cached, all resources, two-month window
+let listBookings = null;        // cached, all resources, three-month window
 let viewMode = 'cal';
 
 function setView(mode){
@@ -767,20 +781,26 @@ function setView(mode){
 }
 
 async function loadAndRenderList(){
-  // Fetch all bookings for current month + next month across every resource,
-  // then filter to today-and-later. Two parallel calls; cached after first run.
+  // Fetch all bookings for current month + next 2 months across every resource,
+  // then filter to today-and-later. Three parallel calls; cached after first run.
+  // Always uses the conference room window (widest) so no bookings are missed.
   const body = document.getElementById('book-list-body');
   body.innerHTML = '<div class="book-list-row" style="grid-template-columns:1fr;color:var(--txt2);font-style:italic">Loading…</div>';
   try{
     const m1 = `year=${MIN_YEAR}&month=${MIN_MONTH}`;
-    const m2 = `year=${MAX_YEAR}&month=${MAX_MONTH}`;
-    const [r1, r2] = await Promise.all([
+    const m2Month = MIN_MONTH === 12 ? 1 : MIN_MONTH + 1;
+    const m2Year  = MIN_MONTH === 12 ? MIN_YEAR + 1 : MIN_YEAR;
+    const m2 = `year=${m2Year}&month=${m2Month}`;
+    const m3 = `year=${CONF_MAX_YEAR}&month=${CONF_MAX_MONTH}`;
+    const [r1, r2, r3] = await Promise.all([
       fetch(`/book/slots?token=${TOKEN}&${m1}`).then(r=>r.json()),
       fetch(`/book/slots?token=${TOKEN}&${m2}`).then(r=>r.json()),
+      fetch(`/book/slots?token=${TOKEN}&${m3}`).then(r=>r.json()),
     ]);
     const merged = [
       ...((r1.ok?r1.slots:[])||[]),
       ...((r2.ok?r2.slots:[])||[]),
+      ...((r3.ok?r3.slots:[])||[]),
     ];
     const today = new Date(); today.setHours(0,0,0,0);
     listBookings = merged

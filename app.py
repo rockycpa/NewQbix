@@ -1982,17 +1982,20 @@ def book_calendar():
     included  = hours_included(data, member['name'])
     resources = get_bookable_resources(data)
     bs        = data.get('bookingSettings', {})
-    # Two-month window: this month and next month. The UI caps prev/next nav.
-    now      = datetime.now()
-    next_dt  = (now.replace(day=1) + timedelta(days=32)).replace(day=1)
+    # Booking window: conference room = this month + 2; offices = this month + 1.
+    # next1_dt = first day of next month; next2_dt = first day of month after that.
+    now       = datetime.now()
+    next1_dt  = (now.replace(day=1) + timedelta(days=32)).replace(day=1)
+    next2_dt  = (next1_dt + timedelta(days=32)).replace(day=1)
     return render_template('public/book_calendar.html',
         token=bt,
         member_name=entry['name'],
         member_email=entry.get('email', ''),
         included_hours=included,
         resources=resources,
-        min_year=now.year,   min_month=now.month,
-        max_year=next_dt.year, max_month=next_dt.month,
+        min_year=now.year,        min_month=now.month,
+        max_year=next1_dt.year,   max_month=next1_dt.month,
+        conf_max_year=next2_dt.year, conf_max_month=next2_dt.month,
         opt_in_disclosure=bs.get('optInDisclosure', ''),
         noindex=True,
         ga_id=GA_MEASUREMENT_ID)
