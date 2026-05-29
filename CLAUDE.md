@@ -199,7 +199,7 @@ All require login (`@login_required`).
 - **Sitemap:** `/sitemap.xml` includes home, offices, memberships, contact, privacy, guidelines, news, /news/* posts
 
 ### Microsoft Clarity
-- **Project ID:** `wp0905qqxv`
+- **Project ID:** `56b3xzile9`
 - Script in `base.html` `<head>` (loads on all public pages)
 - Admin dashboard does NOT extend `base.html` so staff sessions are not tracked
 
