@@ -1253,7 +1253,7 @@ def inject_globals():
         _si = _data.get('siteInfo') or DEFAULT_DATA['siteInfo']
     except Exception:
         _si = DEFAULT_DATA['siteInfo']
-    return {'now': datetime.now(), 'site_info': _si}
+    return {'now': datetime.now(), 'site_info': _si, 'ga_id': GA_MEASUREMENT_ID}
 
 
 # Strip non-digit characters from a string — used to build tel: links from a
