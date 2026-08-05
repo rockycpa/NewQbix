@@ -1296,6 +1296,14 @@ def health():
     return jsonify({'ok': True, 'time': datetime.now().isoformat()})
 
 
+def extract_youtube_id(url):
+    """Pull the 11-char video ID out of any common YouTube URL format."""
+    if not url:
+        return ''
+    m = re.search(r'(?:youtu\.be/|youtube\.com/(?:watch\?v=|embed/|shorts/))([A-Za-z0-9_-]{11})', url)
+    return m.group(1) if m else ''
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 # SEO HELPERS
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1471,6 +1479,9 @@ def home():
         og_image = home_gallery[0].get('url','')
     elif vacant and vacant[0].get('photos'):
         og_image = vacant[0]['photos'][0].get('url','')
+    page_content = data.get('pageContent', {})
+    video_url = page_content.get('video-url') or 'https://youtu.be/7sFBn4oMl9c'
+    video_youtube_id = extract_youtube_id(video_url)
     return render_template('public/home.html',
         **get_site_settings('home'),
         vacant=vacant, site_amenities=site_amenities,
@@ -1478,7 +1489,9 @@ def home():
         canonical_url=APP_URL+'/',
         og_image=og_image,
         ga_id=GA_MEASUREMENT_ID,
-        page_content=data.get('pageContent', {}),
+        page_content=page_content,
+        video_url=video_url,
+        video_youtube_id=video_youtube_id,
         attraction_photos=data.get('attractionPhotos', []),
         attraction_tiles=data.get('attractionTiles', []))
 

@@ -11,6 +11,12 @@
 .hero p{font-size:17px;opacity:.85;max-width:560px;margin:0 auto;line-height:1.7}
 
 /* ── AVAILABLE OFFICES ─────────────────────────────────── */
+.video-section{padding:36px 5% 0;background:var(--light);text-align:center}
+.video-wrap{max-width:580px;margin:0 auto}
+.video-thumb{position:relative;display:block;border-radius:var(--r);overflow:hidden;aspect-ratio:16/9;background:#111}
+.video-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.video-play{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:64px;height:64px;background:rgba(255,255,255,.92);border-radius:50%;display:flex;align-items:center;justify-content:center;transition:transform .2s;box-shadow:0 4px 16px rgba(0,0,0,.25)}
+.video-thumb:hover .video-play{transform:translate(-50%,-50%) scale(1.08)}
 .offices-section{padding:36px 5% 64px;background:var(--light)}
 .offices-section .sect-hd{text-align:center;margin-bottom:28px}
 .office-cards{display:flex;flex-wrap:wrap;gap:20px;justify-content:center}
@@ -113,6 +119,21 @@
   <h1>{% if page_h1 %}{{ page_h1 }}{% elif page_content and page_content['hero-h1'] %}{{ page_content['hero-h1'] }}{% else %}Your Professional Home<br>in <span>North Macon, Georgia</span>{% endif %}</h1>
   <p>{{ page_content['hero-sub'] if page_content and page_content.get('hero-sub') else 'Private offices and coworking space at Northside Crossing. No long-term leases. 24/7 access. A community built for professionals.' }}</p>
 </div>
+
+<!-- INTRO VIDEO -->
+{% if video_youtube_id %}
+<section class="video-section" id="video">
+  <h2 class="sect-title">{{ page_content['video-heading'] if page_content and page_content.get('video-heading') else 'See Qbix Centre in 60 Seconds' }}</h2>
+  <div class="video-wrap">
+    <a class="video-thumb" href="{{ video_url }}" target="_blank" rel="noopener" aria-label="Watch the Qbix Centre video on YouTube">
+      <img src="https://img.youtube.com/vi/{{ video_youtube_id }}/hqdefault.jpg" alt="Qbix Centre video preview" loading="lazy" decoding="async">
+      <span class="video-play" aria-hidden="true">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="var(--navy)"><path d="M8 5v14l11-7z"/></svg>
+      </span>
+    </a>
+  </div>
+</section>
+{% endif %}
 
 <!-- AVAILABLE OFFICES -->
 <section class="offices-section" id="offices">

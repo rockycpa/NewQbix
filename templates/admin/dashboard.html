@@ -392,6 +392,16 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
     <textarea id="hp-hero-sub" rows="2" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:8px;color:var(--txt);font-size:15px;padding:10px 14px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box;resize:vertical" placeholder="Private offices and coworking space at Northside Crossing..."></textarea>
   </div>
 
+  <!-- INTRO VIDEO -->
+  <div class="card" style="margin-bottom:16px">
+    <div style="font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--red);font-weight:700;margin-bottom:14px">Intro Video Section</div>
+    <label style="font-size:12px;color:var(--txt2);display:block;margin-bottom:4px">Heading</label>
+    <input id="hp-video-heading" type="text" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:16px;font-weight:700;padding:8px 10px;font-family:'Playfair Display',serif;box-sizing:border-box" placeholder="See Qbix Centre in 60 Seconds">
+    <label style="font-size:12px;color:var(--txt2);display:block;margin:12px 0 4px">YouTube Link</label>
+    <input id="hp-video-url" type="text" style="width:100%;background:var(--sur2);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:13px;padding:8px 10px;font-family:'IBM Plex Sans',sans-serif;box-sizing:border-box" placeholder="https://youtu.be/7sFBn4oMl9c">
+    <div style="margin-top:12px;padding:10px 14px;background:var(--sur2);border-radius:8px;font-size:12px;color:var(--txt3)">&#127909; Shown between the hero and Open Offices. Thumbnail pulls automatically from the YouTube link — any youtube.com or youtu.be URL works.</div>
+  </div>
+
   <!-- AVAILABLE OFFICES -->
   <div class="card" style="margin-bottom:16px">
     <div style="font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--blue);font-weight:700;margin-bottom:14px">Open Offices Section</div>
@@ -1935,6 +1945,7 @@ function buildHomePage(){
   const pc = DB.pageContent || {};
   const textFields = [
     'hero-h1','hero-sub',
+    'video-heading','video-url',
     'offices-label','offices-heading','offices-sub',
     'gallery-label','gallery-heading',
     'location-label','location-heading','location-sub',
@@ -2074,6 +2085,7 @@ function renderAttrTilesEditor(){
 async function saveHomePageContent(){
   const textFields = [
     'hero-h1','hero-sub',
+    'video-heading','video-url',
     'offices-label','offices-heading','offices-sub',
     'gallery-label','gallery-heading',
     'location-label','location-heading','location-sub',
