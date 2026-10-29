@@ -1928,6 +1928,17 @@ def book_request_code():
                         'redirect': '/memberships',
                         'error': 'No membership found for that number.'})
 
+    # The calendar finds the member account by an exact name match on the
+    # occupant's company. Catch a mismatch here instead of texting a code and
+    # then silently bouncing them back to sign-in.
+    parent_name = (occupant.get('_phone_parent_member') or '').strip()
+    if not parent_name or not any(m.get('name') == parent_name for m in data.get('members', [])):
+        print(f'[BOOK] Occupant {occupant.get("name","")!r} ({phone[-4:]}) has company '
+              f'{parent_name!r} with no matching member account', flush=True)
+        return jsonify({'ok': False,
+                        'error': 'Your booking account isn\u2019t fully set up yet. '
+                                 'Please call (478) 216-2876 and we\u2019ll fix it right away.'})
+
     # Issue a session id, stash code + occupant identity in the pending2fa
     # store so /book/verify can finalize.
     code = generate_code()
@@ -1990,6 +2001,8 @@ def book_calendar():
     member = next((m for m in data['members']
                    if m.get('name') == parent_name), None) if parent_name else None
     if not member:
+        print(f'[BOOK] Calendar bounce: no member account named {parent_name!r} '
+              f'for {entry.get("name","")!r}', flush=True)
         return redirect(url_for('book_home'))
 
     included  = hours_included(data, member['name'])

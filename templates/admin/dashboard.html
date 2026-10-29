@@ -4078,7 +4078,7 @@ function renderOccupants(){
     return '<tr class="rclick" onclick="openOccMo(\''+esc(o.id)+'\')">'
       +faceCell
       +'<td><strong>'+o.name+'</strong></td>'
-      +'<td style="color:var(--txt2)">'+o.company+'</td>'
+      +'<td style="color:var(--txt2)">'+o.company+((o.status==='Active'&&!occCompanyOk(o.company))?' <span title="No active member account with this exact name \u2014 this occupant can\u2019t book" style="color:#b45309;font-weight:600;cursor:help">\u26A0 no member match</span>':'')+'</td>'
       +'<td class="mono">'+(o.office?'Office '+o.office:'-')+'</td>'
       +'<td class="mono" style="font-size:12px">'+(o.phone||'-')+'</td>'
       +'<td style="font-size:12px">'+(o.email?'<a href="mailto:'+o.email+'" style="color:var(--blue)">'+o.email+'</a>':'-')+'</td>'
@@ -4498,6 +4498,17 @@ async function saveNlCategoriesMgr(){
   toast('Categories saved &#10003;');
 }
 
+// Occupant ↔ member link check. Booking (/book/calendar) finds the member
+// account by an exact match on occupant.company, so a mismatch means the
+// occupant gets bounced back to sign-in.
+function occCompanyOk(company){
+  return DB.members.some(m => (m.status||'Active')==='Active' && m.name===company);
+}
+function occCompanyCheck(){
+  const sel=document.getElementById('f-company'), w=document.getElementById('f-company-warn');
+  if(!sel||!w)return;
+  w.style.display=(sel.value && !occCompanyOk(sel.value))?'':'none';
+}
 function openOccupantForm(id){
   formType='occupant';formId=id;pendingFiles=[];window._pendingFacePhoto=null;const p=id?getOccById(id):{};
   // Member Company picker — Active members only. If editing an occupant
@@ -4505,10 +4516,12 @@ function openOccupantForm(id){
   // the form opens on the saved value instead of clearing it.
   const activeMembers = DB.members.filter(m => (m.status || 'Active') === 'Active');
   const memberNames   = activeMembers.map(m => m.name);
-  if(p.company && !memberNames.includes(p.company)) memberNames.push(p.company);
+  const orphanCompany = (p.company && !memberNames.includes(p.company)) ? p.company : '';
+  if(orphanCompany) memberNames.push(orphanCompany);
   memberNames.sort((a,b) => a.localeCompare(b));
   const sortedOffices=[...DB.offices].sort((a,b)=>a.num.localeCompare(b.num,undefined,{numeric:true}));
-  const cOpts=['', ...memberNames].map(n=>'<option value="'+n+'" '+((p.company||'')==n?'selected':'')+'>'+(n||'&mdash; Select &mdash;')+'</option>').join('');
+  const cOpts=['', ...memberNames].map(n=>'<option value="'+n+'" '+((p.company||'')==n?'selected':'')+'>'+(n===orphanCompany&&n?'\u26A0 '+n+' (no matching member account)':(n||'&mdash; Select &mdash;'))+'</option>').join('');
+  const orphanWarn='<div id="f-company-warn" style="'+(orphanCompany?'':'display:none;')+'margin-top:6px;font-size:12px;color:#b45309;background:#fef3c7;border:1px solid #fcd34d;border-radius:6px;padding:6px 8px">\u26A0 This company doesn\u2019t match any active member account, so this occupant can\u2019t book the conference room. Pick the member account from the list.</div>';
   const oOpts=['',...sortedOffices.map(o=>o.num)].map(n=>'<option value="'+n+'" '+((p.office||'')==n?'selected':'')+'>'+(n||'&mdash; None &mdash;')+'</option>').join('');
   const facePreview=p.facePhoto?'<div style="margin-top:7px;display:flex;align-items:center;gap:10px"><img src="'+p.facePhoto.data+'" style="width:50px;height:50px;object-fit:cover;border-radius:50%;border:2px solid var(--acc)"><span style="font-size:11px;color:var(--txt2)">Current photo &mdash; upload new to replace</span></div>':'';
   document.getElementById('form-title').textContent=id?'Edit Occupant':'Add Occupant';
@@ -4516,7 +4529,7 @@ function openOccupantForm(id){
     +'<div class="fl full"><label>Full Name *</label><input id="f-name" value="'+(p.name||'')+'" placeholder="First Last"></div>'
     +'<div class="fl"><label>First Name <span style="font-weight:400;color:var(--txt3);font-size:11px">— for personalized emails</span></label><input id="f-firstName" value="'+(p.firstName!==undefined?p.firstName:splitFirst(p.name||''))+'" placeholder="e.g. Jim"></div>'
     +'<div class="fl"><label>Last Name</label><input id="f-lastName" value="'+(p.lastName!==undefined?p.lastName:splitLast(p.name||''))+'" placeholder="e.g. Wilson"></div>'
-    +'<div class="fl"><label>Member Company *</label><select id="f-company">'+cOpts+'</select></div>'
+    +'<div class="fl"><label>Member Company *</label><select id="f-company" onchange="occCompanyCheck()">'+cOpts+'</select>'+orphanWarn+'</div>'
     +'<div class="fl"><label>Office Number</label><select id="f-office">'+oOpts+'</select></div>'
     +'<div class="fl"><label>Phone</label><input id="f-phone" value="'+(p.phone||'')+'"></div>'
     +'<div class="fl"><label>Email</label><input id="f-email" type="email" value="'+(p.email||'')+'"></div>'
@@ -4563,9 +4576,21 @@ async function submitForm(){
     const name=document.getElementById('f-name').value.trim();if(!name){alert('Member name required.');return;}
     const existing=formId?getMemberById(formId):{attachments:[],agreementSent:'',agreementSigned:''};
     const obj={id:formId||uid(),name,firstName:(document.getElementById('f-firstName')?.value||'').trim(),lastName:(document.getElementById('f-lastName')?.value||'').trim(),status:document.getElementById('f-status').value,deposit:Number(document.getElementById('f-deposit').value)||0,proration:Number(document.getElementById('f-proration')?.value)||0,start:document.getElementById('f-start').value,end:document.getElementById('f-end')?.value||existing.end||'',email:document.getElementById('f-email').value.trim(),phone:document.getElementById('f-phone').value.trim(),mailbox:(document.getElementById('f-mailbox')?.value||'').trim(),emergencyName:(document.getElementById('f-emergencyName')?.value||'').trim(),emergencyRel:(document.getElementById('f-emergencyRel')?.value||'').trim(),emergencyPhone:(document.getElementById('f-emergencyPhone')?.value||'').trim(),notes:document.getElementById('f-notes').value.trim(),leadSource:document.getElementById('f-leadsource')?.value||'',attachments:[...(existing.attachments||[]),...pendingFiles],agreementSent:existing.agreementSent||'',agreementSigned:existing.agreementSigned||''};
+    // Renaming a member: carry the new name to everything linked to it by
+    // name (occupants' company, offices, booking hour roll-ups) so occupants
+    // don't lose booking access.
+    const oldName=formId?(existing.name||''):'';
+    if(oldName && oldName!==name){
+      let n=0;
+      (DB.occupants||[]).forEach(o=>{if(o.company===oldName){o.company=name;n++;}});
+      (DB.offices||[]).forEach(o=>{if(o.member===oldName)o.member=name;});
+      (DB.bookings||[]).forEach(b=>{if(b.parentMember===oldName)b.parentMember=name;});
+      if(n)toast('Also updated '+n+' occupant'+(n===1?'':'s')+' to "'+name+'"');
+    }
     if(formId){const i=DB.members.findIndex(x=>x.id===formId);DB.members[i]=obj;}else DB.members.push(obj);
   } else if(formType==='occupant'){
     const name=document.getElementById('f-name').value.trim();const company=document.getElementById('f-company').value;if(!name||!company){alert('Name and company required.');return;}
+    if(document.getElementById('f-status').value==='Active' && !occCompanyOk(company) && !confirm('"'+company+'" doesn\u2019t match any active member account, so this occupant won\u2019t be able to book the conference room.\n\nSave anyway?'))return;
     const existing=formId?getOccById(formId):{dlAttachment:null,facePhoto:null};
     const facePhoto=window._pendingFacePhoto||existing.facePhoto||null;
     window._pendingFacePhoto=null;
