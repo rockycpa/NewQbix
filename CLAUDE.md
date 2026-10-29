@@ -260,6 +260,12 @@ Do NOT add `requests` to requirements — use `urllib.request` instead. All curr
 - **Book page title:** Fixed hardcoded short title to use `page_title` variable for proper Bing SEO
 - **DKIM:** Enabled for qbixcentre.com via Microsoft 365 security portal after adding two CNAME records to GoDaddy DNS. Emails now cryptographically signed; deliverability confirmed (Gmail inbox, Hotmail junk expected for new domain reputation).
 
+## Booking: occupant ↔ member link (Oct 2026)
+
+- `/book/calendar` finds the member account by an **exact name match** on `occupant.company`. A mismatch used to silently bounce the occupant back to sign-in after a valid code.
+- `/book/request-code` now checks the link first, returns a "call us" error, and logs `[BOOK] ... no matching member account` to Railway. `/book/calendar` logs `[BOOK] Calendar bounce` if it still happens.
+- Admin: occupant form flags a company with no active member match (warning + confirm on save); Occupants list shows "⚠ no member match"; renaming a member cascades the new name to `occupants.company`, `offices.member` and `bookings.parentMember`.
+
 ## Pending / To-Do
 
 - **DMARC record:** Add TXT record `_dmarc.qbixcentre.com` → `v=DMARC1; p=none; rua=mailto:info@qbixcentre.com` in GoDaddy DNS (improves email deliverability).
