@@ -3018,6 +3018,62 @@ def generate_agreement(member_id):
         abort(404)
 
     member_offices = [o for o in data['offices'] if o.get('member') == member['name']]
+    html = _render_agreement_html(data, member, member_offices,
+                                  waive_setup_fee, waive_bg)
+
+    member['agreementSent'] = datetime.now().strftime('%Y-%m-%d')
+    save_data(data)
+    return html, 200, {'Content-Type': 'text/html; charset=utf-8'}
+
+
+@app.route('/admin/api/generate-sample-agreement', methods=['POST'])
+@login_required
+def generate_sample_agreement():
+    """Render a SAMPLE membership agreement for a prospect from values typed
+    into the Members → Create Sample Agreement form. Uses the same agreement
+    wording as the real generator, stamps SAMPLE — NOT FOR SIGNATURE across
+    every page, and saves nothing (no member record, no office change)."""
+    f    = request.form
+    data = get_db()
+
+    def _num(v):
+        try:
+            return float(str(v).replace('$', '').replace(',', '').strip() or 0)
+        except ValueError:
+            return 0.0
+
+    # Offices picked on the form, each with the dues typed for it. Real
+    # office records are copied (never modified) so size etc. carry over.
+    by_id = {o.get('id'): o for o in data.get('offices', [])}
+    sample_offices = []
+    for oid, dues in zip(f.getlist('office_id'), f.getlist('office_dues')):
+        src = by_id.get(oid)
+        if not src:
+            continue
+        sample_offices.append({'num': src.get('num', ''), 'sqft': src.get('sqft'),
+                               'listDues': _num(dues), 'discount': 0})
+
+    sample_member = {
+        'name':      (f.get('name')  or '').strip() or '_______________',
+        'email':     (f.get('email') or '').strip(),
+        'phone':     (f.get('phone') or '').strip(),
+        'deposit':   int(round(_num(f.get('deposit')))),
+        'proration': _num(f.get('proration')),
+        'start':     (f.get('start') or '').strip(),
+    }
+    waive_setup_fee = f.get('waive_setup_fee') == 'true'
+    waive_bg        = f.get('waive_bg')        == 'true'
+    html = _render_agreement_html(data, sample_member, sample_offices,
+                                  waive_setup_fee, waive_bg, sample=True)
+    return html, 200, {'Content-Type': 'text/html; charset=utf-8'}
+
+
+def _render_agreement_html(data, member, member_offices, waive_setup_fee,
+                           waive_bg, sample=False):
+    """Build the agreement page. Shared by the real generator (values from
+    a member record) and the sample generator (values from the form). Reads
+    only from `member` and `member_offices`; never writes to the DB. With
+    sample=True, adds a SAMPLE watermark on every page."""
     offices        = [o['num'] for o in member_offices]
     office_str     = ', '.join(f'Office {n}' for n in offices) if offices else 'TBD'
 
@@ -3169,11 +3225,18 @@ def generate_agreement(member_id):
     agreement_body_rendered = re.sub(
         r'<li[^>]*>\s*</li>', '', agreement_body_rendered)
 
+    # SAMPLE watermark — position:fixed so Edge/Chrome repeat it on every
+    # printed page of the PDF. Only rendered for sample agreements.
+    sample_mark = ('<div class="sample-mark"><div><div class="sm1">SAMPLE</div>'
+                   '<div class="sm2">NOT FOR SIGNATURE</div></div></div>'
+                   if sample else '')
+    doc_title = ('SAMPLE &ndash; ' if sample else '') + 'Qbix Centre Membership Agreement'
+
     html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Qbix Centre Membership Agreement</title>
+<title>{doc_title}</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600;700&display=swap');
 *{{box-sizing:border-box;margin:0;padding:0}}
@@ -3211,6 +3274,10 @@ ul.clauses li, .agreement-body ul li{{margin-bottom:7px;line-height:1.55;font-si
    centers within the page-break section. */
 .waived-stamp{{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-22deg);font-family:'Inter',Arial,sans-serif;font-size:96pt;font-weight:900;color:rgba(217,38,38,0.18);letter-spacing:.05em;pointer-events:none;user-select:none;white-space:nowrap;z-index:5}}
 .bg-check-page{{position:relative}}
+.sample-mark{{position:fixed;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;pointer-events:none;user-select:none;z-index:50}}
+.sample-mark > div{{transform:rotate(-30deg);text-align:center;font-family:'Inter',Arial,sans-serif;font-weight:900;color:rgba(26,39,68,0.13);line-height:1.05;-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+.sample-mark .sm1{{font-size:110pt;letter-spacing:.06em}}
+.sample-mark .sm2{{font-size:30pt;letter-spacing:.12em}}
 @media print{{
   body{{background:#fff;padding:0}}
   .page{{box-shadow:none;padding:40px 50px;max-width:100%}}
@@ -3233,6 +3300,7 @@ ul.clauses li, .agreement-body ul li{{margin-bottom:7px;line-height:1.55;font-si
 </style>
 </head>
 <body>
+{sample_mark}
 <div class="no-print" style="max-width:800px;margin:0 auto 16px;display:flex;gap:12px;align-items:center">
   <button onclick="window.print()" style="background:#1a2744;color:#fff;border:none;border-radius:6px;padding:10px 24px;font-size:13px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif">&#128438;&nbsp; Print / Save as PDF</button>
   <span style="color:#555;font-size:12px">Print dialog &rarr; select &ldquo;Save as PDF&rdquo; as the printer</span>
@@ -3320,9 +3388,8 @@ ul.clauses li, .agreement-body ul li{{margin-bottom:7px;line-height:1.55;font-si
 </body>
 </html>"""
 
-    member['agreementSent'] = datetime.now().strftime('%Y-%m-%d')
-    save_data(data)
-    return html, 200, {'Content-Type': 'text/html; charset=utf-8'}
+    return html
+
 
 
 
