@@ -178,6 +178,7 @@ All require login (`@login_required`).
 | `/admin/api/publish-newsletter` | POST publish post + ping IndexNow |
 | `/admin/api/generate-social-posts` | POST AI social copy |
 | `/admin/api/generate-agreement/<id>` | GET member agreement PDF |
+| `/admin/api/generate-sample-agreement` | POST sample agreement for a prospect (SAMPLE watermark, saves nothing) |
 | `/admin/api/onboard-link` | POST create onboarding link |
 | `/admin/api/send-monthly-usage` | POST email usage report |
 | `/admin/api/media` | GET media library |
@@ -265,6 +266,11 @@ Do NOT add `requests` to requirements — use `urllib.request` instead. All curr
 - `/book/calendar` finds the member account by an **exact name match** on `occupant.company`. A mismatch used to silently bounce the occupant back to sign-in after a valid code.
 - `/book/request-code` now checks the link first, returns a "call us" error, and logs `[BOOK] ... no matching member account` to Railway. `/book/calendar` logs `[BOOK] Calendar bounce` if it still happens.
 - Admin: occupant form flags a company with no active member match (warning + confirm on save); Occupants list shows "⚠ no member match"; renaming a member cascades the new name to `occupants.company`, `offices.member` and `bookings.parentMember`.
+
+## Sample agreement (Nov 2026)
+
+- Members tab → **Create Sample Agreement** opens a form (prospect name/email/phone, one or more offices with editable dues, start date, deposit, auto-calculated editable proration, waive setup fee / background check). Generates the agreement in a new tab with "SAMPLE / NOT FOR SIGNATURE" on every printed page; Print / Save as PDF as usual.
+- `generate_agreement` and `generate_sample_agreement` both call `_render_agreement_html(data, member, member_offices, waive_setup_fee, waive_bg, sample=False)`, so agreement wording lives in one place. The helper never writes to the DB; only the real route stamps `agreementSent` and saves.
 
 ## Pending / To-Do
 
