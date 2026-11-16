@@ -71,10 +71,14 @@ table.tx td.n,table.tx th.n{text-align:right;font-family:'IBM Plex Mono',monospa
 tr.ln{cursor:pointer}tr.ln:hover td{background:#fbf8f1}
 .toast{position:fixed;bottom:24px;right:24px;background:var(--txt);color:#fff;padding:10px 16px;border-radius:8px;font-size:13px;opacity:0;transform:translateY(8px);transition:all .25s;pointer-events:none}
 .toast.show{opacity:1;transform:translateY(0)}
+html.embed body{background:transparent}
+html.embed .shell{max-width:none;padding:0 0 24px}
+html.embed .hide-embed{display:none!important}
 @media print{.no-print,.tabs,.controls,.drill{display:none!important}body{background:#fff}.card,.bar{border:none}}
 </style>
 </head>
 <body>
+<script>if(new URLSearchParams(location.search).get('embed')==='1'){document.documentElement.classList.add('embed');if(window.top===window.self){location.replace('/admin?page=financials')}}</script>
 <div class="shell">
   <div class="bar">
     <div>
@@ -86,7 +90,7 @@ tr.ln{cursor:pointer}tr.ln:hover td{background:#fbf8f1}
       <button class="btn" onclick="document.getElementById('file').click()">&#8682; Upload data</button>
       <input type="file" id="file" accept=".json,application/json" style="display:none" onchange="upload(this)">
       <button class="btn" onclick="window.print()">Print</button>
-      <a class="btn btn-pri" href="/admin">&larr; Dashboard</a>
+      <a class="btn btn-pri hide-embed" href="/admin">&larr; Dashboard</a>
     </div>
   </div>
 
@@ -137,7 +141,7 @@ function renderQBO(){
   const el=document.getElementById('qbo');
   if(!QBO.configured){el.style.display='flex';el.innerHTML=`<span><span class="dot"></span>QuickBooks sync is not set up yet. Add <code>QBO_CLIENT_ID</code> and <code>QBO_CLIENT_SECRET</code> in Railway to enable it. Until then, statements come from uploaded files.</span>`;return}
   el.style.display='flex';
-  if(!QBO.connected){el.innerHTML=`<span><span class="dot"></span>QuickBooks is not connected.</span><a class="btn btn-pri" href="/admin/qbo/connect">Connect QuickBooks</a>`;return}
+  if(!QBO.connected){el.innerHTML=`<span><span class="dot"></span>QuickBooks is not connected.</span><a class="btn btn-pri" href="/admin/qbo/connect" target="_top">Connect QuickBooks</a>`;return}
   const live=STORE.find(c=>c.company===QBO.company&&c.data.live);
   el.innerHTML=`<span><span class="dot on"></span>Connected to QuickBooks${QBO.company?' &middot; <b>'+esc(QBO.company)+'</b>':''} &middot; Last synced ${SYNCING?'&hellip; syncing now':ago(live&&live.data.syncedAt)}</span>
     <span class="actions"><button class="btn btn-pri" ${SYNCING?'disabled':''} onclick="syncNow()">&#8635; Sync now</button><button class="btn" onclick="disconnectQBO()">Disconnect</button></span>`;

@@ -2733,7 +2733,7 @@ def _qbo_status():
 @login_required
 def admin_qbo_connect():
     if not qbo_sync.configured():
-        return redirect('/admin/financial-statements?qbo=not_configured')
+        return redirect('/admin?page=financials&qbo=not_configured')
     state = secrets.token_urlsafe(24)
     session['qbo_oauth_state'] = state
     return redirect(qbo_sync.auth_url(state))
@@ -2743,20 +2743,20 @@ def admin_qbo_connect():
 def admin_qbo_callback():
     state = session.pop('qbo_oauth_state', None)
     if not state or request.args.get('state') != state:
-        return redirect('/admin/financial-statements?qbo=bad_state')
+        return redirect('/admin?page=financials&qbo=bad_state')
     if request.args.get('error'):
-        return redirect('/admin/financial-statements?qbo=denied')
+        return redirect('/admin?page=financials&qbo=denied')
     code, realm = request.args.get('code'), request.args.get('realmId')
     if not code or not realm:
-        return redirect('/admin/financial-statements?qbo=missing_code')
+        return redirect('/admin?page=financials&qbo=missing_code')
     try:
         qbo_sync.init_tables(get_conn)
         qbo_sync.exchange_code(get_conn, code, realm)
         _fin_save(qbo_sync.sync_statements(get_conn))
     except Exception as e:
         print(f"[QBO] callback: {e}")
-        return redirect('/admin/financial-statements?qbo=error')
-    return redirect('/admin/financial-statements?qbo=connected')
+        return redirect('/admin?page=financials&qbo=error')
+    return redirect('/admin?page=financials&qbo=connected')
 
 @app.route('/admin/api/qbo/disconnect', methods=['POST'])
 @login_required
