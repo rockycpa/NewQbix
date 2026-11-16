@@ -32,6 +32,7 @@ from flask import (Flask, render_template, request, jsonify, redirect,
                    url_for, session, flash, send_file, abort)
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 from dotenv import load_dotenv
+import qbo_sync
 
 try:
     import cloudinary
@@ -2641,6 +2642,162 @@ def api_save():
         return jsonify({'ok': True})
     except Exception as e:
         return jsonify({'ok': False, 'error': str(e)}), 500
+
+# ── Financial statements (admin only) ────────────────────────────────────────
+# Statement data lives in its own table, never in the repo and never in the
+# main qbix_store blob (so it is not sent with /admin/api/data or backups).
+# The admin page uploads a JSON snapshot exported from QuickBooks.
+
+def _init_financials_table():
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS qbix_financials (
+                    company VARCHAR(120) PRIMARY KEY,
+                    data JSONB NOT NULL,
+                    updated_at TIMESTAMP DEFAULT NOW()
+                )
+            """)
+        conn.commit()
+
+def _valid_financials(d):
+    if not isinstance(d, dict) or not isinstance(d.get('company'), str):
+        return 'Missing company name'
+    bs = d.get('balanceSheet')
+    if not isinstance(bs, dict) or not isinstance(bs.get('periods'), list) or not isinstance(bs.get('tree'), list):
+        return 'Missing balanceSheet.periods / balanceSheet.tree'
+    if not isinstance(d.get('incomeStatements'), list) or not d['incomeStatements']:
+        return 'Missing incomeStatements'
+    return None
+
+@app.route('/admin/financial-statements')
+@login_required
+def admin_financial_statements():
+    return render_template('admin/financial_statements.html')
+
+@app.route('/admin/api/financials', methods=['GET'])
+@login_required
+def api_financials_get():
+    try:
+        _init_financials_table()
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT company, data, updated_at FROM qbix_financials ORDER BY company")
+                rows = cur.fetchall()
+        return jsonify({'ok': True, 'qbo': _qbo_status(), 'companies': [
+            {'company': r[0], 'data': r[1], 'uploadedAt': r[2].isoformat() if r[2] else None}
+            for r in rows]})
+    except Exception as e:
+        print(f"[FIN ERROR] get: {e}")
+        return jsonify({'ok': False, 'error': 'Could not load financial statements'}), 500
+
+@app.route('/admin/api/financials', methods=['POST'])
+@login_required
+def api_financials_save():
+    try:
+        d = request.get_json(silent=True)
+        err = _valid_financials(d)
+        if err:
+            return jsonify({'ok': False, 'error': err}), 400
+        _fin_save(d)
+        return jsonify({'ok': True, 'company': d['company']})
+    except Exception as e:
+        print(f"[FIN ERROR] save: {e}")
+        return jsonify({'ok': False, 'error': 'Could not save financial statements'}), 500
+
+def _fin_save(d):
+    _init_financials_table()
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO qbix_financials (company, data, updated_at) VALUES (%s, %s, NOW())
+                ON CONFLICT (company) DO UPDATE SET data = EXCLUDED.data, updated_at = NOW()
+            """, (d['company'][:120], json.dumps(d)))
+        conn.commit()
+
+def _qbo_status():
+    st = {'configured': qbo_sync.configured(), 'connected': False}
+    if not st['configured']:
+        return st
+    try:
+        qbo_sync.init_tables(get_conn)
+        c = qbo_sync.get_connection(get_conn)
+        if c:
+            st.update(connected=True, company=c['company_name'], realmId=c['realm_id'],
+                      refreshExpires=c['refresh_expires_at'].isoformat() if c['refresh_expires_at'] else None)
+    except Exception as e:
+        print(f"[QBO] status: {e}")
+    return st
+
+@app.route('/admin/qbo/connect')
+@login_required
+def admin_qbo_connect():
+    if not qbo_sync.configured():
+        return redirect('/admin/financial-statements?qbo=not_configured')
+    state = secrets.token_urlsafe(24)
+    session['qbo_oauth_state'] = state
+    return redirect(qbo_sync.auth_url(state))
+
+@app.route('/admin/qbo/callback')
+@login_required
+def admin_qbo_callback():
+    state = session.pop('qbo_oauth_state', None)
+    if not state or request.args.get('state') != state:
+        return redirect('/admin/financial-statements?qbo=bad_state')
+    if request.args.get('error'):
+        return redirect('/admin/financial-statements?qbo=denied')
+    code, realm = request.args.get('code'), request.args.get('realmId')
+    if not code or not realm:
+        return redirect('/admin/financial-statements?qbo=missing_code')
+    try:
+        qbo_sync.init_tables(get_conn)
+        qbo_sync.exchange_code(get_conn, code, realm)
+        _fin_save(qbo_sync.sync_statements(get_conn))
+    except Exception as e:
+        print(f"[QBO] callback: {e}")
+        return redirect('/admin/financial-statements?qbo=error')
+    return redirect('/admin/financial-statements?qbo=connected')
+
+@app.route('/admin/api/qbo/disconnect', methods=['POST'])
+@login_required
+def api_qbo_disconnect():
+    try:
+        qbo_sync.init_tables(get_conn)
+        qbo_sync.revoke(get_conn)
+        return jsonify({'ok': True})
+    except Exception as e:
+        print(f"[QBO] disconnect: {e}")
+        return jsonify({'ok': False, 'error': 'Could not disconnect QuickBooks'}), 500
+
+@app.route('/admin/api/financials/sync', methods=['POST'])
+@login_required
+def api_financials_sync():
+    try:
+        qbo_sync.init_tables(get_conn)
+        d = qbo_sync.sync_statements(get_conn)
+        _fin_save(d)
+        return jsonify({'ok': True, 'company': d['company'], 'syncedAt': d['syncedAt']})
+    except qbo_sync.QBOError as e:
+        print(f"[QBO] sync: {e}")
+        return jsonify({'ok': False, 'error': str(e)[:300]}), 502
+    except Exception as e:
+        print(f"[QBO] sync error: {e}")
+        return jsonify({'ok': False, 'error': 'Sync failed; see server logs'}), 500
+
+@app.route('/admin/api/financials/transactions')
+@login_required
+def api_financials_transactions():
+    acct = request.args.get('account_id', '')
+    start, end = request.args.get('start', ''), request.args.get('end', '')
+    if not (acct.isdigit() and re.match(r'^\d{4}-\d{2}-\d{2}$', start) and re.match(r'^\d{4}-\d{2}-\d{2}$', end)):
+        return jsonify({'ok': False, 'error': 'Bad account or dates'}), 400
+    try:
+        return jsonify({'ok': True, **qbo_sync.account_transactions(get_conn, acct, start, end)})
+    except qbo_sync.QBOError as e:
+        return jsonify({'ok': False, 'error': str(e)[:300]}), 502
+    except Exception as e:
+        print(f"[QBO] transactions: {e}")
+        return jsonify({'ok': False, 'error': 'Could not load transactions'}), 500
 
 @app.route('/admin/api/backup')
 @login_required

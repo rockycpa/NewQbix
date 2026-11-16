@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Financial Statements &mdash; Qbix Centre Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#f8f6f1;--sur:#ffffff;--sur2:#f3efe7;--bdr:#e2ddd5;--acc:#c9a84c;--blue:#2563eb;--grn:#15803d;--red:#dc2626;--txt:#1a2744;--txt2:#555;--txt3:#888}
+body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;font-size:14px}
+.shell{max-width:1100px;margin:0 auto;padding:24px 24px 48px}
+.bar{background:var(--sur);border:1px solid var(--bdr);border-radius:10px;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px}
+.bar h1{font-family:'Playfair Display',serif;font-size:22px;font-weight:700}
+.bar .sub{font-size:13px;color:var(--txt3);margin-top:2px}
+.actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.btn{font-family:inherit;font-size:13px;font-weight:600;padding:8px 14px;border-radius:7px;border:1px solid var(--bdr);background:var(--sur2);color:var(--txt2);cursor:pointer;text-decoration:none;display:inline-block}
+.btn:hover{background:#ebe5d8;color:var(--txt)}
+.btn-pri{background:var(--txt);color:#fff;border-color:var(--txt)}
+.btn-pri:hover{background:#26375f;color:#fff}
+select{font-family:inherit;font-size:13px;padding:7px 10px;border:1px solid var(--bdr);border-radius:7px;background:#fff;color:var(--txt)}
+.tabs{display:flex;gap:6px;margin-bottom:12px}
+.tab{font-family:inherit;font-size:14px;font-weight:600;padding:9px 18px;border-radius:8px 8px 0 0;border:1px solid var(--bdr);border-bottom:none;background:var(--sur2);color:var(--txt2);cursor:pointer}
+.tab.on{background:var(--sur);color:var(--txt);box-shadow:inset 0 3px 0 var(--acc)}
+.card{background:var(--sur);border:1px solid var(--bdr);border-radius:10px;padding:18px 20px}
+.controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;font-size:13px;color:var(--txt2)}
+.controls label{display:flex;align-items:center;gap:6px;cursor:pointer}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-bottom:16px}
+.kpi{background:var(--sur2);border:1px solid var(--bdr);border-radius:8px;padding:10px 14px}
+.kpi .k{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--txt3)}
+.kpi .v{font-family:'IBM Plex Mono',monospace;font-size:18px;font-weight:500;margin-top:3px}
+table.stmt{width:100%;border-collapse:collapse}
+table.stmt th{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--txt3);text-align:right;padding:6px 8px;border-bottom:2px solid var(--txt)}
+table.stmt th:first-child{text-align:left}
+table.stmt td{padding:5px 8px;border-bottom:1px solid #f0ece4;vertical-align:middle}
+table.stmt td.n{text-align:right;font-family:'IBM Plex Mono',monospace;font-size:13px;white-space:nowrap}
+tr.grp>td:first-child{cursor:pointer;user-select:none}
+tr.grp>td:first-child::before{content:'\25B8';display:inline-block;width:14px;color:var(--txt3);transition:transform .15s}
+tr.grp.open>td:first-child::before{transform:rotate(90deg)}
+tr.lvl0>td{font-weight:700;font-size:15px;background:var(--sur2)}
+tr.lvl1>td{font-weight:600}
+tr.tot>td{font-weight:600;border-top:1px solid var(--txt3)}
+tr.tot.lvl0>td{border-top:2px solid var(--txt);border-bottom:3px double var(--txt);background:none}
+tr.leaf td:first-child{cursor:pointer}
+tr.leaf:hover td,tr.grp:hover td{background:#fbf8f1}
+tr.zero td{color:var(--txt3)}
+.neg{color:var(--red)}
+.up,.dn{color:var(--txt2)}
+.drill{display:none;margin-top:16px;border:1px solid rgba(201,168,76,.45);background:rgba(201,168,76,.06);border-radius:10px;padding:14px 16px}
+.drill.on{display:block}
+.drill h3{font-family:'Playfair Display',serif;font-size:17px;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center}
+.drill .x{font-family:inherit;background:none;border:none;font-size:18px;cursor:pointer;color:var(--txt3)}
+.drill .hint{font-size:12px;color:var(--txt3);margin-bottom:10px}
+.bars{display:flex;align-items:flex-end;gap:6px;height:110px;margin:8px 0 6px;padding-bottom:2px;border-bottom:1px solid var(--bdr)}
+.bars .b{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%}
+.bars .b span{width:100%;max-width:44px;background:var(--txt);border-radius:3px 3px 0 0;min-height:1px}
+.bars .b span.ng{background:var(--red)}
+.blabels{display:flex;gap:6px;font-size:10px;color:var(--txt3)}
+.blabels div{flex:1;text-align:center}
+.empty{text-align:center;padding:50px 20px;color:var(--txt2)}
+.empty h2{font-family:'Playfair Display',serif;margin-bottom:8px}
+.note{font-size:12px;color:var(--txt3);margin-top:14px;line-height:1.6}
+.qbo{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:var(--sur);border:1px solid var(--bdr);border-radius:10px;padding:10px 16px;margin-bottom:12px;font-size:13px;color:var(--txt2)}
+.qbo .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;background:var(--txt3)}
+.qbo .dot.on{background:var(--grn)}
+table.tx{width:100%;border-collapse:collapse;margin-top:10px;font-size:13px}
+table.tx th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--txt3);padding:5px 6px;border-bottom:1px solid var(--txt3)}
+table.tx td{padding:5px 6px;border-bottom:1px solid #f0ece4}
+table.tx td.n,table.tx th.n{text-align:right;font-family:'IBM Plex Mono',monospace;white-space:nowrap}
+tr.ln{cursor:pointer}tr.ln:hover td{background:#fbf8f1}
+.toast{position:fixed;bottom:24px;right:24px;background:var(--txt);color:#fff;padding:10px 16px;border-radius:8px;font-size:13px;opacity:0;transform:translateY(8px);transition:all .25s;pointer-events:none}
+.toast.show{opacity:1;transform:translateY(0)}
+@media print{.no-print,.tabs,.controls,.drill{display:none!important}body{background:#fff}.card,.bar{border:none}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="bar">
+    <div>
+      <h1>Financial Statements</h1>
+      <div class="sub" id="sub">Loading&hellip;</div>
+    </div>
+    <div class="actions no-print">
+      <select id="company" style="display:none" onchange="selectCompany(this.value)"></select>
+      <button class="btn" onclick="document.getElementById('file').click()">&#8682; Upload data</button>
+      <input type="file" id="file" accept=".json,application/json" style="display:none" onchange="upload(this)">
+      <button class="btn" onclick="window.print()">Print</button>
+      <a class="btn btn-pri" href="/admin">&larr; Dashboard</a>
+    </div>
+  </div>
+
+  <div class="qbo no-print" id="qbo" style="display:none"></div>
+  <div id="app"></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+let STORE = [], CUR = null, VIEW = 'bs', QBO = {}, SYNCING = false;
+const st = {bsCol: null, bsCompare: true, bsHideZero: true, isId: null, isHideZero: true, open: {}};
+
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2600)}
+function money(v,{paren=true}={}){
+  if(v==null||isNaN(v)) return '';
+  const a=Math.abs(v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  if(Math.abs(v)<0.005) return '0.00';
+  return v<0 ? (paren?'('+a+')':'-'+a) : a;
+}
+function numCell(v,extra=''){return `<td class="n ${v<-0.004?'neg':''} ${extra}">${money(v)}</td>`}
+function mLabel(iso){const [y,m]=iso.split('-');return new Date(+y,+m-1,1).toLocaleString('en-US',{month:'short'})+' '+y.slice(2)}
+function dLabel(iso){const [y,m,d]=iso.split('-');return new Date(+y,+m-1,+d).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}
+function isZero(arr){return arr.every(x=>Math.abs(x)<0.005)}
+
+async function load(){
+  try{
+    const r=await fetch('/admin/api/financials',{credentials:'same-origin'});
+    if(r.redirected||r.status===401){location.href='/admin/login';return}
+    const j=await r.json();
+    if(!j.ok) throw new Error(j.error||'Load failed');
+    STORE=j.companies||[]; QBO=j.qbo||{};
+  }catch(e){STORE=[];toast(e.message)}
+  const sel=document.getElementById('company');
+  if(STORE.length>1){sel.style.display='';sel.innerHTML=STORE.map(c=>`<option>${esc(c.company)}</option>`).join('')}
+  else sel.style.display='none';
+  const live=QBO.connected&&STORE.find(c=>c.data.live&&c.company===QBO.company);
+  selectCompany(live?live.company:(STORE.length?STORE[0].company:null));
+  renderQBO();
+  if(QBO.connected&&!SYNCING&&!window._autoSynced){
+    const last=live&&live.data.syncedAt?new Date(live.data.syncedAt):null;
+    if(!last||Date.now()-last>6*3600*1000){window._autoSynced=true;syncNow(true)}
+  }
+}
+function ago(iso){if(!iso)return 'never';const m=Math.round((Date.now()-new Date(iso))/60000);
+  return m<1?'just now':m<60?m+' min ago':m<1440?Math.round(m/60)+' hr ago':new Date(iso).toLocaleDateString()}
+function renderQBO(){
+  const el=document.getElementById('qbo');
+  if(!QBO.configured){el.style.display='flex';el.innerHTML=`<span><span class="dot"></span>QuickBooks sync is not set up yet. Add <code>QBO_CLIENT_ID</code> and <code>QBO_CLIENT_SECRET</code> in Railway to enable it. Until then, statements come from uploaded files.</span>`;return}
+  el.style.display='flex';
+  if(!QBO.connected){el.innerHTML=`<span><span class="dot"></span>QuickBooks is not connected.</span><a class="btn btn-pri" href="/admin/qbo/connect">Connect QuickBooks</a>`;return}
+  const live=STORE.find(c=>c.company===QBO.company&&c.data.live);
+  el.innerHTML=`<span><span class="dot on"></span>Connected to QuickBooks${QBO.company?' &middot; <b>'+esc(QBO.company)+'</b>':''} &middot; Last synced ${SYNCING?'&hellip; syncing now':ago(live&&live.data.syncedAt)}</span>
+    <span class="actions"><button class="btn btn-pri" ${SYNCING?'disabled':''} onclick="syncNow()">&#8635; Sync now</button><button class="btn" onclick="disconnectQBO()">Disconnect</button></span>`;
+}
+async function syncNow(auto){
+  SYNCING=true; renderQBO();
+  try{
+    const r=await fetch('/admin/api/financials/sync',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:'{}'});
+    let j={}; try{j=await r.json()}catch(e){}
+    if(!r.ok||!j.ok) throw new Error(j.error||('Sync failed ('+r.status+')'));
+    SYNCING=false; if(!auto) toast('Synced from QuickBooks'); await load();
+  }catch(e){SYNCING=false;renderQBO();toast(e.message)}
+}
+async function disconnectQBO(){
+  if(!confirm('Disconnect QuickBooks? The last synced statements stay on this page.')) return;
+  const r=await fetch('/admin/api/qbo/disconnect',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:'{}'});
+  toast(r.ok?'QuickBooks disconnected':'Could not disconnect'); load();
+}
+function selectCompany(name){
+  CUR=STORE.find(c=>c.company===name)||null;
+  if(CUR){const p=CUR.data.balanceSheet.periods;st.bsCol=p.length-1;st.isId=CUR.data.incomeStatements[0].id;st.open={}}
+  render();
+}
+
+async function upload(inp){
+  const f=inp.files[0]; inp.value=''; if(!f) return;
+  let d; try{d=JSON.parse(await f.text())}catch(e){toast('That file is not valid JSON');return}
+  const r=await fetch('/admin/api/financials',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});
+  let j={}; try{j=await r.json()}catch(e){}
+  if(!r.ok||!j.ok){toast(j.error||('Upload failed ('+r.status+')'));return}
+  toast('Saved statements for '+j.company); await load(); selectCompany(j.company);
+}
+
+function render(){
+  const app=document.getElementById('app'), sub=document.getElementById('sub');
+  if(!CUR){
+    sub.textContent='No statements uploaded yet';
+    app.innerHTML=`<div class="card empty"><h2>No financial data yet</h2><p>Click <b>Upload data</b> and choose the statements JSON file exported from QuickBooks.</p></div>`;
+    return;
+  }
+  const d=CUR.data;
+  sub.innerHTML=`${esc(d.company)} &middot; ${esc(d.basis||'')} basis &middot; Fiscal year begins ${esc(d.fiscalYearStart||'January')} &middot; Source: ${esc(d.source||'')}${CUR.uploadedAt?' &middot; Uploaded '+new Date(CUR.uploadedAt).toLocaleDateString():''}`;
+  app.innerHTML=(d.note?`<div class="card" style="padding:10px 16px;margin-bottom:12px;font-size:13px;color:var(--txt2);background:rgba(201,168,76,.08);border-color:rgba(201,168,76,.35)">${esc(d.note)}</div>`:'')+`<div class="tabs no-print">
+      <button class="tab ${VIEW==='bs'?'on':''}" onclick="VIEW='bs';render()">Balance Sheet</button>
+      <button class="tab ${VIEW==='is'?'on':''}" onclick="VIEW='is';render()">Income Statement</button>
+    </div><div class="card" id="pane"></div>`;
+  VIEW==='bs'?renderBS():renderIS();
+}
+
+/* ---------- Balance sheet ---------- */
+function renderBS(){
+  const bs=CUR.data.balanceSheet, P=bs.periods, c=st.bsCol, pc=c>0?c-1:null, cmp=st.bsCompare&&pc!=null;
+  const A=bs.tree[0], LE=bs.tree[1];
+  const find=(n,l)=>n.label.toLowerCase()===l.toLowerCase()?n:(n.children||[]).reduce((r,k)=>r||find(k,l),null);
+  const L=find(LE,'Liabilities'), E=find(LE,'Equity'), CA=find(A,'Current Assets'), CL=find(LE,'Current Liabilities');
+  const v=n=>n?n.values[c]:0;
+  let rows='';
+  const walk=(n,lvl,path)=>{
+    const id=path, kids=n.children||[], open=st.open[id]!==undefined?st.open[id]:lvl<2;
+    if(st.bsHideZero && isZero(n.values) && lvl>0) return;
+    const chg=cmp?n.values[c]-n.values[pc]:null;
+    const chgCell=cmp?`<td class="n ${chg>0.004?'up':chg<-0.004?'dn':''}">${Math.abs(chg)<0.005?'&ndash;':(chg>0?'+':'')+money(chg,{paren:false})}</td>`:'';
+    const pad=`style="padding-left:${8+lvl*18}px"`;
+    if(kids.length){
+      rows+=`<tr class="grp lvl${Math.min(lvl,1)} ${open?'open':''}" onclick="toggle('${id}')"><td ${pad}>${esc(n.label)}</td>${open?`<td></td>${cmp?'<td></td><td></td>':''}`:numCell(n.values[c])+(cmp?numCell(n.values[pc]):'')+chgCell}</tr>`;
+      if(open){
+        kids.forEach((k,i)=>walk(k,lvl+1,id+'.'+i));
+        rows+=`<tr class="tot lvl${lvl===0?0:1}" onclick="drillBS('${id}')" style="cursor:pointer"><td ${pad}>Total ${esc(n.label)}</td>${numCell(n.values[c])}${cmp?numCell(n.values[pc])+chgCell:''}</tr>`;
+      }
+    }else{
+      rows+=`<tr class="leaf ${isZero([n.values[c]])?'zero':''}" onclick="drillBS('${id}')" title="Click to see the monthly trend"><td ${pad}>${esc(n.label)}</td>${numCell(n.values[c])}${cmp?numCell(n.values[pc])+chgCell:''}</tr>`;
+    }
+  };
+  bs.tree.forEach((n,i)=>walk(n,0,'b'+i));
+  const wc=v(CA)-v(CL);
+  document.getElementById('pane').innerHTML=`
+   <div class="controls">
+     As of <select onchange="st.bsCol=+this.value;renderBS()">${P.map((p,i)=>`<option value="${i}" ${i===c?'selected':''}>${dLabel(p)}</option>`).join('')}</select>
+     <label><input type="checkbox" ${st.bsCompare?'checked':''} onchange="st.bsCompare=this.checked;renderBS()"> Compare to prior month</label>
+     <label><input type="checkbox" ${st.bsHideZero?'checked':''} onchange="st.bsHideZero=this.checked;renderBS()"> Hide zero-balance accounts</label>
+     <button class="btn" onclick="setAll('b',true)">Expand all</button><button class="btn" onclick="setAll('b',false)">Collapse all</button>
+   </div>
+   <div class="kpis">
+     <div class="kpi"><div class="k">Total Assets</div><div class="v">${money(v(A))}</div></div>
+     <div class="kpi"><div class="k">Total Liabilities</div><div class="v">${money(v(L))}</div></div>
+     <div class="kpi"><div class="k">Total Equity</div><div class="v">${money(v(E))}</div></div>
+     <div class="kpi"><div class="k">Working Capital</div><div class="v ${wc<0?'neg':''}">${money(wc)}</div></div>
+   </div>
+   <table class="stmt"><thead><tr><th>${esc(CUR.data.company)}<br>Balance Sheet &mdash; ${dLabel(P[c])}</th><th>${mLabel(P[c])}</th>${cmp?`<th>${mLabel(P[pc])}</th><th>Change</th>`:''}</tr></thead><tbody>${rows}</tbody></table>
+   <div class="drill" id="drill"></div>
+   <p class="note">Click a section heading to expand or collapse it. Click any account or total to drill into its month-end balances. ${Math.abs(v(A)-v(LE))<0.01?'&#10003; Assets equal liabilities plus equity.':'<b class=neg>Warning: the balance sheet does not balance for this date.</b>'}</p>`;
+  if(st.drillBS) drillBS(st.drillBS,true);
+}
+function nodeAt(id){
+  const parts=id.split('.'); let n=CUR.data.balanceSheet.tree[+parts[0].slice(1)];
+  for(const p of parts.slice(1)) n=n.children[+p];
+  return n;
+}
+function drillBS(id,keep){
+  const n=nodeAt(id), P=CUR.data.balanceSheet.periods, el=document.getElementById('drill');
+  if(!keep&&st.drillBS===id&&el.classList.contains('on')){closeDrill();return}
+  st.drillBS=id;
+  const vals=n.values, max=Math.max(...vals.map(Math.abs),1);
+  const kids=(n.children||[]).filter(k=>!isZero(k.values));
+  el.innerHTML=`<h3><span>${esc(n.label)} &mdash; month-end balances</span><button class="x" onclick="closeDrill()">&times;</button></h3>
+    <div class="hint">${kids.length?'Broken out by account. ':''}Selected month is highlighted.</div>
+    <div class="bars">${vals.map((x,i)=>`<div class="b" title="${mLabel(P[i])}: ${money(x)}"><span class="${x<0?'ng':''}" style="height:${Math.abs(x)/max*100}%;${i===st.bsCol?'outline:2px solid var(--acc)':''}"></span></div>`).join('')}</div>
+    <div class="blabels">${P.map(p=>`<div>${mLabel(p)}</div>`).join('')}</div>
+    <div style="overflow-x:auto;margin-top:10px"><table class="stmt"><thead><tr><th>Account</th>${P.map(p=>`<th>${mLabel(p)}</th>`).join('')}</tr></thead><tbody>
+    ${kids.map(k=>`<tr><td>${esc(k.label)}</td>${k.values.map(x=>numCell(x)).join('')}</tr>`).join('')}
+    <tr class="tot"><td>${kids.length?'Total ':''}${esc(n.label)}</td>${vals.map(x=>numCell(x)).join('')}</tr></tbody></table></div>
+    ${n.id&&CUR.data.live?`<div style="margin-top:12px"><button class="btn" onclick="loadTx('${esc(n.id)}','${P[st.bsCol].slice(0,8)}01','${P[st.bsCol]}')">Show ${mLabel(P[st.bsCol])} transactions</button></div><div id="txbox"></div>`:''}`;
+  el.classList.add('on'); if(!keep) el.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+function closeDrill(){st.drillBS=null;st.drillIS=null;const el=document.getElementById('drill');if(el)el.classList.remove('on')}
+
+/* ---------- Income statement ---------- */
+function renderIS(){
+  const list=CUR.data.incomeStatements, s=list.find(x=>x.id===st.isId)||list[0];
+  const sec=l=>s.sections.find(x=>x.label===l);
+  const inc=sec('Income'), cogs=sec('Cost of Goods Sold'), exp=sec('Expenses'), oth=sec('Other Expenses'), oi=sec('Other Income');
+  const a=n=>n?n.amount:0;
+  const noi=a(inc)-a(cogs)-a(exp), net=noi+a(oi)-a(oth), base=a(inc)||1; window._IS_LINES={};
+  const pct=x=>`<td class="n" style="color:var(--txt3)">${(x/base*100).toFixed(1)}%</td>`;
+  let rows='';
+  const line=(n,lvl,id)=>{
+    if(st.isHideZero&&Math.abs(n.amount)<0.005) return;
+    const pad=`style="padding-left:${8+lvl*18}px"`;
+    if(n.children){
+      const open=!!st.open[id];
+      rows+=`<tr class="grp ${open?'open':''}" onclick="toggle('${id}')"><td ${pad}>${esc(n.label)}</td>${open?'<td></td><td></td>':numCell(n.amount)+pct(n.amount)}</tr>`;
+      if(open){
+        if(Math.abs(n.own||0)>0.004) rows+=`<tr><td style="padding-left:${8+(lvl+1)*18}px">${esc(n.label)} (other)</td>${numCell(n.own)}${pct(n.own)}</tr>`;
+        n.children.forEach((k,i)=>line(k,lvl+1,id+'.'+i));
+        rows+=`<tr class="tot"><td ${pad}>Total ${esc(n.label)}</td>${numCell(n.amount)}${pct(n.amount)}</tr>`;
+      }
+    }else{
+      const can=(n.values&&n.values.length)||n.id; if(can) window._IS_LINES[id]=n;
+      rows+=`<tr class="${can?'ln':''}" ${can?`onclick="drillLine('${id}')" title="Click for monthly detail"`:''}><td ${pad}>${esc(n.label)}</td>${numCell(n.amount)}${pct(n.amount)}</tr>`;
+    }
+  };
+  const section=(n,key,title)=>{
+    if(!n) return;
+    rows+=`<tr class="lvl0"><td colspan="3">${esc(title)}</td></tr>`;
+    n.children.forEach((k,i)=>line(k,1,'i'+key+'.'+i));
+    rows+=`<tr class="tot lvl1" style="cursor:pointer" onclick="drillIS('${key}')" title="Click to see by month"><td>Total ${esc(title)}</td>${numCell(n.amount)}${pct(n.amount)}</tr>`;
+  };
+  section(inc,'inc','Income');
+  if(cogs){section(cogs,'cogs','Cost of Goods Sold');rows+=`<tr class="tot lvl1"><td>Gross Profit</td>${numCell(a(inc)-a(cogs))}${pct(a(inc)-a(cogs))}</tr>`}
+  section(exp,'exp','Operating Expenses');
+  rows+=`<tr class="tot lvl1" style="cursor:pointer" onclick="drillIS('noi')"><td>Net Operating Income</td>${numCell(noi)}${pct(noi)}</tr>`;
+  section(oi,'oi','Other Income');
+  section(oth,'oth','Other Expenses');
+  rows+=`<tr class="tot lvl0" style="cursor:pointer" onclick="drillIS('net')"><td>Net Income</td>${numCell(net)}${pct(net)}</tr>`;
+  document.getElementById('pane').innerHTML=`
+   <div class="controls">
+     Period <select onchange="st.isId=this.value;st.drillIS=null;renderIS()">${list.map(x=>`<option value="${esc(x.id)}" ${x.id===s.id?'selected':''}>${esc(x.label)}</option>`).join('')}</select>
+     <label><input type="checkbox" ${st.isHideZero?'checked':''} onchange="st.isHideZero=this.checked;renderIS()"> Hide zero lines</label>
+     <button class="btn" onclick="drillIS('net')">&#128197; Monthly view</button>
+   </div>
+   <div class="kpis">
+     <div class="kpi"><div class="k">Income</div><div class="v">${money(a(inc))}</div></div>
+     <div class="kpi"><div class="k">Operating Expenses</div><div class="v">${money(a(exp))}</div></div>
+     <div class="kpi"><div class="k">Net Operating Income</div><div class="v">${money(noi)}</div></div>
+     <div class="kpi"><div class="k">Net Income &middot; Margin</div><div class="v ${net<0?'neg':''}">${money(net)} &middot; ${(net/base*100).toFixed(1)}%</div></div>
+   </div>
+   <table class="stmt"><thead><tr><th>${esc(CUR.data.company)}<br>Income Statement &mdash; ${esc(s.label)}</th><th>Amount</th><th>% of Income</th></tr></thead><tbody>${rows}</tbody></table>
+   <div class="drill" id="drill"></div>
+   <p class="note">Click a parent account (&#9656;) to expand its sub-accounts. Click any total, Net Operating Income or Net Income to see it month by month.${Math.abs(net-s.netIncome)<0.01?' &#10003; Ties to QuickBooks net income.':' <b class=neg>Does not tie to QuickBooks net income ('+money(s.netIncome)+').</b>'}</p>`;
+  if(st.drillIS) drillIS(st.drillIS,true);
+}
+function drillIS(key,keep){
+  const list=CUR.data.incomeStatements, s=list.find(x=>x.id===st.isId)||list[0], m=s.monthly, el=document.getElementById('drill');
+  if(!m||!el) return;
+  if(!keep&&st.drillIS===key&&el.classList.contains('on')){closeDrill();return}
+  st.drillIS=key;
+  const series={inc:['Income',m['Income']],exp:['Operating Expenses',m['Operating Expenses']],oth:['Other Expenses',m['Other Expenses']],
+    noi:['Net Operating Income',m['Income'].map((x,i)=>x-m['Operating Expenses'][i])],net:['Net Income',m['Net Income']]};
+  const [title,vals]=series[key]||series.net, max=Math.max(...vals.map(Math.abs),1);
+  const noi=m['Income'].map((x,i)=>x-m['Operating Expenses'][i]);
+  const tr=(l,a,cls='')=>`<tr class="${cls}"><td>${l}</td>${a.map(x=>numCell(x)).join('')}${numCell(a.reduce((p,q)=>p+q,0))}</tr>`;
+  el.innerHTML=`<h3><span>${esc(title)} by month</span><button class="x" onclick="closeDrill()">&times;</button></h3>
+    <div class="hint">${esc(s.label)}</div>
+    <div class="bars">${vals.map((x,i)=>`<div class="b" title="${mLabel(m.months[i])}: ${money(x)}"><span class="${x<0?'ng':''}" style="height:${Math.abs(x)/max*100}%"></span></div>`).join('')}</div>
+    <div class="blabels">${m.months.map(p=>`<div>${mLabel(p)}</div>`).join('')}</div>
+    <div style="overflow-x:auto;margin-top:10px"><table class="stmt"><thead><tr><th></th>${m.months.map(p=>`<th>${mLabel(p)}</th>`).join('')}<th>Total</th></tr></thead><tbody>
+      ${tr('Income',m['Income'])}${tr('Operating Expenses',m['Operating Expenses'])}${tr('Net Operating Income',noi,'tot')}${tr('Other Expenses',m['Other Expenses'])}${tr('Net Income',m['Net Income'],'tot')}
+    </tbody></table></div>`;
+  el.classList.add('on'); if(!keep) el.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+function drillLine(id){
+  const n=window._IS_LINES[id], list=CUR.data.incomeStatements, s=list.find(x=>x.id===st.isId)||list[0], m=s.monthly, el=document.getElementById('drill');
+  st.drillIS=null;
+  const vals=n.values&&n.values.length===m.months.length?n.values:null, max=vals?Math.max(...vals.map(Math.abs),1):1;
+  el.innerHTML=`<h3><span>${esc(n.label)}</span><button class="x" onclick="closeDrill()">&times;</button></h3>
+    <div class="hint">${esc(s.label)} &middot; total ${money(n.amount)}</div>
+    ${vals?`<div class="bars">${vals.map((x,i)=>`<div class="b" title="${mLabel(m.months[i])}: ${money(x)}"><span class="${x<0?'ng':''}" style="height:${Math.abs(x)/max*100}%"></span></div>`).join('')}</div>
+    <div class="blabels">${m.months.map(p=>`<div>${mLabel(p)}</div>`).join('')}</div>
+    <div style="overflow-x:auto;margin-top:10px"><table class="stmt"><thead><tr>${m.months.map(p=>`<th>${mLabel(p)}</th>`).join('')}<th>Total</th></tr></thead><tbody><tr>${vals.map(x=>numCell(x)).join('')}${numCell(n.amount)}</tr></tbody></table></div>`:''}
+    ${n.id&&CUR.data.live?`<div style="margin-top:12px"><button class="btn" onclick="loadTx('${esc(n.id)}','${s.start}','${s.end}')">Show transactions</button></div><div id="txbox"></div>`:''}`;
+  el.classList.add('on'); el.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+async function loadTx(acct,start,end){
+  const box=document.getElementById('txbox'); if(!box) return;
+  box.innerHTML='<p class="note">Loading transactions from QuickBooks&hellip;</p>';
+  try{
+    const r=await fetch(`/admin/api/financials/transactions?account_id=${encodeURIComponent(acct)}&start=${start}&end=${end}`,{credentials:'same-origin'});
+    const j=await r.json(); if(!r.ok||!j.ok) throw new Error(j.error||'Could not load transactions');
+    if(!j.rows.length){box.innerHTML='<p class="note">No transactions in this period.</p>';return}
+    const tot=j.rows.reduce((p,x)=>p+x.amount,0);
+    box.innerHTML=`<table class="tx"><thead><tr><th>Date</th><th>Type</th><th>Num</th><th>Name</th><th>Memo</th><th class="n">Amount</th></tr></thead><tbody>
+      ${j.rows.map(x=>`<tr><td>${esc(x.date)}</td><td>${esc(x.type)}</td><td>${esc(x.num)}</td><td>${esc(x.name)}</td><td>${esc(x.memo)}</td><td class="n ${x.amount<0?'neg':''}">${money(x.amount)}</td></tr>`).join('')}
+      <tr class="tot"><td colspan="5"><b>${j.rows.length} transactions, ${dLabel(start)} &ndash; ${dLabel(end)}</b></td><td class="n"><b>${money(tot)}</b></td></tr></tbody></table>`;
+  }catch(e){box.innerHTML=`<p class="note neg">${esc(e.message)}</p>`}
+}
+
+/* ---------- shared ---------- */
+function toggle(id){
+  const lvl=id.split('.').length-1;
+  const cur=st.open[id]!==undefined?st.open[id]:(id[0]==='b'&&lvl<2);
+  st.open[id]=!cur; VIEW==='bs'?renderBS():renderIS();
+}
+function setAll(prefix,val){
+  const walk=(n,id)=>{if(n.children){st.open[id]=val;n.children.forEach((k,i)=>walk(k,id+'.'+i))}};
+  CUR.data.balanceSheet.tree.forEach((n,i)=>walk(n,'b'+i)); renderBS();
+}
+(function(){const q=new URLSearchParams(location.search).get('qbo');
+  const msg={connected:'QuickBooks connected and synced',denied:'QuickBooks connection was cancelled',bad_state:'Connection expired; please try again',
+    error:'QuickBooks connection failed; see server logs',not_configured:'QuickBooks keys are not set in Railway yet',missing_code:'QuickBooks did not return an authorization code'}[q];
+  if(msg){setTimeout(()=>toast(msg),300);history.replaceState(null,'',location.pathname)}})();
+load();
+</script>
+</body>
+</html>

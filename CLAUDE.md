@@ -36,6 +36,7 @@ Codebase guide for AI-assisted development. Update this file whenever significan
 ```
 NewQbix/
 ├── app.py                        # Entire Flask backend (~4000+ lines)
+├── qbo_sync.py                   # QuickBooks Online OAuth + report sync (stdlib urllib only)
 ├── requirements.txt              # Python dependencies
 ├── Procfile                      # Railway: gunicorn app:app
 ├── railway.toml                  # Railway config
@@ -97,6 +98,10 @@ All secrets are set in Railway's environment (never committed). See `.env.exampl
 | `GA_PROPERTY_ID` | Google Search Console / Analytics Data API |
 | `GOOGLE_SERVICE_ACCOUNT_JSON` | Google service account (base64-encoded JSON) |
 | `BING_WMT_API_KEY` | Bing Webmaster Tools API |
+| `QBO_CLIENT_ID` / `QBO_CLIENT_SECRET` | Intuit developer app keys for the QuickBooks Online sync |
+| `QBO_ENVIRONMENT` | `production` (default) or `sandbox` |
+| `QBO_REDIRECT_URI` | Optional; defaults to `APP_URL` + `/admin/qbo/callback` (must match the Intuit app) |
+| `FIN_YEAR_START_MONTH` | First month of the company's fiscal year for statements (default `1` = January) |
 | `TOTP_SECRET` | Admin 2FA (pyotp) |
 
 ---
@@ -183,6 +188,12 @@ All require login (`@login_required`).
 | `/admin/api/send-monthly-usage` | POST email usage report |
 | `/admin/api/media` | GET media library |
 | `/admin/api/media/upload` | POST upload to Cloudinary |
+| `/admin/financial-statements` | Drillable balance sheet + income statement (standalone page) |
+| `/admin/api/financials` | GET stored statements + QuickBooks status / POST upload a statements JSON snapshot |
+| `/admin/qbo/connect`, `/admin/qbo/callback` | QuickBooks OAuth connect flow (state-checked) |
+| `/admin/api/financials/sync` | POST pull statements from QuickBooks and store them |
+| `/admin/api/financials/transactions` | GET General Ledger lines for one account + date range (live drill-down) |
+| `/admin/api/qbo/disconnect` | POST revoke QuickBooks tokens |
 
 ---
 
@@ -271,6 +282,15 @@ Do NOT add `requests` to requirements — use `urllib.request` instead. All curr
 
 - Members tab → **Create Sample Agreement** opens a form (prospect name/email/phone, one or more offices with editable dues, start date, deposit, auto-calculated editable proration, waive setup fee / background check). Generates the agreement in a new tab with "SAMPLE / NOT FOR SIGNATURE" on every printed page; Print / Save as PDF as usual.
 - `generate_agreement` and `generate_sample_agreement` both call `_render_agreement_html(data, member, member_offices, waive_setup_fee, waive_bg, sample=False)`, so agreement wording lives in one place. The helper never writes to the DB; only the real route stamps `agreementSent` and saves.
+
+## Financial statements (Nov 2026)
+
+- Admin nav → **Financial Statements** opens `/admin/financial-statements` (`templates/admin/financial_statements.html`, standalone page, `noindex`).
+- **Live QuickBooks sync** (`qbo_sync.py`): the page shows Connect / Sync now / Disconnect. Connecting runs Intuit OAuth (scope `com.intuit.quickbooks.accounting`); tokens live in table `qbix_qbo_tokens` and refresh automatically (refresh tokens rotate; reconnect if unused ~100 days). A sync pulls the Balance Sheet (by month, fiscal YTD), Profit and Loss (by month, YTD and prior full year) and stores the result. The page auto-syncs on open when the last sync is older than 6 hours.
+- **Drill-down:** balance sheet → month-end trend per account → that month's transactions; income statement → per-account monthly amounts → transactions for the period (General Ledger report, fetched live).
+- **Fiscal year:** statements use `FIN_YEAR_START_MONTH` (default January). If QuickBooks' own fiscal-year setting differs (RoseAn's is set to August), Retained Earnings / Net Income are restated so Net Income is calendar YTD; total equity is unchanged and the page shows a note. Fixing the setting in QuickBooks removes the note.
+- **Financial data is never committed (this repo is public).** Statements are stored in table `qbix_financials` (one row per company, JSONB), separate from `qbix_store`, so they are not in `/admin/api/data` or backups. The **Upload data** button remains as a manual fallback using the same JSON shape.
+- JSON shape: `{company, basis, fiscalYearStart, source, live?, syncedAt?, note?, balanceSheet: {periods: [month-end ISO dates], tree: [{label, id?, values[], children?}]}, incomeStatements: [{id, label, start, end, netIncome, sections: [{label, amount, children: [{label, id?, amount, values?, own?, children?}]}], monthly: {months[], Income[], "Operating Expenses"[], "Other Expenses"[], "Net Income"[]}}]}`.
 
 ## Pending / To-Do
 
