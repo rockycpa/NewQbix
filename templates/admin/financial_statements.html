@@ -61,6 +61,14 @@ tr.zero td{color:var(--txt3)}
 .empty{text-align:center;padding:50px 20px;color:var(--txt2)}
 .empty h2{font-family:'Playfair Display',serif;margin-bottom:8px}
 .note{font-size:12px;color:var(--txt3);margin-top:14px;line-height:1.6}
+.qbo{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:var(--sur);border:1px solid var(--bdr);border-radius:10px;padding:10px 16px;margin-bottom:12px;font-size:13px;color:var(--txt2)}
+.qbo .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;background:var(--txt3)}
+.qbo .dot.on{background:var(--grn)}
+table.tx{width:100%;border-collapse:collapse;margin-top:10px;font-size:13px}
+table.tx th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--txt3);padding:5px 6px;border-bottom:1px solid var(--txt3)}
+table.tx td{padding:5px 6px;border-bottom:1px solid #f0ece4}
+table.tx td.n,table.tx th.n{text-align:right;font-family:'IBM Plex Mono',monospace;white-space:nowrap}
+tr.ln{cursor:pointer}tr.ln:hover td{background:#fbf8f1}
 .toast{position:fixed;bottom:24px;right:24px;background:var(--txt);color:#fff;padding:10px 16px;border-radius:8px;font-size:13px;opacity:0;transform:translateY(8px);transition:all .25s;pointer-events:none}
 .toast.show{opacity:1;transform:translateY(0)}
 @media print{.no-print,.tabs,.controls,.drill{display:none!important}body{background:#fff}.card,.bar{border:none}}
@@ -82,12 +90,13 @@ tr.zero td{color:var(--txt3)}
     </div>
   </div>
 
+  <div class="qbo no-print" id="qbo" style="display:none"></div>
   <div id="app"></div>
 </div>
 <div class="toast" id="toast"></div>
 
 <script>
-let STORE = [], CUR = null, VIEW = 'bs';
+let STORE = [], CUR = null, VIEW = 'bs', QBO = {}, SYNCING = false;
 const st = {bsCol: null, bsCompare: true, bsHideZero: true, isId: null, isHideZero: true, open: {}};
 
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
@@ -109,12 +118,43 @@ async function load(){
     if(r.redirected||r.status===401){location.href='/admin/login';return}
     const j=await r.json();
     if(!j.ok) throw new Error(j.error||'Load failed');
-    STORE=j.companies||[];
+    STORE=j.companies||[]; QBO=j.qbo||{};
   }catch(e){STORE=[];toast(e.message)}
   const sel=document.getElementById('company');
   if(STORE.length>1){sel.style.display='';sel.innerHTML=STORE.map(c=>`<option>${esc(c.company)}</option>`).join('')}
   else sel.style.display='none';
-  selectCompany(STORE.length?STORE[0].company:null);
+  const live=QBO.connected&&STORE.find(c=>c.data.live&&c.company===QBO.company);
+  selectCompany(live?live.company:(STORE.length?STORE[0].company:null));
+  renderQBO();
+  if(QBO.connected&&!SYNCING&&!window._autoSynced){
+    const last=live&&live.data.syncedAt?new Date(live.data.syncedAt):null;
+    if(!last||Date.now()-last>6*3600*1000){window._autoSynced=true;syncNow(true)}
+  }
+}
+function ago(iso){if(!iso)return 'never';const m=Math.round((Date.now()-new Date(iso))/60000);
+  return m<1?'just now':m<60?m+' min ago':m<1440?Math.round(m/60)+' hr ago':new Date(iso).toLocaleDateString()}
+function renderQBO(){
+  const el=document.getElementById('qbo');
+  if(!QBO.configured){el.style.display='flex';el.innerHTML=`<span><span class="dot"></span>QuickBooks sync is not set up yet. Add <code>QBO_CLIENT_ID</code> and <code>QBO_CLIENT_SECRET</code> in Railway to enable it. Until then, statements come from uploaded files.</span>`;return}
+  el.style.display='flex';
+  if(!QBO.connected){el.innerHTML=`<span><span class="dot"></span>QuickBooks is not connected.</span><a class="btn btn-pri" href="/admin/qbo/connect">Connect QuickBooks</a>`;return}
+  const live=STORE.find(c=>c.company===QBO.company&&c.data.live);
+  el.innerHTML=`<span><span class="dot on"></span>Connected to QuickBooks${QBO.company?' &middot; <b>'+esc(QBO.company)+'</b>':''} &middot; Last synced ${SYNCING?'&hellip; syncing now':ago(live&&live.data.syncedAt)}</span>
+    <span class="actions"><button class="btn btn-pri" ${SYNCING?'disabled':''} onclick="syncNow()">&#8635; Sync now</button><button class="btn" onclick="disconnectQBO()">Disconnect</button></span>`;
+}
+async function syncNow(auto){
+  SYNCING=true; renderQBO();
+  try{
+    const r=await fetch('/admin/api/financials/sync',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:'{}'});
+    let j={}; try{j=await r.json()}catch(e){}
+    if(!r.ok||!j.ok) throw new Error(j.error||('Sync failed ('+r.status+')'));
+    SYNCING=false; if(!auto) toast('Synced from QuickBooks'); await load();
+  }catch(e){SYNCING=false;renderQBO();toast(e.message)}
+}
+async function disconnectQBO(){
+  if(!confirm('Disconnect QuickBooks? The last synced statements stay on this page.')) return;
+  const r=await fetch('/admin/api/qbo/disconnect',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:'{}'});
+  toast(r.ok?'QuickBooks disconnected':'Could not disconnect'); load();
 }
 function selectCompany(name){
   CUR=STORE.find(c=>c.company===name)||null;
@@ -140,7 +180,7 @@ function render(){
   }
   const d=CUR.data;
   sub.innerHTML=`${esc(d.company)} &middot; ${esc(d.basis||'')} basis &middot; Fiscal year begins ${esc(d.fiscalYearStart||'January')} &middot; Source: ${esc(d.source||'')}${CUR.uploadedAt?' &middot; Uploaded '+new Date(CUR.uploadedAt).toLocaleDateString():''}`;
-  app.innerHTML=`<div class="tabs no-print">
+  app.innerHTML=(d.note?`<div class="card" style="padding:10px 16px;margin-bottom:12px;font-size:13px;color:var(--txt2);background:rgba(201,168,76,.08);border-color:rgba(201,168,76,.35)">${esc(d.note)}</div>`:'')+`<div class="tabs no-print">
       <button class="tab ${VIEW==='bs'?'on':''}" onclick="VIEW='bs';render()">Balance Sheet</button>
       <button class="tab ${VIEW==='is'?'on':''}" onclick="VIEW='is';render()">Income Statement</button>
     </div><div class="card" id="pane"></div>`;
@@ -151,7 +191,7 @@ function render(){
 function renderBS(){
   const bs=CUR.data.balanceSheet, P=bs.periods, c=st.bsCol, pc=c>0?c-1:null, cmp=st.bsCompare&&pc!=null;
   const A=bs.tree[0], LE=bs.tree[1];
-  const find=(n,l)=>n.label===l?n:(n.children||[]).reduce((r,k)=>r||find(k,l),null);
+  const find=(n,l)=>n.label.toLowerCase()===l.toLowerCase()?n:(n.children||[]).reduce((r,k)=>r||find(k,l),null);
   const L=find(LE,'Liabilities'), E=find(LE,'Equity'), CA=find(A,'Current Assets'), CL=find(LE,'Current Liabilities');
   const v=n=>n?n.values[c]:0;
   let rows='';
@@ -208,7 +248,8 @@ function drillBS(id,keep){
     <div class="blabels">${P.map(p=>`<div>${mLabel(p)}</div>`).join('')}</div>
     <div style="overflow-x:auto;margin-top:10px"><table class="stmt"><thead><tr><th>Account</th>${P.map(p=>`<th>${mLabel(p)}</th>`).join('')}</tr></thead><tbody>
     ${kids.map(k=>`<tr><td>${esc(k.label)}</td>${k.values.map(x=>numCell(x)).join('')}</tr>`).join('')}
-    <tr class="tot"><td>${kids.length?'Total ':''}${esc(n.label)}</td>${vals.map(x=>numCell(x)).join('')}</tr></tbody></table></div>`;
+    <tr class="tot"><td>${kids.length?'Total ':''}${esc(n.label)}</td>${vals.map(x=>numCell(x)).join('')}</tr></tbody></table></div>
+    ${n.id&&CUR.data.live?`<div style="margin-top:12px"><button class="btn" onclick="loadTx('${esc(n.id)}','${P[st.bsCol].slice(0,8)}01','${P[st.bsCol]}')">Show ${mLabel(P[st.bsCol])} transactions</button></div><div id="txbox"></div>`:''}`;
   el.classList.add('on'); if(!keep) el.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 function closeDrill(){st.drillBS=null;st.drillIS=null;const el=document.getElementById('drill');if(el)el.classList.remove('on')}
@@ -217,9 +258,9 @@ function closeDrill(){st.drillBS=null;st.drillIS=null;const el=document.getEleme
 function renderIS(){
   const list=CUR.data.incomeStatements, s=list.find(x=>x.id===st.isId)||list[0];
   const sec=l=>s.sections.find(x=>x.label===l);
-  const inc=sec('Income'), exp=sec('Expenses'), oth=sec('Other Expenses'), oi=sec('Other Income');
+  const inc=sec('Income'), cogs=sec('Cost of Goods Sold'), exp=sec('Expenses'), oth=sec('Other Expenses'), oi=sec('Other Income');
   const a=n=>n?n.amount:0;
-  const noi=a(inc)-a(exp), net=noi+a(oi)-a(oth), base=a(inc)||1;
+  const noi=a(inc)-a(cogs)-a(exp), net=noi+a(oi)-a(oth), base=a(inc)||1; window._IS_LINES={};
   const pct=x=>`<td class="n" style="color:var(--txt3)">${(x/base*100).toFixed(1)}%</td>`;
   let rows='';
   const line=(n,lvl,id)=>{
@@ -233,7 +274,10 @@ function renderIS(){
         n.children.forEach((k,i)=>line(k,lvl+1,id+'.'+i));
         rows+=`<tr class="tot"><td ${pad}>Total ${esc(n.label)}</td>${numCell(n.amount)}${pct(n.amount)}</tr>`;
       }
-    }else rows+=`<tr><td ${pad}>${esc(n.label)}</td>${numCell(n.amount)}${pct(n.amount)}</tr>`;
+    }else{
+      const can=(n.values&&n.values.length)||n.id; if(can) window._IS_LINES[id]=n;
+      rows+=`<tr class="${can?'ln':''}" ${can?`onclick="drillLine('${id}')" title="Click for monthly detail"`:''}><td ${pad}>${esc(n.label)}</td>${numCell(n.amount)}${pct(n.amount)}</tr>`;
+    }
   };
   const section=(n,key,title)=>{
     if(!n) return;
@@ -242,6 +286,7 @@ function renderIS(){
     rows+=`<tr class="tot lvl1" style="cursor:pointer" onclick="drillIS('${key}')" title="Click to see by month"><td>Total ${esc(title)}</td>${numCell(n.amount)}${pct(n.amount)}</tr>`;
   };
   section(inc,'inc','Income');
+  if(cogs){section(cogs,'cogs','Cost of Goods Sold');rows+=`<tr class="tot lvl1"><td>Gross Profit</td>${numCell(a(inc)-a(cogs))}${pct(a(inc)-a(cogs))}</tr>`}
   section(exp,'exp','Operating Expenses');
   rows+=`<tr class="tot lvl1" style="cursor:pointer" onclick="drillIS('noi')"><td>Net Operating Income</td>${numCell(noi)}${pct(noi)}</tr>`;
   section(oi,'oi','Other Income');
@@ -284,6 +329,32 @@ function drillIS(key,keep){
   el.classList.add('on'); if(!keep) el.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 
+function drillLine(id){
+  const n=window._IS_LINES[id], list=CUR.data.incomeStatements, s=list.find(x=>x.id===st.isId)||list[0], m=s.monthly, el=document.getElementById('drill');
+  st.drillIS=null;
+  const vals=n.values&&n.values.length===m.months.length?n.values:null, max=vals?Math.max(...vals.map(Math.abs),1):1;
+  el.innerHTML=`<h3><span>${esc(n.label)}</span><button class="x" onclick="closeDrill()">&times;</button></h3>
+    <div class="hint">${esc(s.label)} &middot; total ${money(n.amount)}</div>
+    ${vals?`<div class="bars">${vals.map((x,i)=>`<div class="b" title="${mLabel(m.months[i])}: ${money(x)}"><span class="${x<0?'ng':''}" style="height:${Math.abs(x)/max*100}%"></span></div>`).join('')}</div>
+    <div class="blabels">${m.months.map(p=>`<div>${mLabel(p)}</div>`).join('')}</div>
+    <div style="overflow-x:auto;margin-top:10px"><table class="stmt"><thead><tr>${m.months.map(p=>`<th>${mLabel(p)}</th>`).join('')}<th>Total</th></tr></thead><tbody><tr>${vals.map(x=>numCell(x)).join('')}${numCell(n.amount)}</tr></tbody></table></div>`:''}
+    ${n.id&&CUR.data.live?`<div style="margin-top:12px"><button class="btn" onclick="loadTx('${esc(n.id)}','${s.start}','${s.end}')">Show transactions</button></div><div id="txbox"></div>`:''}`;
+  el.classList.add('on'); el.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+async function loadTx(acct,start,end){
+  const box=document.getElementById('txbox'); if(!box) return;
+  box.innerHTML='<p class="note">Loading transactions from QuickBooks&hellip;</p>';
+  try{
+    const r=await fetch(`/admin/api/financials/transactions?account_id=${encodeURIComponent(acct)}&start=${start}&end=${end}`,{credentials:'same-origin'});
+    const j=await r.json(); if(!r.ok||!j.ok) throw new Error(j.error||'Could not load transactions');
+    if(!j.rows.length){box.innerHTML='<p class="note">No transactions in this period.</p>';return}
+    const tot=j.rows.reduce((p,x)=>p+x.amount,0);
+    box.innerHTML=`<table class="tx"><thead><tr><th>Date</th><th>Type</th><th>Num</th><th>Name</th><th>Memo</th><th class="n">Amount</th></tr></thead><tbody>
+      ${j.rows.map(x=>`<tr><td>${esc(x.date)}</td><td>${esc(x.type)}</td><td>${esc(x.num)}</td><td>${esc(x.name)}</td><td>${esc(x.memo)}</td><td class="n ${x.amount<0?'neg':''}">${money(x.amount)}</td></tr>`).join('')}
+      <tr class="tot"><td colspan="5"><b>${j.rows.length} transactions, ${dLabel(start)} &ndash; ${dLabel(end)}</b></td><td class="n"><b>${money(tot)}</b></td></tr></tbody></table>`;
+  }catch(e){box.innerHTML=`<p class="note neg">${esc(e.message)}</p>`}
+}
+
 /* ---------- shared ---------- */
 function toggle(id){
   const lvl=id.split('.').length-1;
@@ -294,6 +365,10 @@ function setAll(prefix,val){
   const walk=(n,id)=>{if(n.children){st.open[id]=val;n.children.forEach((k,i)=>walk(k,id+'.'+i))}};
   CUR.data.balanceSheet.tree.forEach((n,i)=>walk(n,'b'+i)); renderBS();
 }
+(function(){const q=new URLSearchParams(location.search).get('qbo');
+  const msg={connected:'QuickBooks connected and synced',denied:'QuickBooks connection was cancelled',bad_state:'Connection expired; please try again',
+    error:'QuickBooks connection failed; see server logs',not_configured:'QuickBooks keys are not set in Railway yet',missing_code:'QuickBooks did not return an authorization code'}[q];
+  if(msg){setTimeout(()=>toast(msg),300);history.replaceState(null,'',location.pathname)}})();
 load();
 </script>
 </body>
