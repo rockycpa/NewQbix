@@ -285,7 +285,7 @@ Do NOT add `requests` to requirements — use `urllib.request` instead. All curr
 
 ## Financial statements (Nov 2026)
 
-- Admin nav → **Financial Statements** opens `/admin/financial-statements` (`templates/admin/financial_statements.html`, standalone page, `noindex`).
+- Admin nav → **Financial Statements** is a dashboard tab (`page-financials`) that loads `/admin/financial-statements?embed=1` in an iframe, so the user stays inside the admin. The same template still works standalone at `/admin/financial-statements`. QuickBooks OAuth leaves the frame (`target="_top"`) and the callback returns to `/admin?page=financials&qbo=<status>`, which reopens the tab.
 - **Live QuickBooks sync** (`qbo_sync.py`): the page shows Connect / Sync now / Disconnect. Connecting runs Intuit OAuth (scope `com.intuit.quickbooks.accounting`); tokens live in table `qbix_qbo_tokens` and refresh automatically (refresh tokens rotate; reconnect if unused ~100 days). A sync pulls the Balance Sheet (by month, fiscal YTD), Profit and Loss (by month, YTD and prior full year) and stores the result. The page auto-syncs on open when the last sync is older than 6 hours.
 - **Drill-down:** balance sheet → month-end trend per account → that month's transactions; income statement → per-account monthly amounts → transactions for the period (General Ledger report, fetched live).
 - **Fiscal year:** statements use `FIN_YEAR_START_MONTH` (default January). If QuickBooks' own fiscal-year setting differs (RoseAn's is set to August), Retained Earnings / Net Income are restated so Net Income is calendar YTD; total equity is unchanged and the page shows a note. Fixing the setting in QuickBooks removes the note.

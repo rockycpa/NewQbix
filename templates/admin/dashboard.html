@@ -285,7 +285,7 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
     <button class="nb notify-btn" onclick="showPage('notify',this)">&#128226; Notify</button>
     <button class="nb" onclick="showPage('newsletter',this)" style="background:rgba(155,126,212,.15);color:var(--purple);border:1px solid rgba(155,126,212,.3)">&#128240; Newsletter</button>
     <button class="nb" onclick="showPage('bookings',this);renderBookingCalendar()">&#128197; Bookings</button>
-    <a class="nb" href="/admin/financial-statements" style="text-decoration:none">&#128202; Financial Statements</a>
+    <button class="nb" id="nav-financials-btn" onclick="showPage('financials',this);loadFinancials()">&#128202; Financial Statements</button>
     <button class="nb" onclick="showPage('admin',this);renderUsers()">&#128737; Admin</button>
   </nav>
   <div class="hstats">
@@ -1631,6 +1631,9 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
 </div>
 
 <!-- ADMIN -->
+<div class="page" id="page-financials">
+  <iframe id="fin-frame" title="Financial Statements" style="width:100%;height:calc(100vh - 140px);min-height:600px;border:0;background:transparent;display:block"></iframe>
+</div>
 <div class="page" id="page-admin">
   <div class="pg-title">&#128737; Admin <button class="help-btn" onclick="openHelp('help-admin')" title="Help">?</button></div>
   <div class="pg-sub">System-level settings &mdash; manage who can sign in to this dashboard</div>
@@ -5670,6 +5673,21 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')['form-modal','view-
 
 loadData();
 window.addEventListener('resize', () => { if(document.getElementById('rv-canvas')) buildReviewChart(); });
+
+// === FINANCIAL STATEMENTS (embedded page) ===
+function loadFinancials(extra){
+  const f=document.getElementById('fin-frame');
+  if(!f.src || extra) f.src='/admin/financial-statements?embed=1'+(extra||'');
+}
+(function(){
+  const q=new URLSearchParams(location.search);
+  if(q.get('page')==='financials'){
+    const btn=document.getElementById('nav-financials-btn');
+    showPage('financials',btn);
+    loadFinancials(q.get('qbo')?'&qbo='+encodeURIComponent(q.get('qbo')):'');
+    history.replaceState(null,'','/admin');
+  }
+})();
 
 // === NEWSLETTER PHOTO MANAGEMENT ===
 let nlHeroPhoto = null;
