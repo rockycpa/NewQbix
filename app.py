@@ -2642,6 +2642,75 @@ def api_save():
     except Exception as e:
         return jsonify({'ok': False, 'error': str(e)}), 500
 
+# ── Financial statements (admin only) ────────────────────────────────────────
+# Statement data lives in its own table, never in the repo and never in the
+# main qbix_store blob (so it is not sent with /admin/api/data or backups).
+# The admin page uploads a JSON snapshot exported from QuickBooks.
+
+def _init_financials_table():
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS qbix_financials (
+                    company VARCHAR(120) PRIMARY KEY,
+                    data JSONB NOT NULL,
+                    updated_at TIMESTAMP DEFAULT NOW()
+                )
+            """)
+        conn.commit()
+
+def _valid_financials(d):
+    if not isinstance(d, dict) or not isinstance(d.get('company'), str):
+        return 'Missing company name'
+    bs = d.get('balanceSheet')
+    if not isinstance(bs, dict) or not isinstance(bs.get('periods'), list) or not isinstance(bs.get('tree'), list):
+        return 'Missing balanceSheet.periods / balanceSheet.tree'
+    if not isinstance(d.get('incomeStatements'), list) or not d['incomeStatements']:
+        return 'Missing incomeStatements'
+    return None
+
+@app.route('/admin/financial-statements')
+@login_required
+def admin_financial_statements():
+    return render_template('admin/financial_statements.html')
+
+@app.route('/admin/api/financials', methods=['GET'])
+@login_required
+def api_financials_get():
+    try:
+        _init_financials_table()
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT company, data, updated_at FROM qbix_financials ORDER BY company")
+                rows = cur.fetchall()
+        return jsonify({'ok': True, 'companies': [
+            {'company': r[0], 'data': r[1], 'uploadedAt': r[2].isoformat() if r[2] else None}
+            for r in rows]})
+    except Exception as e:
+        print(f"[FIN ERROR] get: {e}")
+        return jsonify({'ok': False, 'error': 'Could not load financial statements'}), 500
+
+@app.route('/admin/api/financials', methods=['POST'])
+@login_required
+def api_financials_save():
+    try:
+        d = request.get_json(silent=True)
+        err = _valid_financials(d)
+        if err:
+            return jsonify({'ok': False, 'error': err}), 400
+        _init_financials_table()
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    INSERT INTO qbix_financials (company, data, updated_at) VALUES (%s, %s, NOW())
+                    ON CONFLICT (company) DO UPDATE SET data = EXCLUDED.data, updated_at = NOW()
+                """, (d['company'][:120], json.dumps(d)))
+            conn.commit()
+        return jsonify({'ok': True, 'company': d['company']})
+    except Exception as e:
+        print(f"[FIN ERROR] save: {e}")
+        return jsonify({'ok': False, 'error': 'Could not save financial statements'}), 500
+
 @app.route('/admin/api/backup')
 @login_required
 def api_backup():

@@ -183,6 +183,8 @@ All require login (`@login_required`).
 | `/admin/api/send-monthly-usage` | POST email usage report |
 | `/admin/api/media` | GET media library |
 | `/admin/api/media/upload` | POST upload to Cloudinary |
+| `/admin/financial-statements` | Drillable balance sheet + income statement (standalone page) |
+| `/admin/api/financials` | GET stored statements / POST upload a statements JSON snapshot |
 
 ---
 
@@ -271,6 +273,13 @@ Do NOT add `requests` to requirements — use `urllib.request` instead. All curr
 
 - Members tab → **Create Sample Agreement** opens a form (prospect name/email/phone, one or more offices with editable dues, start date, deposit, auto-calculated editable proration, waive setup fee / background check). Generates the agreement in a new tab with "SAMPLE / NOT FOR SIGNATURE" on every printed page; Print / Save as PDF as usual.
 - `generate_agreement` and `generate_sample_agreement` both call `_render_agreement_html(data, member, member_offices, waive_setup_fee, waive_bg, sample=False)`, so agreement wording lives in one place. The helper never writes to the DB; only the real route stamps `agreementSent` and saves.
+
+## Financial statements (Nov 2026)
+
+- Admin nav → **Financial Statements** opens `/admin/financial-statements` (`templates/admin/financial_statements.html`, standalone page, `noindex`).
+- Balance sheet: month-end selector, compare to prior month, expand/collapse sections, click any account/total for a month-by-month drill panel. Income statement: period selector (fiscal YTD, prior fiscal year, calendar YTD), expandable parent accounts, % of income, click totals for a monthly breakdown. Both show a tie-out check.
+- **Financial data is never committed (this repo is public).** It is stored in its own Postgres table `qbix_financials` (one row per company, JSONB), separate from `qbix_store`, so it is not included in `/admin/api/data` or `/admin/api/backup`. Load it with the page's **Upload data** button (a JSON snapshot exported from QuickBooks). Re-uploading the same company replaces it.
+- JSON shape: `{company, basis, fiscalYearStart, source, balanceSheet: {periods: [month-end ISO dates], tree: [{label, values[], children?}]}, incomeStatements: [{id, label, start, end, netIncome, sections: [{label, amount, children: [{label, amount, own?, children?}]}], monthly: {months[], Income[], "Operating Expenses"[], "Other Expenses"[], "Net Income"[]}}]}`.
 
 ## Pending / To-Do
 
