@@ -444,11 +444,18 @@ def _month_index(name):
 
 def account_transactions(get_conn, account_id, start, end):
     """Transactions posted to one account between two dates, from the General Ledger report."""
+    keys = ['tx_date', 'txn_type', 'doc_num', 'name', 'memo', 'split_acc', 'subt_nat_amount', 'rbal_nat_amount']
+    names = {'tx_date': 'date', 'txn_type': 'type', 'doc_num': 'num', 'name': 'name', 'memo': 'memo',
+             'split_acc': 'split', 'subt_nat_amount': 'amount', 'rbal_nat_amount': 'balance'}
     rep = api_get(get_conn, 'reports/GeneralLedger', {
         'account': account_id, 'start_date': start, 'end_date': end, 'accounting_method': 'Accrual',
-        'columns': 'tx_date,txn_type,doc_num,name,memo,subt_nat_amount'})
-    cols = [c.get('ColTitle') or c.get('ColType') for c in rep.get('Columns', {}).get('Column', [])]
-    out = []
+        'columns': ','.join(keys)})
+    # Map each returned column to our field name by its ColKey, falling back to the requested order.
+    order = []
+    for i, c in enumerate(rep.get('Columns', {}).get('Column', [])):
+        key = next((m.get('Value') for m in c.get('MetaData') or [] if m.get('Name') == 'ColKey'), None)
+        order.append(names.get(key) or (names[keys[i]] if i < len(keys) else 'col%d' % i))
+    out, begin = [], {'value': 0.0, 'found': False}
 
     def walk(rows):
         for r in rows or []:
@@ -457,13 +464,18 @@ def account_transactions(get_conn, account_id, start, end):
             elif r.get('type') == 'Data' or 'ColData' in r:
                 cd = r.get('ColData') or []
                 vals = [x.get('value', '') for x in cd]
-                if not any(vals) or (vals and vals[0] == 'Beginning Balance'):
+                if not any(vals):
                     continue
-                row = dict(zip(['date', 'type', 'num', 'name', 'memo', 'amount'], vals))
+                row = dict(zip(order, vals))
+                if vals[0] == 'Beginning Balance':
+                    begin['value'] += _num(row.get('balance') or row.get('amount'))
+                    begin['found'] = True
+                    continue
                 row['amount'] = round(_num(row.get('amount')), 2)
+                row.pop('balance', None)
                 tid = cd[1].get('id') if len(cd) > 1 else None
                 if tid:
                     row['txnId'] = tid
                 out.append(row)
     walk((rep.get('Rows') or {}).get('Row'))
-    return {'columns': cols, 'rows': out}
+    return {'rows': out, 'beginning': round(begin['value'], 2) if begin['found'] else None}

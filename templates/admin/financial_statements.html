@@ -69,6 +69,20 @@ table.tx th{text-align:left;font-size:11px;text-transform:uppercase;letter-spaci
 table.tx td{padding:5px 6px;border-bottom:1px solid #f0ece4}
 table.tx td.n,table.tx th.n{text-align:right;font-family:'IBM Plex Mono',monospace;white-space:nowrap}
 tr.ln{cursor:pointer}tr.ln:hover td{background:#fbf8f1}
+td.n.dr{cursor:pointer}
+td.n.dr:hover{color:var(--blue);text-decoration:underline}
+.rpt-bg{position:fixed;inset:0;background:rgba(26,39,68,.45);display:flex;align-items:flex-start;justify-content:center;padding:28px 16px;z-index:50;overflow-y:auto}
+.rpt{background:#fff;border-radius:10px;box-shadow:0 12px 40px rgba(0,0,0,.25);width:100%;max-width:1060px;padding:22px 24px;position:relative}
+.rpt .x{position:absolute;top:10px;right:14px;font-family:inherit;background:none;border:none;font-size:22px;cursor:pointer;color:var(--txt3)}
+.rpt .hd{text-align:center;margin-bottom:14px}
+.rpt .hd b{display:block;font-size:17px}
+.rpt .hd span{display:block;font-size:13px;color:var(--txt2)}
+.rpt .wrap{overflow-x:auto}
+.rpt table.tx td,.rpt table.tx th{white-space:nowrap}
+.rpt table.tx td.memo{white-space:normal;min-width:160px}
+.rpt table.tx tr.grand td{font-weight:700;border-top:1px solid var(--txt);border-bottom:3px double var(--txt)}
+.rpt a{color:var(--blue);text-decoration:none}.rpt a:hover{text-decoration:underline}
+.rpt .foot{font-size:12px;color:var(--txt3);margin-top:12px;text-align:center}
 .toast{position:fixed;bottom:24px;right:24px;background:var(--txt);color:#fff;padding:10px 16px;border-radius:8px;font-size:13px;opacity:0;transform:translateY(8px);transition:all .25s;pointer-events:none}
 .toast.show{opacity:1;transform:translateY(0)}
 html.embed body{background:transparent}
@@ -212,7 +226,8 @@ function renderBS(){
         rows+=`<tr class="tot lvl${lvl===0?0:1}" onclick="drillBS('${id}')" style="cursor:pointer"><td ${pad}>Total ${esc(n.label)}</td>${numCell(n.values[c])}${cmp?numCell(n.values[pc])+chgCell:''}</tr>`;
       }
     }else{
-      rows+=`<tr class="leaf ${isZero([n.values[c]])?'zero':''}" onclick="drillBS('${id}')" title="Click to see the monthly trend"><td ${pad}>${esc(n.label)}</td>${numCell(n.values[c])}${cmp?numCell(n.values[pc])+chgCell:''}</tr>`;
+      const cell=col=>txOK(n)?numCell(n.values[col],'dr" onclick="event.stopPropagation();txBS(\''+id+'\','+col+')" title="Show transactions'):numCell(n.values[col]);
+      rows+=`<tr class="leaf ${isZero([n.values[c]])?'zero':''}" onclick="drillBS('${id}')" title="Click to see the monthly trend"><td ${pad}>${esc(n.label)}</td>${cell(c)}${cmp?cell(pc)+chgCell:''}</tr>`;
     }
   };
   bs.tree.forEach((n,i)=>walk(n,0,'b'+i));
@@ -232,7 +247,7 @@ function renderBS(){
    </div>
    <table class="stmt"><thead><tr><th>${esc(CUR.data.company)}<br>Balance Sheet &mdash; ${dLabel(P[c])}</th><th>${mLabel(P[c])}</th>${cmp?`<th>${mLabel(P[pc])}</th><th>Change</th>`:''}</tr></thead><tbody>${rows}</tbody></table>
    <div class="drill" id="drill"></div>
-   <p class="note">Click a section heading to expand or collapse it. Click any account or total to drill into its month-end balances. ${Math.abs(v(A)-v(LE))<0.01?'&#10003; Assets equal liabilities plus equity.':'<b class=neg>Warning: the balance sheet does not balance for this date.</b>'}</p>`;
+   <p class="note">Click a section heading to expand or collapse it. ${CUR.data.live?'Click an account&rsquo;s amount to see the transactions behind it, like QuickBooks. ':''}Click an account name or total to see its month-end balances. ${Math.abs(v(A)-v(LE))<0.01?'&#10003; Assets equal liabilities plus equity.':'<b class=neg>Warning: the balance sheet does not balance for this date.</b>'}</p>`;
   if(st.drillBS) drillBS(st.drillBS,true);
 }
 function nodeAt(id){
@@ -280,7 +295,8 @@ function renderIS(){
       }
     }else{
       const can=(n.values&&n.values.length)||n.id; if(can) window._IS_LINES[id]=n;
-      rows+=`<tr class="${can?'ln':''}" ${can?`onclick="drillLine('${id}')" title="Click for monthly detail"`:''}><td ${pad}>${esc(n.label)}</td>${numCell(n.amount)}${pct(n.amount)}</tr>`;
+      const amt=txOK(n)?numCell(n.amount,'dr" onclick="event.stopPropagation();txIS(\''+id+'\')" title="Show transactions'):numCell(n.amount);
+      rows+=`<tr class="${can?'ln':''}" ${can?`onclick="drillLine('${id}')" title="Click for monthly detail"`:''}><td ${pad}>${esc(n.label)}</td>${amt}${pct(n.amount)}</tr>`;
     }
   };
   const section=(n,key,title)=>{
@@ -310,7 +326,7 @@ function renderIS(){
    </div>
    <table class="stmt"><thead><tr><th>${esc(CUR.data.company)}<br>Income Statement &mdash; ${esc(s.label)}</th><th>Amount</th><th>% of Income</th></tr></thead><tbody>${rows}</tbody></table>
    <div class="drill" id="drill"></div>
-   <p class="note">Click a parent account (&#9656;) to expand its sub-accounts. Click any total, Net Operating Income or Net Income to see it month by month.${Math.abs(net-s.netIncome)<0.01?' &#10003; Ties to QuickBooks net income.':' <b class=neg>Does not tie to QuickBooks net income ('+money(s.netIncome)+').</b>'}</p>`;
+   <p class="note">Click a parent account (&#9656;) to expand its sub-accounts. ${CUR.data.live?'Click an account&rsquo;s amount to see its transactions. ':''}Click any total, Net Operating Income or Net Income to see it month by month.${Math.abs(net-s.netIncome)<0.01?' &#10003; Ties to QuickBooks net income.':' <b class=neg>Does not tie to QuickBooks net income ('+money(s.netIncome)+').</b>'}</p>`;
   if(st.drillIS) drillIS(st.drillIS,true);
 }
 function drillIS(key,keep){
@@ -357,6 +373,54 @@ async function loadTx(acct,start,end){
       ${j.rows.map(x=>`<tr><td>${esc(x.date)}</td><td>${esc(x.type)}</td><td>${esc(x.num)}</td><td>${esc(x.name)}</td><td>${esc(x.memo)}</td><td class="n ${x.amount<0?'neg':''}">${money(x.amount)}</td></tr>`).join('')}
       <tr class="tot"><td colspan="5"><b>${j.rows.length} transactions, ${dLabel(start)} &ndash; ${dLabel(end)}</b></td><td class="n"><b>${money(tot)}</b></td></tr></tbody></table>`;
   }catch(e){box.innerHTML=`<p class="note neg">${esc(e.message)}</p>`}
+}
+
+/* ---------- QuickBooks-style transaction report (click an amount) ---------- */
+function txOK(n){return !!(n&&n.id&&CUR&&CUR.data.live)}
+const QBO_PAGES={'expense':'expense','check':'check','journal entry':'journal','bill':'bill','bill payment (check)':'billpayment',
+  'bill payment (credit card)':'billpayment','invoice':'invoice','payment':'recvpayment','deposit':'deposit','transfer':'transfer',
+  'sales receipt':'salesreceipt','credit memo':'creditmemo','refund':'refundreceipt','vendor credit':'vendorcredit',
+  'credit card expense':'expense','credit card credit':'creditcardcredit','credit card payment':'creditcardpayment'};
+function qboLink(x){
+  const p=QBO_PAGES[String(x.type||'').toLowerCase()];
+  return p&&x.txnId?`<a href="https://app.qbo.intuit.com/app/${p}?txnId=${encodeURIComponent(x.txnId)}" target="_blank" rel="noopener" title="Open in QuickBooks">${esc(x.type)}</a>`:esc(x.type);
+}
+function txBS(id,col){
+  const n=nodeAt(id), P=CUR.data.balanceSheet.periods, end=P[col];
+  openReport(n,end.slice(0,8)+'01',end,n.values[col]);
+}
+function txIS(id){
+  const n=window._IS_LINES[id], list=CUR.data.incomeStatements, s=list.find(x=>x.id===st.isId)||list[0];
+  openReport(n,s.start,s.end,null);
+}
+function closeReport(){const b=document.getElementById('rpt');if(b)b.remove();document.removeEventListener('keydown',rptKey)}
+function rptKey(e){if(e.key==='Escape')closeReport()}
+async function openReport(n,start,end,ending){
+  closeReport();
+  const bg=document.createElement('div'); bg.className='rpt-bg'; bg.id='rpt';
+  bg.onclick=e=>{if(e.target===bg)closeReport()};
+  const head=`<button class="x" onclick="closeReport()" title="Close">&times;</button>
+    <div class="hd"><b>${esc(CUR.data.company)}</b><span>Transaction Report</span><span>${dLabel(start)} &ndash; ${dLabel(end)}</span></div>`;
+  bg.innerHTML=`<div class="rpt">${head}<p class="note" style="text-align:center">Loading transactions from QuickBooks&hellip;</p></div>`;
+  document.body.appendChild(bg); document.addEventListener('keydown',rptKey);
+  const box=bg.querySelector('.rpt');
+  try{
+    const r=await fetch(`/admin/api/financials/transactions?account_id=${encodeURIComponent(n.id)}&start=${start}&end=${end}`,{credentials:'same-origin'});
+    let j={}; try{j=await r.json()}catch(e){}
+    if(!r.ok||!j.ok) throw new Error(j.error||'Could not load transactions');
+    const rows=j.rows||[], tot=rows.reduce((p,x)=>p+x.amount,0), bal=ending!=null;
+    let begin=bal?(j.beginning!=null?j.beginning:ending-tot):0, run=begin;
+    const cols=bal?8:7;
+    let body=`<tr class="lvl1"><td colspan="${cols}"><b>${esc(n.label)} (${rows.length})</b></td></tr>`;
+    if(bal) body+=`<tr><td colspan="7">Beginning Balance</td><td class="n">${money(begin)}</td></tr>`;
+    body+=rows.map(x=>{run+=x.amount;
+      return `<tr><td>${esc(x.date)}</td><td>${qboLink(x)}</td><td>${esc(x.num)}</td><td>${esc(x.name)}</td><td class="memo">${esc(x.memo)}</td><td>${esc(x.split)}</td><td class="n ${x.amount<0?'neg':''}">${money(x.amount,{paren:false})}</td>${bal?`<td class="n">${money(run)}</td>`:''}</tr>`}).join('');
+    if(!rows.length) body+=`<tr><td colspan="${cols}" class="note">No transactions in this period.</td></tr>`;
+    body+=`<tr class="grand"><td colspan="6">Total for ${esc(n.label)}</td><td class="n">${money(tot,{paren:false})}</td>${bal?`<td class="n">${money(run)}</td>`:''}</tr>`;
+    const off=bal&&Math.abs(run-ending)>0.01?`<p class="note neg" style="text-align:center">Ending balance ${money(run)} does not match the balance sheet (${money(ending)}).</p>`:'';
+    box.innerHTML=`${head}<div class="wrap"><table class="tx"><thead><tr><th>Date</th><th>Type</th><th>Num</th><th>Name</th><th>Memo/Description</th><th>Split account</th><th class="n">Amount</th>${bal?'<th class="n">Balance</th>':''}</tr></thead><tbody>${body}</tbody></table></div>
+      ${off}<div class="foot">${esc(CUR.data.basis||'Accrual')} basis &middot; Live from QuickBooks &middot; Click a transaction type to open it in QuickBooks</div>`;
+  }catch(e){box.innerHTML=`${head}<p class="note neg" style="text-align:center">${esc(e.message)}</p>`}
 }
 
 /* ---------- shared ---------- */
