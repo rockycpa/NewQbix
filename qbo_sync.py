@@ -479,3 +479,70 @@ def account_transactions(get_conn, account_id, start, end):
                 out.append(row)
     walk((rep.get('Rows') or {}).get('Row'))
     return {'rows': out, 'beginning': round(begin['value'], 2) if begin['found'] else None}
+
+
+# ── Attachments (files attached to transactions in QuickBooks) ────────────────
+
+# General Ledger "Transaction Type" text -> QuickBooks entity name used by Attachable refs.
+_TXN_ENTITY = {
+    'expense': 'Purchase', 'check': 'Purchase', 'cash expense': 'Purchase', 'credit card expense': 'Purchase',
+    'credit card credit': 'Purchase', 'journal entry': 'JournalEntry', 'bill': 'Bill',
+    'bill payment (check)': 'BillPayment', 'bill payment (credit card)': 'BillPayment', 'bill payment': 'BillPayment',
+    'invoice': 'Invoice', 'payment': 'Payment', 'deposit': 'Deposit', 'transfer': 'Transfer',
+    'sales receipt': 'SalesReceipt', 'credit memo': 'CreditMemo', 'vendor credit': 'VendorCredit',
+    'refund': 'RefundReceipt', 'estimate': 'Estimate', 'purchase order': 'PurchaseOrder',
+    'credit card payment': 'CreditCardPaymentTxn',
+}
+
+
+def _q(s):
+    return "'" + str(s).replace("'", "\'") + "'"
+
+
+def _attachables(get_conn, where):
+    rep = api_get(get_conn, 'query', {'query': f"select * from Attachable where {where} maxresults 1000"})
+    return (rep.get('QueryResponse') or {}).get('Attachable') or []
+
+
+def transaction_attachments(get_conn, refs):
+    """refs: [{'type': GL transaction type text, 'txnId': id}]. Returns a list aligned with refs,
+    each a list of {id, name, contentType, size, note}."""
+    want = {}
+    for i, r in enumerate(refs):
+        ent = _TXN_ENTITY.get(str(r.get('type') or '').strip().lower())
+        tid = str(r.get('txnId') or '')
+        if ent and tid.isdigit():
+            want.setdefault(ent, {}).setdefault(tid, []).append(i)
+    out = [[] for _ in refs]
+    for ent, ids in want.items():
+        try:
+            found = _attachables(get_conn, f"AttachableRef.EntityRef.Type = {_q(ent)} and "
+                                           f"AttachableRef.EntityRef.value in ({','.join(_q(x) for x in ids)})")
+        except QBOError:
+            found = []           # IN not accepted: fall back to one query per transaction
+            for tid in list(ids)[:60]:
+                found += _attachables(get_conn, f"AttachableRef.EntityRef.Type = {_q(ent)} and "
+                                                f"AttachableRef.EntityRef.value = {_q(tid)}")
+        seen = set()
+        for a in found:
+            for ref in a.get('AttachableRef') or []:
+                er = ref.get('EntityRef') or {}
+                tid = str(er.get('value') or '')
+                if str(er.get('type') or '').lower() != ent.lower() or tid not in ids or (a.get('Id'), tid) in seen:
+                    continue
+                seen.add((a.get('Id'), tid))
+                item = {'id': a.get('Id'), 'name': a.get('FileName') or (a.get('Note') or 'Note')[:60],
+                        'contentType': a.get('ContentType') or '', 'size': a.get('Size'),
+                        'note': a.get('Note') or '', 'file': bool(a.get('FileName'))}
+                for i in ids[tid]:
+                    out[i].append(item)
+    return out
+
+
+def attachment_download_url(get_conn, attachable_id):
+    """A short-lived download link for one attachment's file."""
+    a = api_get(get_conn, f'attachable/{attachable_id}').get('Attachable') or {}
+    url = a.get('TempDownloadUri')
+    if not url:
+        raise QBOError('That attachment has no file to download.')
+    return url

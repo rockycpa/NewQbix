@@ -2799,6 +2799,34 @@ def api_financials_transactions():
         print(f"[QBO] transactions: {e}")
         return jsonify({'ok': False, 'error': 'Could not load transactions'}), 500
 
+@app.route('/admin/api/financials/attachments', methods=['POST'])
+@login_required
+def api_financials_attachments():
+    refs = (request.get_json(silent=True) or {}).get('rows') or []
+    if not isinstance(refs, list):
+        return jsonify({'ok': False, 'error': 'Bad request'}), 400
+    refs = [r if isinstance(r, dict) else {} for r in refs[:300]]
+    try:
+        return jsonify({'ok': True, 'attachments': qbo_sync.transaction_attachments(get_conn, refs)})
+    except qbo_sync.QBOError as e:
+        return jsonify({'ok': False, 'error': str(e)[:300]}), 502
+    except Exception as e:
+        print(f"[QBO] attachments: {e}")
+        return jsonify({'ok': False, 'error': 'Could not load attachments'}), 500
+
+@app.route('/admin/api/financials/attachment/<att_id>')
+@login_required
+def api_financials_attachment(att_id):
+    if not att_id.isdigit():
+        return 'Bad attachment id', 400
+    try:
+        return redirect(qbo_sync.attachment_download_url(get_conn, att_id))
+    except qbo_sync.QBOError as e:
+        return str(e)[:300], 502
+    except Exception as e:
+        print(f"[QBO] attachment download: {e}")
+        return 'Could not open attachment', 500
+
 @app.route('/admin/api/backup')
 @login_required
 def api_backup():

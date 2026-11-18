@@ -82,6 +82,8 @@ td.n.dr:hover{color:var(--blue);text-decoration:underline}
 .rpt table.tx td.memo{white-space:normal;min-width:160px}
 .rpt table.tx tr.grand td{font-weight:700;border-top:1px solid var(--txt);border-bottom:3px double var(--txt)}
 .rpt a{color:var(--blue);text-decoration:none}.rpt a:hover{text-decoration:underline}
+.rpt td.att{font-size:15px;text-align:center}.rpt td.att a{text-decoration:none}
+.controls input[type=text]{font-family:'IBM Plex Mono',monospace;font-size:13px;padding:7px 10px;border:1px solid var(--bdr);border-radius:7px;background:#fff;color:var(--txt)}
 .rpt .foot{font-size:12px;color:var(--txt3);margin-top:12px;text-align:center}
 .toast{position:fixed;bottom:24px;right:24px;background:var(--txt);color:#fff;padding:10px 16px;border-radius:8px;font-size:13px;opacity:0;transform:translateY(8px);transition:all .25s;pointer-events:none}
 .toast.show{opacity:1;transform:translateY(0)}
@@ -115,7 +117,7 @@ html.embed .hide-embed{display:none!important}
 
 <script>
 let STORE = [], CUR = null, VIEW = 'bs', QBO = {}, SYNCING = false;
-const st = {bsCol: null, bsCompare: true, bsHideZero: true, isId: null, isHideZero: true, open: {}};
+const st = {bsCol: null, bsCompare: true, bsHideZero: true, isId: null, isHideZero: true, open: {}, rFrom: '6840', rTo: '6860', rMonths: true};
 
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2600)}
@@ -201,8 +203,9 @@ function render(){
   app.innerHTML=(d.note?`<div class="card" style="padding:10px 16px;margin-bottom:12px;font-size:13px;color:var(--txt2);background:rgba(201,168,76,.08);border-color:rgba(201,168,76,.35)">${esc(d.note)}</div>`:'')+`<div class="tabs no-print">
       <button class="tab ${VIEW==='bs'?'on':''}" onclick="VIEW='bs';render()">Balance Sheet</button>
       <button class="tab ${VIEW==='is'?'on':''}" onclick="VIEW='is';render()">Income Statement</button>
+      <button class="tab ${VIEW==='rng'?'on':''}" onclick="VIEW='rng';render()">Account Range</button>
     </div><div class="card" id="pane"></div>`;
-  VIEW==='bs'?renderBS():renderIS();
+  VIEW==='bs'?renderBS():VIEW==='is'?renderIS():renderRange();
 }
 
 /* ---------- Balance sheet ---------- */
@@ -375,6 +378,70 @@ async function loadTx(acct,start,end){
   }catch(e){box.innerHTML=`<p class="note neg">${esc(e.message)}</p>`}
 }
 
+/* ---------- Account range report ---------- */
+function acctNum(label){const m=/^(\d+(?:\.\d+)?)\s/.exec(String(label||''));return m?parseFloat(m[1]):null}
+function inRange(label){
+  const n=acctNum(label), a=parseFloat(st.rFrom), b=parseFloat(st.rTo);
+  if(n==null) return false;
+  return (isNaN(a)||n>=a)&&(isNaN(b)||n<=b);
+}
+function setRange(k,v){st[k]=String(v).trim();renderRange()}
+function renderRange(){
+  const list=CUR.data.incomeStatements, s=list.find(x=>x.id===st.isId)||list[0], m=s.monthly, months=(m&&m.months)||[];
+  const showM=st.rMonths&&months.length>1;
+  const hits=[];
+  // Income-statement accounts: a parent's own amount is listed separately from its sub-accounts so nothing is counted twice.
+  const walk=n=>{
+    const kids=n.children||[];
+    if(inRange(n.label)){
+      if(!kids.length) hits.push({n,label:n.label,amount:n.amount,values:n.values,click:true});
+      else if(Math.abs(n.own||0)>0.004){
+        const v=(n.values||[]).map((x,i)=>x-kids.reduce((p,k)=>p+((k.values||[])[i]||0),0));
+        hits.push({n,label:n.label+' (other)',amount:n.own,values:v,click:false});
+      }
+    }
+    kids.forEach(walk);
+  };
+  s.sections.forEach(sec=>(sec.children||[]).forEach(walk));
+  hits.sort((x,y)=>acctNum(x.label)-acctNum(y.label)||x.label.localeCompare(y.label));
+  window._RNG=hits;
+  const tot=hits.reduce((p,h)=>p+h.amount,0);
+  const mt=months.map((_,i)=>hits.reduce((p,h)=>p+((h.values||[])[i]||0),0));
+  const cell=(h,i,v,k)=>h.click&&txOK(h.n)?numCell(v,'dr" onclick="txRange('+i+','+(k==null?-1:k)+')" title="Show transactions'):numCell(v);
+  let rows=hits.map((h,i)=>`<tr><td>${esc(h.label)}</td>${showM?months.map((_,k)=>cell(h,i,(h.values||[])[k]||0,k)).join(''):''}${cell(h,i,h.amount,null)}</tr>`).join('');
+  if(!hits.length) rows=`<tr><td colspan="${showM?months.length+2:2}" class="note">No income or expense accounts numbered ${esc(st.rFrom)}&ndash;${esc(st.rTo)} have activity in this period.</td></tr>`;
+  else rows+=`<tr class="tot lvl0"><td>Total accounts ${esc(st.rFrom)}&ndash;${esc(st.rTo)}</td>${showM?mt.map(x=>numCell(x)).join(''):''}${numCell(tot)}</tr>`;
+  // Balance-sheet accounts in the range (balance as of the selected balance-sheet date).
+  const bs=CUR.data.balanceSheet, P=bs.periods, c=st.bsCol, bh=[];
+  const bwalk=(n,path)=>{const kids=n.children||[];if(!kids.length&&inRange(n.label))bh.push({n,path});kids.forEach((k,i)=>bwalk(k,path+'.'+i))};
+  bs.tree.forEach((n,i)=>bwalk(n,'b'+i));
+  const bsTable=bh.length?`<h3 style="font-family:'Playfair Display',serif;font-size:16px;margin:22px 0 6px">Balance sheet accounts &mdash; ${dLabel(P[c])}</h3>
+    <table class="stmt"><thead><tr><th>Account</th><th>Balance</th></tr></thead><tbody>
+    ${bh.map(b=>`<tr><td>${esc(b.n.label)}</td>${txOK(b.n)?numCell(b.n.values[c],'dr" onclick="txBS(\''+b.path+'\','+c+')" title="Show transactions'):numCell(b.n.values[c])}</tr>`).join('')}
+    <tr class="tot lvl0"><td>Total</td>${numCell(bh.reduce((p,b)=>p+b.n.values[c],0))}</tr></tbody></table>`:'';
+  document.getElementById('pane').innerHTML=`
+   <div class="controls">
+     Accounts <input type="text" inputmode="decimal" value="${esc(st.rFrom)}" onchange="setRange('rFrom',this.value)" style="width:80px" aria-label="From account number">
+     to <input type="text" inputmode="decimal" value="${esc(st.rTo)}" onchange="setRange('rTo',this.value)" style="width:80px" aria-label="To account number">
+     Period <select onchange="st.isId=this.value;renderRange()">${list.map(x=>`<option value="${esc(x.id)}" ${x.id===s.id?'selected':''}>${esc(x.label)}</option>`).join('')}</select>
+     ${months.length>1?`<label><input type="checkbox" ${st.rMonths?'checked':''} onchange="st.rMonths=this.checked;renderRange()"> Show months</label>`:''}
+   </div>
+   <div class="kpis">
+     <div class="kpi"><div class="k">Accounts in range</div><div class="v">${hits.length}</div></div>
+     <div class="kpi"><div class="k">Total for ${esc(s.label)}</div><div class="v ${tot<0?'neg':''}">${money(tot)}</div></div>
+   </div>
+   <div style="overflow-x:auto"><table class="stmt"><thead><tr><th>${esc(CUR.data.company)}<br>Accounts ${esc(st.rFrom)}&ndash;${esc(st.rTo)} &mdash; ${esc(s.label)}</th>${showM?months.map(p=>`<th>${mLabel(p)}</th>`).join(''):''}<th>Total</th></tr></thead><tbody>${rows}</tbody></table></div>
+   ${bsTable}
+   <p class="note">Shows every account whose number falls in the range (inclusive). ${CUR.data.live?'Click any amount to see the transactions behind it. ':''}Change the numbers to run a different range.</p>`;
+}
+function txRange(i,k){
+  const h=window._RNG[i], list=CUR.data.incomeStatements, s=list.find(x=>x.id===st.isId)||list[0];
+  if(k<0){openReport(h.n,s.start,s.end,null);return}
+  const ym=s.monthly.months[k], [y,mo]=ym.split('-').map(Number);
+  const last=ym+'-'+String(new Date(y,mo,0).getDate()).padStart(2,'0');
+  openReport(h.n,(ym+'-01'<s.start?s.start:ym+'-01'),(last>s.end?s.end:last),null);
+}
+
 /* ---------- QuickBooks-style transaction report (click an amount) ---------- */
 function txOK(n){return !!(n&&n.id&&CUR&&CUR.data.live)}
 const QBO_PAGES={'expense':'expense','check':'check','journal entry':'journal','bill':'bill','bill payment (check)':'billpayment',
@@ -410,24 +477,44 @@ async function openReport(n,start,end,ending){
     if(!r.ok||!j.ok) throw new Error(j.error||'Could not load transactions');
     const rows=j.rows||[], tot=rows.reduce((p,x)=>p+x.amount,0), bal=ending!=null;
     let begin=bal?(j.beginning!=null?j.beginning:ending-tot):0, run=begin;
-    const cols=bal?8:7;
+    const cols=bal?9:8;
     let body=`<tr class="lvl1"><td colspan="${cols}"><b>${esc(n.label)} (${rows.length})</b></td></tr>`;
-    if(bal) body+=`<tr><td colspan="7">Beginning Balance</td><td class="n">${money(begin)}</td></tr>`;
-    body+=rows.map(x=>{run+=x.amount;
-      return `<tr><td>${esc(x.date)}</td><td>${qboLink(x)}</td><td>${esc(x.num)}</td><td>${esc(x.name)}</td><td class="memo">${esc(x.memo)}</td><td>${esc(x.split)}</td><td class="n ${x.amount<0?'neg':''}">${money(x.amount,{paren:false})}</td>${bal?`<td class="n">${money(run)}</td>`:''}</tr>`}).join('');
+    if(bal) body+=`<tr><td></td><td colspan="7">Beginning Balance</td><td class="n">${money(begin)}</td></tr>`;
+    body+=rows.map((x,i)=>{run+=x.amount;
+      return `<tr><td class="att" id="att${i}"></td><td>${esc(x.date)}</td><td>${qboLink(x)}</td><td>${esc(x.num)}</td><td>${esc(x.name)}</td><td class="memo">${esc(x.memo)}</td><td>${esc(x.split)}</td><td class="n ${x.amount<0?'neg':''}">${money(x.amount,{paren:false})}</td>${bal?`<td class="n">${money(run)}</td>`:''}</tr>`}).join('');
     if(!rows.length) body+=`<tr><td colspan="${cols}" class="note">No transactions in this period.</td></tr>`;
-    body+=`<tr class="grand"><td colspan="6">Total for ${esc(n.label)}</td><td class="n">${money(tot,{paren:false})}</td>${bal?`<td class="n">${money(run)}</td>`:''}</tr>`;
+    body+=`<tr class="grand"><td></td><td colspan="6">Total for ${esc(n.label)}</td><td class="n">${money(tot,{paren:false})}</td>${bal?`<td class="n">${money(run)}</td>`:''}</tr>`;
     const off=bal&&Math.abs(run-ending)>0.01?`<p class="note neg" style="text-align:center">Ending balance ${money(run)} does not match the balance sheet (${money(ending)}).</p>`:'';
-    box.innerHTML=`${head}<div class="wrap"><table class="tx"><thead><tr><th>Date</th><th>Type</th><th>Num</th><th>Name</th><th>Memo/Description</th><th>Split account</th><th class="n">Amount</th>${bal?'<th class="n">Balance</th>':''}</tr></thead><tbody>${body}</tbody></table></div>
-      ${off}<div class="foot">${esc(CUR.data.basis||'Accrual')} basis &middot; Live from QuickBooks &middot; Click a transaction type to open it in QuickBooks</div>`;
+    box.innerHTML=`${head}<div class="wrap"><table class="tx"><thead><tr><th title="Attachments">&#128206;</th><th>Date</th><th>Type</th><th>Num</th><th>Name</th><th>Memo/Description</th><th>Split account</th><th class="n">Amount</th>${bal?'<th class="n">Balance</th>':''}</tr></thead><tbody>${body}</tbody></table></div>
+      ${off}<div class="foot">${esc(CUR.data.basis||'Accrual')} basis &middot; Live from QuickBooks &middot; Click a transaction type to open it in QuickBooks &middot; <span id="attnote">Checking for attachments&hellip;</span></div>`;
+    if(rows.length) loadAttachments(rows,bg); else document.getElementById('attnote').textContent='';
   }catch(e){box.innerHTML=`${head}<p class="note neg" style="text-align:center">${esc(e.message)}</p>`}
+}
+async function loadAttachments(rows,bg){
+  const note=()=>document.getElementById('attnote');
+  try{
+    const r=await fetch('/admin/api/financials/attachments',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({rows:rows.map(x=>({type:x.type,txnId:x.txnId||''}))})});
+    let j={}; try{j=await r.json()}catch(e){}
+    if(!r.ok||!j.ok) throw new Error(j.error||'Could not check attachments');
+    if(!document.body.contains(bg)) return;          // report was closed or replaced
+    let count=0;
+    (j.attachments||[]).forEach((list,i)=>{
+      const td=document.getElementById('att'+i); if(!td||!list.length) return;
+      count+=list.length;
+      td.innerHTML=list.map(a=>a.file
+        ?`<a href="/admin/api/financials/attachment/${encodeURIComponent(a.id)}" target="_blank" rel="noopener" title="Open ${esc(a.name)}${a.note?' — '+esc(a.note):''}" aria-label="Open attachment ${esc(a.name)}">&#128206;</a>`
+        :`<span title="Note: ${esc(a.note)}" style="cursor:help">&#128221;</span>`).join(' ');
+    });
+    if(note()) note().textContent=count?`${count} attachment${count>1?'s':''} — click \u{1F4CE} to open`:'No attachments';
+  }catch(e){if(note()) note().textContent=e.message}
 }
 
 /* ---------- shared ---------- */
 function toggle(id){
   const lvl=id.split('.').length-1;
   const cur=st.open[id]!==undefined?st.open[id]:(id[0]==='b'&&lvl<2);
-  st.open[id]=!cur; VIEW==='bs'?renderBS():renderIS();
+  st.open[id]=!cur; VIEW==='bs'?renderBS():VIEW==='is'?renderIS():renderRange();
 }
 function setAll(prefix,val){
   const walk=(n,id)=>{if(n.children){st.open[id]=val;n.children.forEach((k,i)=>walk(k,id+'.'+i))}};
