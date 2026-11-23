@@ -3439,14 +3439,7 @@ def _render_agreement_html(data, member, member_offices, waive_setup_fee,
   <div class="page-break">
     <div class="sec-title">CREDIT CARD PAYMENT AUTHORIZATION</div>
     <div class="sec-sub">BILL on behalf of RoseAn Properties, LLC &bull; Card details are entered securely on the BILL website</div>
-    <h2 class="sec-head">Current Payment Summary</h2>
-    <table class="fields">
-      {fld('Monthly Membership Fee', dues_str)}
-      {fld(f'Card Processing Fee ({CARD_FEE_PCT:g}%)', f'${card_fee:,.2f}/month')}
-      {fld('Monthly Card Charge', f'<strong>${net_amt + card_fee:,.2f}/month</strong>')}
-      {fld('Prorated First Payment (plus fee)', f'${proration_amt:,.0f} + ${round(proration_amt * CARD_FEE_PCT / 100, 2):,.2f}') if proration_amt > 0 else ''}
-    </table>
-    <h2 class="sec-head" style="margin-top:20px">Authorization</h2>
+    <h2 class="sec-head">Authorization</h2>
     <p style="font-size:9.5pt;line-height:1.6;margin-top:6px">I hereby authorize BILL, on behalf of RoseAn Properties, LLC, to initiate charges to the credit card(s) that I enter, or enable RoseAn Properties, LLC to enter, on the BILL web site in order to pay amounts that I owe to RoseAn Properties, LLC in accordance with instructions entered by RoseAn Properties, LLC on the BILL web site and, if necessary, to initiate adjustments for any transactions charged or credited in error. I represent that I have authority to bind the organization that owns the credit card(s), and to authorize all transactions to the credit card(s) that are initiated through BILL. I acknowledge that transactions initiated to the credit card(s) must comply with the provisions of US law. The amount of charge(s) or method of determining amount of charge(s) is all amounts due under my Qbix Centre Membership Agreement, as it may be renewed or amended from time to time, plus a card processing fee of {CARD_FEE_PCT:g}% of each charge, and the date(s) and/or frequency of charge(s) are recurring, on or about the first business day of each month, and as other amounts become due under the Membership Agreement.</p>
     <p style="font-size:9.5pt;line-height:1.6;margin-top:8px">This authorization will remain in effect until the organization notifies BILL in writing to cancel it in such time as to afford BILL reasonable opportunity to act on it. I understand that BILL may request proof of authorization.</p>
     <div class="sig-row"><div style="flex:2"><div class="sig-field prefilled">{mname}</div><div class="sig-label">Customer Name</div></div><div style="flex:2"><div class="sig-field{' prefilled' if _contact else ''}">{_contact}</div><div class="sig-label">Customer Contact Information</div></div></div>
