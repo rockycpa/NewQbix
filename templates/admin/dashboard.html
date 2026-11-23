@@ -1193,6 +1193,7 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
     <button class="btn-add" onclick="openOnboardLink()">&#128279; Onboard Link</button>
     <button class="btn-add" onclick="openSampleAgreement()" style="background:var(--blue);margin-left:6px">&#128196; Create Sample Agreement</button>
     <button class="btn-add" onclick="openMemberForm(null)" style="background:var(--grn)">+ Add Member</button>
+    <button class="btn-add" onclick="openNewMemberSetup()" style="background:var(--acc);margin-left:6px">&#10024; New Member Setup</button>
   </div>
   <div class="card"><div class="tw"><table>
     <thead><tr><th style="width:36px"></th><th style="cursor:pointer" onclick="sortMembers('name')">Member <span id="ms-name">↕</span></th><th>Status</th><th style="cursor:pointer" onclick="sortMembers('start')">Start <span id="ms-start">↕</span></th><th>End</th><th style="text-align:right">Gross</th><th style="text-align:right">Discount</th><th style="text-align:right">Net Dues</th><th style="text-align:right">Deposit</th><th style="text-align:right">Conf Hrs</th><th>Agreement</th><th>Docs</th></tr></thead>
@@ -1712,6 +1713,17 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
       <button class="btn-cancel" onclick="closeForm()">Cancel</button>
       <button class="btn-save" onclick="submitForm()">Save</button>
     </div>
+  </div>
+</div>
+
+<!-- New Member Setup wizard: member → occupants → offices → review -->
+<div class="fm" id="nms-modal">
+  <div class="fi" style="max-width:720px">
+    <button class="mx" onclick="closeNewMemberSetup()" style="position:absolute;top:12px;right:12px">&#x2715;</button>
+    <h2>New Member Setup</h2>
+    <div id="nms-steps" style="display:flex;gap:6px;margin-bottom:16px"></div>
+    <div id="nms-body"></div>
+    <div class="form-actions" id="nms-actions"></div>
   </div>
 </div>
 
@@ -4169,7 +4181,10 @@ function generateSampleAgreement(){
   toast('&#128196; Sample opened in a new tab — Print / Save as PDF there');
 }
 function markAgreementSent(id){const m=getMemberById(id);m.agreementSent=new Date().toISOString().slice(0,10);saveData();closeMo(null,'view-modal');setTimeout(()=>openMemberMo(id),60);toast('Marked as sent');}
-function markAgreementSigned(id){const m=getMemberById(id);m.agreementSigned=new Date().toISOString().slice(0,10);if(m.status==='Pending')m.status='Active';saveData();closeMo(null,'view-modal');setTimeout(()=>openMemberMo(id),60);toast('Marked as signed &mdash; status set to Active &#10003;');}
+function markAgreementSigned(id){const m=getMemberById(id);m.agreementSigned=new Date().toISOString().slice(0,10);if(m.status==='Pending')m.status='Active';
+  // Pending occupants go live with the member, so they can book the conference room.
+  let n=0;(DB.occupants||[]).forEach(o=>{if(o.company===m.name&&o.status==='Pending'){o.status='Active';n++;}});
+  refreshAll();saveData();closeMo(null,'view-modal');setTimeout(()=>openMemberMo(id),60);toast('Marked as signed &mdash; status set to Active'+(n?' (and '+n+' occupant'+(n===1?'':'s')+')':'')+' &#10003;');}
 
 // Onboarding link
 function openOnboardLink(){document.getElementById('ob-name').value='';document.getElementById('ob-email').value='';document.getElementById('ob-result').style.display='none';document.getElementById('onboard-modal').classList.add('open');}
@@ -4732,6 +4747,16 @@ async function submitForm(){
     const existing=formId?getOccById(formId):{dlAttachment:null,facePhoto:null};
     const facePhoto=window._pendingFacePhoto||existing.facePhoto||null;
     window._pendingFacePhoto=null;
+    // An occupant placed in an office that isn't linked to anyone: link it to
+    // their company so the member's offices, dues and agreement pick it up.
+    const offNum=document.getElementById('f-office').value;
+    const offRec=offNum&&DB.offices.find(o=>String(o.num)===String(offNum));
+    if(offRec&&!offRec.member&&confirm('Office '+offNum+' isn\u2019t linked to a member yet.\n\nLink it to "'+company+'" and mark it Occupied?')){
+      offRec.member=company;offRec.status='Occupied';
+      const cm=getMember(company);if(cm&&cm.start&&!offRec.tenantStart){const p=cm.start.split('-');offRec.tenantStart=(+p[1])+'/'+(+p[2])+'/'+p[0];}
+    } else if(offRec&&offRec.member&&offRec.member!==company){
+      toast('Note: Office '+offNum+' is linked to '+offRec.member+', not '+company,'var(--acc)',6000);
+    }
     const obj={id:formId||uid(),name,firstName:(document.getElementById('f-firstName')?.value||'').trim(),lastName:(document.getElementById('f-lastName')?.value||'').trim(),company,office:document.getElementById('f-office').value,phone:document.getElementById('f-phone').value.trim(),email:document.getElementById('f-email').value.trim(),birthday:(document.getElementById('f-birthday')?.value||'').trim(),status:document.getElementById('f-status').value,endDate:document.getElementById('f-endDate').value.trim(),dlAttachment:pendingFiles.length?pendingFiles[0]:(existing.dlAttachment||null),facePhoto};
     if(formId){const i=DB.occupants.findIndex(x=>x.id===formId);DB.occupants[i]=obj;}else DB.occupants.push(obj);
   } else if(formType==='waitlist'){
@@ -4770,6 +4795,290 @@ async function submitForm(){
   closeForm();refreshAll();await saveData();toast('Saved &#10003;');
 }
 function closeForm(){document.getElementById('form-modal').classList.remove('open');formType=null;formId=null;pendingFiles=[];_remainingOfficePhotos=null;_pendingCloudinaryPhotos=[];_pendingFloorplan=undefined;}
+
+// ── New Member Setup wizard ──────────────────────────────────────────────────
+// One pass from member → occupants → offices → review. Each record is linked
+// by name (occupant.company, office.member), so the wizard fills those links in
+// itself: the member's name becomes each occupant's company, and every office an
+// occupant is placed in is assigned to the member and marked Occupied.
+let NMS = null;
+const NMS_STEPS = ['Member','Occupants','Offices & Dues','Review'];
+const nmsH = s => saHtml(s);
+const nmsNum = v => Number(String(v==null?'':v).replace(/[$,]/g,''))||0;
+
+function openNewMemberSetup(){
+  const now=new Date(), nx=new Date(now.getFullYear(), now.getMonth()+1, 1);
+  NMS = {
+    step:0, memberId:null,
+    m:{name:'',firstName:'',lastName:'',email:'',phone:'',start:nx.getFullYear()+'-'+String(nx.getMonth()+1).padStart(2,'0')+'-01',
+       mailbox:'',leadSource:'',emergencyName:'',emergencyRel:'',emergencyPhone:'',notes:''},
+    occs:[], offices:{},                     // offices: {officeId: {listDues, discount, confHours}}
+    deposit:'', depositTouched:false, proration:'', prorationTouched:false,
+  };
+  nmsRender();
+  document.getElementById('nms-modal').classList.add('open');
+}
+function closeNewMemberSetup(){ document.getElementById('nms-modal').classList.remove('open'); NMS=null; }
+
+// Pending members (e.g. from an onboarding-link submission) can be finished here.
+function nmsPendingMembers(){
+  return DB.members.filter(m=>m.status==='Pending').sort((a,b)=>a.name.localeCompare(b.name));
+}
+function nmsLoadExisting(id){
+  nmsCollect();
+  if(!id){ const keep=NMS.m.start; openNewMemberSetup(); NMS.m.start=keep; nmsRender(); return; }
+  const m=getMemberById(id); if(!m) return;
+  NMS.memberId=id;
+  ['name','email','phone','start','mailbox','leadSource','emergencyName','emergencyRel','emergencyPhone','notes'].forEach(k=>NMS.m[k]=m[k]||NMS.m[k]||'');
+  NMS.m.firstName = m.firstName!==undefined ? m.firstName : splitFirst(m.name);
+  NMS.m.lastName  = m.lastName!==undefined  ? m.lastName  : splitLast(m.name);
+  NMS.occs = DB.occupants.filter(o=>o.company===m.name && o.status!=='Archive')
+    .map(o=>({id:o.id,name:o.name,email:o.email||'',phone:o.phone||'',birthday:o.birthday||'',office:o.office||''}));
+  NMS.loadedOccIds = NMS.occs.map(o=>o.id);
+  NMS.offices={};
+  DB.offices.filter(o=>o.member===m.name).forEach(o=>{NMS.offices[o.id]={listDues:o.listDues||'',discount:o.discount||0,confHours:o.confHours!=null?o.confHours:6};});
+  if(m.deposit){NMS.deposit=m.deposit;NMS.depositTouched=true;}
+  if(m.proration){NMS.proration=m.proration;NMS.prorationTouched=true;}
+  nmsRender();
+}
+
+// Offices that can be offered: vacant ones, plus any already on this member.
+function nmsOfficeChoices(){
+  const name=(NMS.memberId&&getMemberById(NMS.memberId)||{}).name;
+  return DB.offices.filter(o=>o.status==='Vacant'||!o.member||(name&&o.member===name)||NMS.offices[o.id])
+    .sort((a,b)=>String(a.num).localeCompare(String(b.num),undefined,{numeric:true}));
+}
+const nmsOfficeByNum = n => DB.offices.find(o=>String(o.num)===String(n));
+
+// Read the current step's inputs back into NMS.
+function nmsCollect(){
+  if(!NMS) return;
+  const v=id=>{const el=document.getElementById(id);return el?el.value.trim():null;};
+  if(NMS.step===0){
+    ['name','firstName','lastName','email','phone','start','mailbox','leadSource','emergencyName','emergencyRel','emergencyPhone','notes']
+      .forEach(k=>{const x=v('nms-m-'+k); if(x!==null) NMS.m[k]=x;});
+  } else if(NMS.step===1){
+    NMS.occs.forEach((o,i)=>{['name','email','phone','birthday','office'].forEach(k=>{const x=v('nms-o'+i+'-'+k); if(x!==null) o[k]=x;});});
+  } else if(NMS.step===2){
+    Object.keys(NMS.offices).forEach(id=>{
+      const r=NMS.offices[id];
+      ['listDues','discount','confHours'].forEach(k=>{const x=v('nms-f-'+k+'-'+id); if(x!==null) r[k]=x;});
+    });
+    const d=v('nms-deposit'), p=v('nms-proration');
+    if(d!==null) NMS.deposit=d;
+    if(p!==null) NMS.proration=p;
+  }
+}
+
+function nmsTotals(){
+  let gross=0, disc=0, hrs=0;
+  Object.values(NMS.offices).forEach(r=>{gross+=nmsNum(r.listDues);disc+=nmsNum(r.discount);hrs+=(r.confHours===''?6:nmsNum(r.confHours));});
+  const net=Math.max(0,gross-disc);
+  const dates=calcTermDates(NMS.m.start);
+  let autoPro='';
+  if(dates.hasProration && net){
+    const d=new Date(NMS.m.start+'T12:00:00'), dim=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();
+    autoPro=String(Math.round(net*(dim-d.getDate()+1)/dim));
+  }
+  return {gross,disc,net,hrs,dates,autoPro};
+}
+// Deposit defaults to one month's net dues; proration to the partial first month.
+function nmsApplyAutos(){
+  const t=nmsTotals();
+  if(!NMS.depositTouched) NMS.deposit = t.net ? String(t.net) : '';
+  if(!NMS.prorationTouched) NMS.proration = t.dates.hasProration ? t.autoPro : '';
+  return t;
+}
+
+// Every office an occupant is placed in is part of the membership.
+function nmsSyncOfficesFromOccs(){
+  NMS.occs.forEach(o=>{
+    const off=o.office&&nmsOfficeByNum(o.office);
+    if(off && !NMS.offices[off.id]) NMS.offices[off.id]={listDues:off.listDues||'',discount:off.discount||0,confHours:off.confHours!=null?off.confHours:6};
+  });
+}
+const nmsLockedOfficeIds = () => new Set(NMS.occs.map(o=>o.office&&nmsOfficeByNum(o.office)).filter(Boolean).map(o=>o.id));
+
+function nmsValidate(){
+  if(NMS.step===0){
+    const name=NMS.m.name;
+    if(!name){toast('Enter the member name','var(--red)');return false;}
+    const clash=DB.members.find(m=>m.name.toLowerCase()===name.toLowerCase() && m.id!==NMS.memberId);
+    if(clash){toast('A member named "'+clash.name+'" already exists','var(--red)');return false;}
+    if(!NMS.m.start){toast('Pick a start date','var(--red)');return false;}
+  } else if(NMS.step===1){
+    if(!NMS.occs.length){toast('Add at least one occupant','var(--red)');return false;}
+    if(NMS.occs.some(o=>!o.name)){toast('Every occupant needs a name','var(--red)');return false;}
+  } else if(NMS.step===2){
+    if(!Object.keys(NMS.offices).length){toast('Select at least one office','var(--red)');return false;}
+  }
+  return true;
+}
+
+function nmsGo(delta){
+  nmsCollect();
+  if(delta>0 && !nmsValidate()) return;
+  // Entering Occupants for the first time: start with the member's contact as occupant #1.
+  if(NMS.step===0 && delta>0 && !NMS.occs.length){
+    const full=[NMS.m.firstName,NMS.m.lastName].filter(Boolean).join(' ');
+    NMS.occs.push({id:null,name:full,email:NMS.m.email,phone:NMS.m.phone,birthday:'',office:''});
+  }
+  if(NMS.step===1 && delta>0) nmsSyncOfficesFromOccs();
+  NMS.step=Math.max(0,Math.min(NMS_STEPS.length-1,NMS.step+delta));
+  nmsRender();
+}
+function nmsAddOcc(){ nmsCollect(); NMS.occs.push({id:null,name:'',email:'',phone:'',birthday:'',office:(NMS.occs[0]||{}).office||''}); nmsRender(); }
+function nmsRemoveOcc(i){ nmsCollect(); NMS.occs.splice(i,1); nmsRender(); }
+function nmsToggleOffice(id,on){
+  nmsCollect();
+  if(on){const o=DB.offices.find(x=>x.id===id);NMS.offices[id]={listDues:o.listDues||'',discount:o.discount||0,confHours:o.confHours!=null?o.confHours:6};}
+  else delete NMS.offices[id];
+  nmsRender();
+}
+function nmsRecalc(){ nmsCollect(); const t=nmsApplyAutos(); nmsPaintTotals(t); }
+function nmsPaintTotals(t){
+  const set=(id,val)=>{const el=document.getElementById(id); if(el) el.textContent=val;};
+  set('nms-t-net','$'+t.net.toLocaleString()+'/mo'); set('nms-t-hrs',t.hrs+' hrs/mo');
+  const d=document.getElementById('nms-deposit'), p=document.getElementById('nms-proration');
+  if(d && !NMS.depositTouched) d.value=NMS.deposit;
+  if(p && !NMS.prorationTouched) p.value=NMS.proration;
+}
+
+function nmsRender(){
+  const S=NMS.step;
+  document.getElementById('nms-steps').innerHTML=NMS_STEPS.map((s,i)=>
+    '<div style="flex:1;text-align:center;padding:7px 4px;border-radius:7px;font-size:12px;font-weight:600;'+
+    (i===S?'background:var(--acc);color:#fff':i<S?'background:rgba(77,184,135,.15);color:var(--grn)':'background:var(--sur2);color:var(--txt3)')+
+    '">'+(i<S?'&#10003; ':(i+1)+'. ')+s+'</div>').join('');
+  const body=document.getElementById('nms-body');
+  const inp=(id,label,val,extra)=>'<div class="fl'+((extra||{}).full?' full':'')+'"><label>'+label+'</label><input id="'+id+'" value="'+nmsH(val)+'"'+((extra||{}).type?' type="'+extra.type+'"':'')+((extra||{}).ph?' placeholder="'+extra.ph+'"':'')+'></div>';
+
+  if(S===0){
+    const pend=nmsPendingMembers();
+    const lsOpts=['',...(DB.leadSources||[])].map(s=>'<option value="'+nmsH(s)+'" '+(NMS.m.leadSource===s?'selected':'')+'>'+(s?nmsH(s):'— Select source —')+'</option>').join('');
+    body.innerHTML=
+      (pend.length?'<div class="fl full" style="background:var(--sur2);border:1px solid var(--bdr);border-radius:8px;padding:10px;margin-bottom:12px"><label>Start from</label><select onchange="nmsLoadExisting(this.value)"><option value="">A brand-new member</option>'+
+        pend.map(m=>'<option value="'+nmsH(m.id)+'" '+(NMS.memberId===m.id?'selected':'')+'>Pending: '+nmsH(m.name)+(m.onboardedAt?' (onboarding form)':'')+'</option>').join('')+
+        '</select><div style="font-size:11px;color:var(--txt3);margin-top:4px">Pick a pending member to finish setting them up instead of creating a duplicate.</div></div>':'')+
+      '<div class="fg">'+
+      inp('nms-m-name','Member Name * <span style="font-weight:400;color:var(--txt3);font-size:11px">— company or individual</span>',NMS.m.name,{full:1,ph:'Company or individual name'})+
+      inp('nms-m-firstName','Contact First Name',NMS.m.firstName)+inp('nms-m-lastName','Contact Last Name',NMS.m.lastName)+
+      inp('nms-m-email','Billing Email',NMS.m.email,{type:'email'})+inp('nms-m-phone','Phone',NMS.m.phone)+
+      inp('nms-m-start','Start Date *',NMS.m.start,{type:'date'})+
+      inp('nms-m-mailbox','Mailbox <span style="font-weight:400;color:var(--txt3);font-size:11px">— used in agreement address</span>',NMS.m.mailbox,{ph:'e.g. 41'})+
+      '<div class="fl"><label>How Did They Find Us?</label><select id="nms-m-leadSource">'+lsOpts+'</select></div>'+
+      '<div class="sect-title">Emergency Contact</div>'+
+      inp('nms-m-emergencyName','Name',NMS.m.emergencyName)+inp('nms-m-emergencyRel','Relationship',NMS.m.emergencyRel,{ph:'e.g. Spouse'})+
+      inp('nms-m-emergencyPhone','Phone',NMS.m.emergencyPhone)+
+      '<div class="fl full"><label>Notes</label><textarea id="nms-m-notes">'+nmsH(NMS.m.notes)+'</textarea></div>'+
+      '</div><div style="font-size:12px;color:var(--txt3)">The member stays <b>Pending</b> until the agreement is marked signed. Deposit and proration are worked out from the offices in step 3.</div>';
+  }
+  else if(S===1){
+    const choices=nmsOfficeChoices();
+    body.innerHTML='<div style="font-size:13px;color:var(--txt2);margin-bottom:12px">Company is set to <b>'+nmsH(NMS.m.name)+'</b> for everyone here. The office you pick for each person is linked to the member automatically.</div>'+
+      NMS.occs.map((o,i)=>{
+        const opts=['',...choices.map(c=>c.num)].map(n=>{const c=n&&nmsOfficeByNum(n);
+          return '<option value="'+nmsH(n)+'" '+(String(o.office)===String(n)?'selected':'')+'>'+(n?'Office '+nmsH(n)+(c.sqft?' — '+c.sqft+' sq ft':'')+(c.listDues?' — $'+Number(c.listDues).toLocaleString()+'/mo':''):'— No office (e.g. coworking) —')+'</option>';}).join('');
+        return '<div style="border:1px solid var(--bdr);border-radius:9px;padding:12px;margin-bottom:10px;background:var(--sur2)">'+
+          '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b style="font-size:13px">Occupant '+(i+1)+(o.id?' <span style="font-weight:400;color:var(--txt3);font-size:11px">(existing record)</span>':'')+'</b>'+
+          (NMS.occs.length>1?'<button type="button" class="btn-cancel" style="padding:3px 10px;font-size:12px" onclick="nmsRemoveOcc('+i+')">Remove</button>':'')+'</div>'+
+          '<div class="fg" style="margin-bottom:0">'+
+          inp('nms-o'+i+'-name','Full Name *',o.name,{ph:'First Last'})+
+          '<div class="fl"><label>Office</label><select id="nms-o'+i+'-office">'+opts+'</select></div>'+
+          inp('nms-o'+i+'-phone','Phone',o.phone)+inp('nms-o'+i+'-email','Email',o.email,{type:'email'})+
+          inp('nms-o'+i+'-birthday','Birthday',o.birthday,{type:'date'})+
+          '</div></div>';
+      }).join('')+
+      '<button type="button" class="btn-cancel" onclick="nmsAddOcc()">+ Add another occupant</button>'+
+      '<div style="font-size:12px;color:var(--txt3);margin-top:10px">Face photo and driver’s license can be added later from the occupant’s record.</div>';
+  }
+  else if(S===2){
+    const t=nmsApplyAutos(), locked=nmsLockedOfficeIds();
+    const fin=(id,val,w)=>'<input id="'+id+'" value="'+nmsH(val)+'" oninput="nmsRecalc()" inputmode="decimal" style="width:'+(w||80)+'px;padding:5px 7px;text-align:right;font-family:\'IBM Plex Mono\',monospace">';
+    body.innerHTML='<div style="font-size:13px;color:var(--txt2);margin-bottom:10px">Offices picked for occupants are already checked. Check any extra office (e.g. storage) to add it.</div>'+
+      '<div style="border:1px solid var(--bdr);border-radius:9px;overflow:hidden;margin-bottom:12px">'+
+      '<div style="display:grid;grid-template-columns:1fr 90px 90px 70px;gap:8px;padding:7px 12px;background:var(--sur2);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--txt3);font-weight:600"><span>Office</span><span style="text-align:right">Rate $/mo</span><span style="text-align:right">Discount $</span><span style="text-align:right">Conf hrs</span></div>'+
+      nmsOfficeChoices().map(o=>{const r=NMS.offices[o.id], isLocked=locked.has(o.id);
+        return '<div style="display:grid;grid-template-columns:1fr 90px 90px 70px;gap:8px;align-items:center;padding:7px 12px;border-top:1px solid var(--bdr)">'+
+          '<label style="display:flex;align-items:center;gap:8px;cursor:'+(isLocked?'default':'pointer')+'"><input type="checkbox" '+(r?'checked':'')+(isLocked?' disabled title="An occupant is assigned here"':'')+' onchange="nmsToggleOffice(\''+esc(o.id)+'\',this.checked)" style="width:16px;height:16px;accent-color:var(--acc)">'+
+          '<span>Office '+nmsH(o.num)+' <span style="color:var(--txt3);font-size:12px">'+(o.sqft?o.sqft+' sq ft':'')+(isLocked?' · occupant assigned':'')+'</span></span></label>'+
+          (r?'<span style="text-align:right">'+fin('nms-f-listDues-'+o.id,r.listDues)+'</span><span style="text-align:right">'+fin('nms-f-discount-'+o.id,r.discount)+'</span><span style="text-align:right">'+fin('nms-f-confHours-'+o.id,r.confHours,56)+'</span>'
+             :'<span style="text-align:right;color:var(--txt3);font-size:12px">'+(o.listDues?'$'+Number(o.listDues).toLocaleString():'—')+'</span><span></span><span></span>')+
+          '</div>';}).join('')+
+      '</div>'+
+      '<div class="fg">'+
+      '<div class="fl" style="background:var(--sur2);border:1px solid var(--bdr);border-radius:7px;padding:9px"><label>Net Monthly Dues</label><div id="nms-t-net" style="font-family:\'IBM Plex Mono\',monospace;font-size:17px;color:var(--grn)">$'+t.net.toLocaleString()+'/mo</div></div>'+
+      '<div class="fl" style="background:var(--sur2);border:1px solid var(--bdr);border-radius:7px;padding:9px"><label>Conference Room</label><div id="nms-t-hrs" style="font-family:\'IBM Plex Mono\',monospace;font-size:17px">'+t.hrs+' hrs/mo</div></div>'+
+      '<div class="fl"><label>Deposit Held ($) <span style="font-weight:400;color:var(--txt3);font-size:11px">— defaults to one month</span></label><input id="nms-deposit" value="'+nmsH(NMS.deposit)+'" oninput="NMS.depositTouched=true" inputmode="decimal"></div>'+
+      (t.dates.hasProration
+        ?'<div class="fl"><label>Prorated First Payment ($) <span style="font-weight:400;color:var(--txt3);font-size:11px">— '+t.dates.proStart+' – '+t.dates.proEnd+'</span></label><input id="nms-proration" value="'+nmsH(NMS.proration)+'" oninput="NMS.prorationTouched=true" inputmode="decimal"></div>'
+        :'<div class="fl"><label>Prorated First Payment</label><div style="font-size:13px;color:var(--txt3);padding-top:8px">None — starts on the 1st</div></div>')+
+      '<div class="fl full" style="font-size:12px;color:var(--txt3)">Term: '+(t.dates.termStart?t.dates.termStart+' – '+t.dates.termEnd:'—')+'</div>'+
+      '</div>';
+  }
+  else {
+    const t=nmsTotals();
+    const row=(l,v)=>'<div class="rv-row"><span class="rv-label">'+l+'</span><span style="font-size:14px;color:var(--txt);text-align:right">'+v+'</span></div>';
+    const offs=Object.keys(NMS.offices).map(id=>{const o=DB.offices.find(x=>x.id===id),r=NMS.offices[id];return 'Office '+nmsH(o.num)+' — $'+Math.max(0,nmsNum(r.listDues)-nmsNum(r.discount)).toLocaleString()+'/mo';});
+    body.innerHTML='<div style="border:1px solid var(--bdr);border-radius:9px;padding:6px 14px;margin-bottom:12px">'+
+      row('Member',nmsH(NMS.m.name)+(NMS.memberId?' <span style="color:var(--txt3);font-size:11px">(updating pending record)</span>':''))+
+      row('Contact',nmsH([NMS.m.firstName,NMS.m.lastName].filter(Boolean).join(' ')||'—')+(NMS.m.email?' · '+nmsH(NMS.m.email):''))+
+      row('Start',fD(NMS.m.start))+
+      row('Term',t.dates.termStart?t.dates.termStart+' – '+t.dates.termEnd:'—')+
+      row('Offices',offs.join('<br>'))+
+      row('Net Monthly Dues','<b style="color:var(--grn)">$'+t.net.toLocaleString()+'/mo</b>')+
+      row('Deposit','$'+nmsNum(NMS.deposit).toLocaleString())+
+      (t.dates.hasProration?row('Prorated First Payment','$'+nmsNum(NMS.proration).toLocaleString()+' <span style="color:var(--txt3);font-size:11px">('+t.dates.proStart+' – '+t.dates.proEnd+')</span>'):'')+
+      row('Conference Room',t.hrs+' hrs/mo')+
+      row('Occupants',NMS.occs.map(o=>nmsH(o.name)+' <span style="color:var(--txt3)">'+(o.office?'Office '+nmsH(o.office):'no office')+'</span>').join('<br>'))+
+      '</div><div style="font-size:12px;color:var(--txt3)">Saving creates the member and occupants as <b>Pending</b> and marks the offices <b>Occupied</b>. Everyone switches to Active when you mark the agreement signed.</div>';
+  }
+  document.getElementById('nms-actions').innerHTML=
+    (S>0?'<button class="btn-cancel" onclick="nmsGo(-1)">&#8592; Back</button>':'<button class="btn-cancel" onclick="closeNewMemberSetup()">Cancel</button>')+
+    (S<NMS_STEPS.length-1?'<button class="btn-save" onclick="nmsGo(1)">Next &#8594;</button>':'<button class="btn-save" onclick="nmsSave()">&#10003; Save Member</button>');
+}
+
+async function nmsSave(){
+  const t=nmsTotals(), name=NMS.m.name;
+  const fmtStart=s=>{const p=(s||'').split('-');return p.length===3?(+p[1])+'/'+(+p[2])+'/'+p[0]:s;};
+  // Member
+  let m = NMS.memberId ? getMemberById(NMS.memberId) : null;
+  const oldName = m ? m.name : '';
+  const fields={name,firstName:NMS.m.firstName,lastName:NMS.m.lastName,email:NMS.m.email,phone:NMS.m.phone,start:NMS.m.start,
+    mailbox:NMS.m.mailbox,leadSource:NMS.m.leadSource,emergencyName:NMS.m.emergencyName,emergencyRel:NMS.m.emergencyRel,
+    emergencyPhone:NMS.m.emergencyPhone,notes:NMS.m.notes,dues:t.gross,discount:t.disc,deposit:nmsNum(NMS.deposit),
+    proration:t.dates.hasProration?nmsNum(NMS.proration):0};
+  if(m){ Object.assign(m,fields); }
+  else { m=Object.assign({id:uid(),status:'Pending',end:'',attachments:[],agreementSent:'',agreementSigned:''},fields); DB.members.push(m); }
+  // A renamed pending member carries its name to anything still linked by the old one.
+  if(oldName && oldName!==name){
+    DB.offices.forEach(o=>{if(o.member===oldName)o.member=name;});
+    DB.occupants.forEach(o=>{if(o.company===oldName)o.company=name;});
+    (DB.bookings||[]).forEach(b=>{if(b.parentMember===oldName)b.parentMember=name;});
+  }
+  // Occupants — company and status come from the member.
+  const keptIds=new Set();
+  NMS.occs.forEach(o=>{
+    const vals={name:o.name,firstName:splitFirst(o.name),lastName:splitLast(o.name),company:name,office:o.office||'',phone:o.phone,email:o.email,birthday:o.birthday||'',status:m.status||'Pending'};
+    const ex=o.id&&getOccById(o.id);
+    if(ex){Object.assign(ex,vals);keptIds.add(ex.id);}
+    else DB.occupants.push(Object.assign({id:uid(),endDate:'',dlAttachment:null,facePhoto:null},vals));
+  });
+  // Existing occupants removed in the wizard are archived, not deleted.
+  (NMS.loadedOccIds||[]).forEach(oid=>{const o=getOccById(oid); if(o&&!keptIds.has(oid)) o.status='Archive';});
+  // Offices — linked to the member, marked occupied, tenant start from the member.
+  DB.offices.forEach(o=>{
+    const r=NMS.offices[o.id];
+    if(r){Object.assign(o,{member:name,status:'Occupied',tenantStart:fmtStart(NMS.m.start),listDues:nmsNum(r.listDues)||null,discount:nmsNum(r.discount),confHours:r.confHours===''?6:nmsNum(r.confHours)});}
+    else if(o.member===name){o.member='';o.status='Vacant';o.tenantStart='';}   // unchecked in the wizard
+  });
+  refreshAll(); await saveData();
+  const id=m.id;
+  document.getElementById('nms-steps').innerHTML='';
+  document.getElementById('nms-body').innerHTML='<div style="text-align:center;padding:20px 10px"><div style="font-size:34px">&#10003;</div><div style="font-size:17px;font-weight:700;margin:6px 0">'+nmsH(name)+' is set up</div><div style="font-size:13px;color:var(--txt2)">Next: review and send the agreement.</div></div>';
+  document.getElementById('nms-actions').innerHTML='<button class="btn-cancel" onclick="closeNewMemberSetup()">Done</button><button class="btn-save" style="background:var(--blue)" onclick="closeNewMemberSetup();openAgreementReview(\''+esc(id)+'\')">&#128196; Review &amp; Generate Agreement</button>';
+  toast('Member saved &#10003;');
+}
 
 let _remainingOfficePhotos = null;
 let _pendingCloudinaryPhotos = [];
