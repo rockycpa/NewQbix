@@ -61,6 +61,7 @@ BACKUP_DIR = BASE_DIR / 'backups'
 ADMIN_EMAIL         = os.environ.get('ADMIN_EMAIL', 'qbixcentre@outlook.com')
 ADMIN_PHONE         = os.environ.get('ADMIN_PHONE', '4787379107')
 APP_URL             = os.environ.get('APP_URL', 'http://localhost:5000')
+CARD_FEE_PCT        = 3   # credit card processing fee passed on to members paying by card (percent)
 ANTHROPIC_API_KEY   = os.environ.get('ANTHROPIC_API_KEY', '')
 GA_MEASUREMENT_ID   = os.environ.get('GA_MEASUREMENT_ID', '')
 
@@ -3201,6 +3202,9 @@ def generate_agreement(member_id):
     member = next((m for m in data['members'] if m['id'] == member_id), None)
     if not member:
         abort(404)
+    # Payment method picked on the review screen wins; it's saved on the member.
+    pay = (request.args.get('payment') or member.get('paymentMethod') or 'bank').lower()
+    member['paymentMethod'] = 'card' if pay == 'card' else 'bank'
 
     member_offices = [o for o in data['offices'] if o.get('member') == member['name']]
     html = _render_agreement_html(data, member, member_offices,
@@ -3245,6 +3249,7 @@ def generate_sample_agreement():
         'deposit':   int(round(_num(f.get('deposit')))),
         'proration': _num(f.get('proration')),
         'start':     (f.get('start') or '').strip(),
+        'paymentMethod': 'card' if f.get('payment') == 'card' else 'bank',
     }
     waive_setup_fee = f.get('waive_setup_fee') == 'true'
     waive_bg        = f.get('waive_bg')        == 'true'
@@ -3327,6 +3332,14 @@ def _render_agreement_html(data, member, member_offices, waive_setup_fee,
     waived_stamp = '<div class="waived-stamp">WAIVED</div>' if waive_bg else ''
     pro_sig    = fld('Prorated First Payment', f'${proration_amt:,.0f}') if proration_amt > 0 else ''
     pro_ach    = fld('Prorated First Draft', f'<strong>${proration_amt:,.0f}</strong>') if proration_amt > 0 else ''
+
+    # Payment method: bank auto-draft (default) or credit card through BILL
+    # with a processing fee passed on to the member.
+    pay_card   = member.get('paymentMethod') == 'card'
+    card_fee   = round(net_amt * CARD_FEE_PCT / 100, 2)
+    pay_field  = fld('Payment Method',
+                     f'Credit card via BILL (+{CARD_FEE_PCT:g}% fee: ${card_fee:,.2f}/month)' if pay_card
+                     else 'Bank auto-draft via BILL')
     mname      = member.get('name', '')
     memail     = member.get('email', '')
     mphone     = member.get('phone', '')
@@ -3403,12 +3416,64 @@ def _render_agreement_html(data, member, member_offices, waive_setup_fee,
     agreement_body_rendered = body_template
     for _k, _v in _replacements.items():
         agreement_body_rendered = agreement_body_rendered.replace(_k, _v)
+    # Card payers: reword the dues clause (the editable body says "via
+    # auto-draft through Bill.com") so it names the card and the fee.
+    if pay_card:
+        agreement_body_rendered = re.sub(
+            r'via\s+auto-draft\s+through\s+Bill\.com',
+            f'by credit card through BILL, plus a {CARD_FEE_PCT:g}% card processing fee',
+            agreement_body_rendered, flags=re.I)
 
     # Final sweep: strip any truly-empty <li></li> Quill may have left as
     # artifacts (e.g., when a member taps Enter inside a bullet list and
     # then deletes the text — Quill keeps the empty bullet structurally).
     agreement_body_rendered = re.sub(
         r'<li[^>]*>\s*</li>', '', agreement_body_rendered)
+
+    # Payment authorization page — bank auto-draft (existing wording) or, for
+    # card payers, BILL's recommended authorization with amount and frequency
+    # filled in. Card numbers are entered on the BILL site, never on paper.
+    if pay_card:
+        _amt = f'${net_amt:,.0f} per month plus a {CARD_FEE_PCT:g}% card processing fee (${net_amt + card_fee:,.2f} per month in total)'
+        if proration_amt > 0:
+            _amt += f', and a one-time prorated first payment of ${proration_amt:,.0f} plus the same {CARD_FEE_PCT:g}% fee'
+        _freq = ('recurring, on or about the first business day of each month for the term of this Agreement and any renewal'
+                 + (f', beginning {term_start_str}' if term_start_str and '_' not in term_start_str else ''))
+        _contact = ' &bull; '.join(x for x in (memail, mphone) if x)
+        auth_page = f"""<!-- Card authorization -->
+  <div class="page-break">
+    <div class="sec-title">CREDIT CARD PAYMENT AUTHORIZATION</div>
+    <div class="sec-sub">BILL on behalf of RoseAn Properties, LLC &bull; Card details are entered securely on the BILL website</div>
+    <h2 class="sec-head">Payment Summary</h2>
+    <table class="fields">
+      {fld('Monthly Membership Fee', dues_str)}
+      {fld(f'Card Processing Fee ({CARD_FEE_PCT:g}%)', f'${card_fee:,.2f}/month')}
+      {fld('Monthly Card Charge', f'<strong>${net_amt + card_fee:,.2f}/month</strong>')}
+      {fld('Prorated First Payment (plus fee)', f'${proration_amt:,.0f} + ${round(proration_amt * CARD_FEE_PCT / 100, 2):,.2f}') if proration_amt > 0 else ''}
+    </table>
+    <h2 class="sec-head" style="margin-top:20px">Authorization</h2>
+    <p style="font-size:9.5pt;line-height:1.6;margin-top:6px">I hereby authorize BILL, on behalf of RoseAn Properties, LLC, to initiate entries to the bank accounts that I enter, or enable RoseAn Properties, LLC to enter, on the BILL web site in order to pay amounts that I owe to RoseAn Properties, LLC in accordance with instructions entered by RoseAn Properties, LLC on the BILL web site and, if necessary, to initiate adjustments for any transactions credited or debited in error. I represent that I have authority to bind the organization that owns the bank accounts, and to authorize all transactions to the bank accounts that are initiated through BILL. I acknowledge that transactions initiated to the bank accounts must comply with the provisions of US law. The amount of debit(s) or method of determining amount of debit(s) is {_amt} and the date(s) and/or frequency of debit(s) are {_freq}.</p>
+    <p style="font-size:9.5pt;line-height:1.6;margin-top:8px">This authorization will remain in effect until the organization notifies BILL in writing to cancel it in such time as to afford BILL and the bank reasonable opportunity to act on it. I understand that BILL may request proof of authorization.</p>
+    <div class="sig-row"><div style="flex:2"><div class="sig-field prefilled">{mname}</div><div class="sig-label">Customer Name</div></div><div style="flex:2"><div class="sig-field{' prefilled' if _contact else ''}">{_contact}</div><div class="sig-label">Customer Contact Information</div></div></div>
+    <div class="sig-row"><div style="flex:2"><div class="sig-field"></div><div class="sig-label">Signature</div></div><div style="flex:1"><div class="sig-field"></div><div class="sig-label">Date</div></div></div>
+  </div>
+"""
+    else:
+        auth_page = f"""  <!-- Auto-Draft -->
+  <div class="page-break">
+    <div class="sec-title">AUTO-DRAFT AUTHORIZATION</div>
+    <div class="sec-sub">Bill.com, Inc. on behalf of RoseAn Properties, LLC &bull; Required for all memberships</div>
+    <h2 class="sec-head">Banking Information</h2>
+    <div class="sig-row"><div style="flex:2"><div class="sig-field prefilled">{mname}</div><div class="sig-label">Account Holder Name</div></div><div style="flex:2"><div class="sig-field"></div><div class="sig-label">Bank Name</div></div></div>
+    <div class="sig-row"><div style="flex:1"><div class="sig-field"></div><div class="sig-label">Account Number</div></div><div style="flex:1"><div class="sig-field"></div><div class="sig-label">Routing Number</div></div></div>
+    <p style="font-size:9pt;color:#666;margin-top:10px;font-style:italic">(Attach a voided check if preferred.)</p>
+    <p style="font-size:9pt;color:#555;margin-top:10px">Drafts process on or about the first business day of each month.</p>
+    <h2 class="sec-head" style="margin-top:20px">Authorization</h2>
+    <p style="font-size:9.5pt;line-height:1.6;margin-top:6px">I hereby authorize Bill.com, Inc., on behalf of RoseAn Properties, LLC, to initiate entries to the bank accounts that I enter, or enable RoseAn Properties, LLC to enter, on the Bill.com, Inc. web site in order to pay amounts that I owe to RoseAn Properties, LLC in accordance with instructions entered by RoseAn Properties, LLC on the Bill.com web site and, if necessary, to initiate adjustments for any transactions credited or debited in error. I represent that I have authority to bind the member that owns the bank accounts, and to authorize all transactions to the bank accounts that are initiated through Bill.com, Inc. I acknowledge that transactions initiated to the bank accounts must comply with the provisions of U.S. law. This authorization will remain in effect until the member notifies Bill.com, Inc. in writing to cancel it in such time as to afford Bill.com, Inc. and the bank reasonable opportunity to act on it.</p>
+    <div class="sig-row"><div style="flex:2"><div class="sig-field"></div><div class="sig-label">Account Holder Signature</div></div><div style="flex:1"><div class="sig-field"></div><div class="sig-label">Date</div></div></div>
+    <div class="sig-row"><div style="flex:2"><div class="sig-field prefilled">{mname}</div><div class="sig-label">Print Name</div></div></div>
+  </div>
+"""
 
     # SAMPLE watermark — position:fixed so Edge/Chrome repeat it on every
     # printed page of the PDF. Only rendered for sample agreements.
@@ -3503,6 +3568,7 @@ ul.clauses li, .agreement-body ul li{{margin-bottom:7px;line-height:1.55;font-si
       {fld('Member / Company', f'<strong>{mname}</strong>')}
       {fld('Office(s) Assigned', f'<strong>{office_str}</strong>')}
       {fld('Monthly Membership Fee', f'<strong>{dues_str}</strong>')}
+      {pay_field}
       {pro_field}
       {fld('Refundable Deposit', deposit_str)}
       {fld('Term Start Date', term_start_str)}
@@ -3523,6 +3589,7 @@ ul.clauses li, .agreement-body ul li{{margin-bottom:7px;line-height:1.55;font-si
     <table class="fields" style="margin-bottom:24px">
       {fld('Office(s) Assigned', office_str)}
       {fld('Monthly Membership Fee', dues_str)}
+      {pay_field}
       {pro_sig}
       {fld('Deposit Collected', deposit_str)}
       {fld('Term', f'{term_start_str} &ndash; {term_end_str}')}
@@ -3554,20 +3621,7 @@ ul.clauses li, .agreement-body ul li{{margin-bottom:7px;line-height:1.55;font-si
     <div class="sig-row"><div style="flex:2"><div class="sig-field"></div><div class="sig-label">Applicant Signature</div></div><div style="flex:1"><div class="sig-field"></div><div class="sig-label">Date</div></div></div>
   </div>
 
-  <!-- Auto-Draft -->
-  <div class="page-break">
-    <div class="sec-title">AUTO-DRAFT AUTHORIZATION</div>
-    <div class="sec-sub">Bill.com, Inc. on behalf of RoseAn Properties, LLC &bull; Required for all memberships</div>
-    <h2 class="sec-head">Banking Information</h2>
-    <div class="sig-row"><div style="flex:2"><div class="sig-field prefilled">{mname}</div><div class="sig-label">Account Holder Name</div></div><div style="flex:2"><div class="sig-field"></div><div class="sig-label">Bank Name</div></div></div>
-    <div class="sig-row"><div style="flex:1"><div class="sig-field"></div><div class="sig-label">Account Number</div></div><div style="flex:1"><div class="sig-field"></div><div class="sig-label">Routing Number</div></div></div>
-    <p style="font-size:9pt;color:#666;margin-top:10px;font-style:italic">(Attach a voided check if preferred.)</p>
-    <p style="font-size:9pt;color:#555;margin-top:10px">Drafts process on or about the first business day of each month.</p>
-    <h2 class="sec-head" style="margin-top:20px">Authorization</h2>
-    <p style="font-size:9.5pt;line-height:1.6;margin-top:6px">I hereby authorize Bill.com, Inc., on behalf of RoseAn Properties, LLC, to initiate entries to the bank accounts that I enter, or enable RoseAn Properties, LLC to enter, on the Bill.com, Inc. web site in order to pay amounts that I owe to RoseAn Properties, LLC in accordance with instructions entered by RoseAn Properties, LLC on the Bill.com web site and, if necessary, to initiate adjustments for any transactions credited or debited in error. I represent that I have authority to bind the member that owns the bank accounts, and to authorize all transactions to the bank accounts that are initiated through Bill.com, Inc. I acknowledge that transactions initiated to the bank accounts must comply with the provisions of U.S. law. This authorization will remain in effect until the member notifies Bill.com, Inc. in writing to cancel it in such time as to afford Bill.com, Inc. and the bank reasonable opportunity to act on it.</p>
-    <div class="sig-row"><div style="flex:2"><div class="sig-field"></div><div class="sig-label">Account Holder Signature</div></div><div style="flex:1"><div class="sig-field"></div><div class="sig-label">Date</div></div></div>
-    <div class="sig-row"><div style="flex:2"><div class="sig-field prefilled">{mname}</div><div class="sig-label">Print Name</div></div></div>
-  </div>
+  {auth_page}
 
 </div>
 </body>
