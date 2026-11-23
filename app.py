@@ -3431,20 +3431,15 @@ def _render_agreement_html(data, member, member_offices, waive_setup_fee,
         r'<li[^>]*>\s*</li>', '', agreement_body_rendered)
 
     # Payment authorization page — bank auto-draft (existing wording) or, for
-    # card payers, BILL's recommended authorization with amount and frequency
-    # filled in, adapted for cards. Card numbers are entered on the BILL site, never on paper.
+    # card payers, BILL's example authorization reworded for card charges, with a
+    # generic amount (whatever the Membership Agreement requires) plus the fee. Card numbers are entered on the BILL site, never on paper.
     if pay_card:
-        _amt = f'${net_amt:,.0f} per month plus a {CARD_FEE_PCT:g}% card processing fee (${net_amt + card_fee:,.2f} per month in total)'
-        if proration_amt > 0:
-            _amt += f', and a one-time prorated first payment of ${proration_amt:,.0f} plus the same {CARD_FEE_PCT:g}% fee'
-        _freq = ('recurring, on or about the first business day of each month for the term of this Agreement and any renewal'
-                 + (f', beginning {term_start_str}' if term_start_str and '_' not in term_start_str else ''))
         _contact = ' &bull; '.join(x for x in (memail, mphone) if x)
         auth_page = f"""<!-- Card authorization -->
   <div class="page-break">
     <div class="sec-title">CREDIT CARD PAYMENT AUTHORIZATION</div>
     <div class="sec-sub">BILL on behalf of RoseAn Properties, LLC &bull; Card details are entered securely on the BILL website</div>
-    <h2 class="sec-head">Payment Summary</h2>
+    <h2 class="sec-head">Current Payment Summary</h2>
     <table class="fields">
       {fld('Monthly Membership Fee', dues_str)}
       {fld(f'Card Processing Fee ({CARD_FEE_PCT:g}%)', f'${card_fee:,.2f}/month')}
@@ -3452,9 +3447,8 @@ def _render_agreement_html(data, member, member_offices, waive_setup_fee,
       {fld('Prorated First Payment (plus fee)', f'${proration_amt:,.0f} + ${round(proration_amt * CARD_FEE_PCT / 100, 2):,.2f}') if proration_amt > 0 else ''}
     </table>
     <h2 class="sec-head" style="margin-top:20px">Authorization</h2>
-    <p style="font-size:9.5pt;line-height:1.6;margin-top:6px">I hereby authorize BILL, on behalf of RoseAn Properties, LLC, to charge the credit card that I enter, or enable RoseAn Properties, LLC to enter, on the BILL website, in order to pay amounts that I owe to RoseAn Properties, LLC under my Qbix Centre Membership Agreement, and, if necessary, to issue credits or adjustments for any charges made in error. I represent that I am an authorized user of this card and that I have authority to bind the member organization to these charges. I understand that a card processing fee of {CARD_FEE_PCT:g}% will be added to each charge. The amount of each charge is {_amt}, and the date(s) and/or frequency of charges are {_freq}.</p>
-    <p style="font-size:9.5pt;line-height:1.6;margin-top:8px">I agree to keep my card information current on the BILL website and to notify RoseAn Properties, LLC promptly if the card is cancelled, replaced, or expires. If a charge is declined, RoseAn Properties, LLC may retry the charge or require payment by another method, and late fees under the Membership Agreement may apply. I agree not to dispute charges with my card issuer that are made in accordance with this authorization.</p>
-    <p style="font-size:9.5pt;line-height:1.6;margin-top:8px">This authorization will remain in effect until I notify RoseAn Properties, LLC in writing to cancel it, in such time as to afford RoseAn Properties, LLC and BILL reasonable opportunity to act on it. Cancelling this authorization does not end my payment obligations under the Membership Agreement. I understand that BILL may request proof of authorization.</p>
+    <p style="font-size:9.5pt;line-height:1.6;margin-top:6px">I hereby authorize BILL, on behalf of RoseAn Properties, LLC, to initiate charges to the credit card(s) that I enter, or enable RoseAn Properties, LLC to enter, on the BILL web site in order to pay amounts that I owe to RoseAn Properties, LLC in accordance with instructions entered by RoseAn Properties, LLC on the BILL web site and, if necessary, to initiate adjustments for any transactions charged or credited in error. I represent that I have authority to bind the organization that owns the credit card(s), and to authorize all transactions to the credit card(s) that are initiated through BILL. I acknowledge that transactions initiated to the credit card(s) must comply with the provisions of US law. The amount of charge(s) or method of determining amount of charge(s) is all amounts due under my Qbix Centre Membership Agreement, as it may be renewed or amended from time to time, plus a card processing fee of {CARD_FEE_PCT:g}% of each charge, and the date(s) and/or frequency of charge(s) are recurring, on or about the first business day of each month, and as other amounts become due under the Membership Agreement.</p>
+    <p style="font-size:9.5pt;line-height:1.6;margin-top:8px">This authorization will remain in effect until the organization notifies BILL in writing to cancel it in such time as to afford BILL reasonable opportunity to act on it. I understand that BILL may request proof of authorization.</p>
     <div class="sig-row"><div style="flex:2"><div class="sig-field prefilled">{mname}</div><div class="sig-label">Customer Name</div></div><div style="flex:2"><div class="sig-field{' prefilled' if _contact else ''}">{_contact}</div><div class="sig-label">Customer Contact Information</div></div></div>
     <div class="sig-row"><div style="flex:2"><div class="sig-field"></div><div class="sig-label">Signature</div></div><div style="flex:1"><div class="sig-field"></div><div class="sig-label">Date</div></div></div>
   </div>
