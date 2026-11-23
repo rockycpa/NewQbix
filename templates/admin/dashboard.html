@@ -1807,6 +1807,10 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
           <input type="checkbox" id="sa-waive-bg" style="width:18px;height:18px;accent-color:var(--acc);cursor:pointer;flex-shrink:0">
           <div style="color:var(--txt);font-size:14px;font-weight:600">Waive background check ($35)</div>
         </label>
+        <label style="display:flex;align-items:center;gap:12px;cursor:pointer;padding:12px 14px;background:var(--sur2);border:1px solid var(--bdr);border-radius:8px">
+          <input type="checkbox" id="sa-pay-card" style="width:18px;height:18px;accent-color:var(--acc);cursor:pointer;flex-shrink:0">
+          <div style="color:var(--txt);font-size:14px;font-weight:600">Pays by credit card (+2.9% fee) <span style="font-weight:400;color:var(--txt3);font-size:12px">&mdash; otherwise bank draft</span></div>
+        </label>
       </div>
       <div style="background:rgba(212,168,67,0.08);border:1px solid rgba(212,168,67,0.25);border-radius:8px;padding:12px 14px;margin-bottom:18px;color:var(--txt2);font-size:13px;line-height:1.6">
         Opens in a new tab with <strong>SAMPLE &mdash; NOT FOR SIGNATURE</strong> on every page. Click <strong>Print / Save as PDF</strong> there and choose &ldquo;Save as PDF&rdquo;.
@@ -3923,6 +3927,7 @@ function openMemberMo(id){
   h+='<div class="di"><label>Member Since</label><value>'+fD(m.start)+'</value></div>';
   h+='<div class="di full"><label>Monthly Dues</label><div style="margin-top:5px"><div class="dues-row"><span style="color:var(--txt2)">Gross</span><span class="mono">'+f$(m.dues)+'</span></div>'+(d>0?'<div class="dues-row"><span style="color:var(--purple)">Discount</span><span class="mono" style="color:var(--purple)">- '+f$(d)+'</span></div>':'')+'<div class="dues-row total"><span>Net</span><span class="dues-net">'+f$(net(m))+'</span></div></div></div>';
   h+='<div class="di"><label>Deposit</label><value class="mono">'+f$(m.deposit)+'</value></div>';
+  h+='<div class="di"><label>Payment Method</label><value>'+(m.paymentMethod==='card'?'Credit card (+'+CARD_FEE_PCT+'% fee)':'Bank draft')+'</value></div>';
   h+='<div class="di"><label>End Date</label><value style="color:'+(m.end?'var(--red)':'var(--txt3)')+'">'+fD(m.end)+'</value></div>';
   h+='<div class="di"><label>Email</label><value style="font-size:12px">'+eml(m.email)+'</value></div>';
   h+='<div class="di"><label>Phone</label><value class="mono">'+fmtPhone(m.phone)+'</value></div>';
@@ -3970,6 +3975,17 @@ async function updateAgreementStatus(memberId, status, selectEl){
 
 
 // ── Agreement review modal ───────────────────────────────────────────────────
+
+// Payment method picker (bank auto-draft vs credit card with fee) — used on the
+// member form, the New Member Setup wizard and the agreement review screen.
+const CARD_FEE_PCT = 2.9;
+function payMethodPicker(name, cur){
+  const opt=(val,title,sub)=>'<label style="flex:1;display:flex;gap:10px;align-items:flex-start;cursor:pointer;padding:10px 12px;background:var(--sur2);border:1px solid var(--bdr);border-radius:8px">'+
+    '<input type="radio" name="'+name+'" value="'+val+'" '+((cur||'bank')===val?'checked':'')+' style="width:17px;height:17px;accent-color:var(--acc);margin-top:2px;flex-shrink:0">'+
+    '<div><div style="color:var(--txt);font-size:14px;font-weight:600">'+title+'</div><div style="color:var(--txt3);font-size:12px;margin-top:2px">'+sub+'</div></div></label>';
+  return '<div style="display:flex;gap:10px">'+opt('bank','Bank draft','Auto-draft through BILL')+opt('card','Credit card','Through BILL, plus '+CARD_FEE_PCT+'% fee')+'</div>';
+}
+const payMethodValue = name => (document.querySelector('input[name="'+name+'"]:checked')||{}).value||'bank';
 
 function calcTermDates(startStr) {
   if (!startStr) return { termStart:'', termEnd:'', proStart:'', proEnd:'', hasProration:false };
@@ -4052,6 +4068,8 @@ function openAgreementReview(id) {
         </table>
       </div>
       <div style="border-top:1px solid var(--bdr);padding-top:16px;margin-bottom:20px">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--txt3);margin-bottom:10px">Payment Method</div>
+        <div style="margin-bottom:14px">${payMethodPicker('rv-pay', m.paymentMethod)}</div>
         <div style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--txt3);margin-bottom:10px">Options</div>
         <div style="display:flex;flex-direction:column;gap:10px">
           <label style="display:flex;align-items:center;gap:12px;cursor:pointer;padding:12px 14px;background:var(--sur2);border:1px solid var(--bdr);border-radius:8px">
@@ -4085,13 +4103,17 @@ function commitAgreement(id) {
   const params   = new URLSearchParams();
   if (waiveFee) params.set('waive_setup_fee','true');
   if (waiveBg)  params.set('waive_bg','true');
+  const pay = payMethodValue('rv-pay');
+  params.set('payment', pay);
+  if (m) m.paymentMethod = pay;
 
   // Opens as styled HTML page in new tab — use Print → Save as PDF to save
   const url = '/admin/api/generate-agreement/'+id+(params.toString()? '?'+params.toString() : '');
   window.open(url, '_blank');
 
   document.getElementById('review-modal').classList.remove('open');
-  if (m && !m.agreementSent){ m.agreementSent=new Date().toISOString().slice(0,10); saveData(); renderMembers(); }
+  if (m && !m.agreementSent) m.agreementSent=new Date().toISOString().slice(0,10);
+  if (m){ saveData(); renderMembers(); }
   toast('&#128196; Agreement downloading — attach it to your email before sending');
 }
 // ── Sample agreement (prospects) — builds a throwaway agreement from the
@@ -4101,6 +4123,7 @@ function openSampleAgreement(){
   ['sa-name','sa-email','sa-phone','sa-start','sa-deposit','sa-proration'].forEach(i=>{const el=document.getElementById(i); el.value=''; delete el.dataset.touched;});
   document.getElementById('sa-waive-setup').checked=false;
   document.getElementById('sa-waive-bg').checked=false;
+  document.getElementById('sa-pay-card').checked=false;
   // Default start: the 1st of next month
   const now=new Date(); const nx=new Date(now.getFullYear(), now.getMonth()+1, 1);
   document.getElementById('sa-start').value = nx.getFullYear()+'-'+String(nx.getMonth()+1).padStart(2,'0')+'-01';
@@ -4176,6 +4199,7 @@ function generateSampleAgreement(){
   picked.forEach(p=>{ add('office_id',p.id); add('office_dues',p.dues); });
   if(document.getElementById('sa-waive-setup').checked) add('waive_setup_fee','true');
   if(document.getElementById('sa-waive-bg').checked)    add('waive_bg','true');
+  if(document.getElementById('sa-pay-card').checked)    add('payment','card');
   document.body.appendChild(f); f.submit(); f.remove();
   document.getElementById('sample-modal').classList.remove('open');
   toast('&#128196; Sample opened in a new tab — Print / Save as PDF there');
@@ -4549,6 +4573,7 @@ function openMemberForm(id){
   document.getElementById('form-title').textContent=id?'Edit Member':'Add Member';
   document.getElementById('form-body').innerHTML='<div class="fg"><div class="fl full"><label>Member Name *</label><input id="f-name" value="'+(m.name||'')+'" placeholder="Company or individual name"></div><div class="fl"><label>First Name <span style="font-weight:400;color:var(--txt3);font-size:11px">— for personalized emails</span></label><input id="f-firstName" value="'+(m.firstName!==undefined?m.firstName:splitFirst(m.name||''))+'" placeholder="e.g. Jim"></div><div class="fl"><label>Last Name</label><input id="f-lastName" value="'+(m.lastName!==undefined?m.lastName:splitLast(m.name||''))+'" placeholder="e.g. Wilson"></div>'+statusButtons(m.status||'Active',true)+'<div class="fl"><label>Start Date</label><input id="f-start" type="date" value="'+(m.start||'')+'"></div><div class="fl"><label>Deposit Held ($)</label><input id="f-deposit" type="number" value="'+(m.deposit||'')+'"></div><div class="fl"><label>Billing Email</label><input id="f-email" type="email" value="'+(m.email||'')+'"></div><div class="fl"><label>Phone</label><input id="f-phone" value="'+(m.phone||'')+'"></div><div class="fl"><label>Mailbox <span style="font-weight:400;color:var(--txt3);font-size:11px">— used in agreement mailing address</span></label><input id="f-mailbox" value="'+(m.mailbox||'')+'" placeholder="e.g. 41"></div><div class="sect-title">Emergency Contact</div><div class="fl"><label>Name</label><input id="f-emergencyName" value="'+(m.emergencyName||'')+'"></div><div class="fl"><label>Relationship</label><input id="f-emergencyRel" value="'+(m.emergencyRel||'')+'" placeholder="e.g. Spouse, Sibling"></div><div class="fl"><label>Phone</label><input id="f-emergencyPhone" value="'+(m.emergencyPhone||'')+'"></div><div class="fl full"><label>Notes</label><textarea id="f-notes">'+(m.notes||'')+'</textarea></div><div class="fl"><label>First Month Proration ($) <span style="font-weight:400;color:var(--txt3);font-size:11px">— leave blank if starting on the 1st</span></label><input id="f-proration" type="number" value="'+(m.proration||'')+'" placeholder="e.g. 387"></div>'
     +'<div class="fl"><label>How Did They Find Us?</label><select id="f-leadsource">'+lsOpts+'</select></div>'
+    +'<div class="fl full"><label>Payment Method</label>'+payMethodPicker('f-pay',m.paymentMethod)+'</div>'
     +'<div class="sect-title">Agreements / Documents</div><div class="fl full"><div class="file-drop" id="member-drop-zone"><input type="file" multiple accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" id="member-file-input"><div class="file-drop-txt">&#128206; Drop files or <span>click to browse</span><br><small>PDF, Word, or images &mdash; max 10MB each</small></div></div><div class="pending-files" id="pending-agreements"></div>'+((m.attachments||[]).length?'<div style="margin-top:7px;font-size:11px;color:var(--txt3)">Stored: '+(m.attachments||[]).map(a=>'<span style="color:var(--acc)">'+a.name+'</span>').join(', ')+'</div>':'')+'</div></div>';
   const mdz=document.getElementById('member-drop-zone');
   if(mdz){mdz.addEventListener('dragover',e=>{e.preventDefault();mdz.classList.add('drag');});mdz.addEventListener('dragleave',()=>mdz.classList.remove('drag'));mdz.addEventListener('drop',e=>{e.preventDefault();mdz.classList.remove('drag');handleFiles(e.dataTransfer.files,'agreements');});}
@@ -4728,7 +4753,7 @@ async function submitForm(){
   } else if(formType==='member'){
     const name=document.getElementById('f-name').value.trim();if(!name){alert('Member name required.');return;}
     const existing=formId?getMemberById(formId):{attachments:[],agreementSent:'',agreementSigned:''};
-    const obj={id:formId||uid(),name,firstName:(document.getElementById('f-firstName')?.value||'').trim(),lastName:(document.getElementById('f-lastName')?.value||'').trim(),status:document.getElementById('f-status').value,deposit:Number(document.getElementById('f-deposit').value)||0,proration:Number(document.getElementById('f-proration')?.value)||0,start:document.getElementById('f-start').value,end:document.getElementById('f-end')?.value||existing.end||'',email:document.getElementById('f-email').value.trim(),phone:document.getElementById('f-phone').value.trim(),mailbox:(document.getElementById('f-mailbox')?.value||'').trim(),emergencyName:(document.getElementById('f-emergencyName')?.value||'').trim(),emergencyRel:(document.getElementById('f-emergencyRel')?.value||'').trim(),emergencyPhone:(document.getElementById('f-emergencyPhone')?.value||'').trim(),notes:document.getElementById('f-notes').value.trim(),leadSource:document.getElementById('f-leadsource')?.value||'',attachments:[...(existing.attachments||[]),...pendingFiles],agreementSent:existing.agreementSent||'',agreementSigned:existing.agreementSigned||''};
+    const obj={id:formId||uid(),name,firstName:(document.getElementById('f-firstName')?.value||'').trim(),lastName:(document.getElementById('f-lastName')?.value||'').trim(),status:document.getElementById('f-status').value,deposit:Number(document.getElementById('f-deposit').value)||0,proration:Number(document.getElementById('f-proration')?.value)||0,start:document.getElementById('f-start').value,end:document.getElementById('f-end')?.value||existing.end||'',email:document.getElementById('f-email').value.trim(),phone:document.getElementById('f-phone').value.trim(),mailbox:(document.getElementById('f-mailbox')?.value||'').trim(),emergencyName:(document.getElementById('f-emergencyName')?.value||'').trim(),emergencyRel:(document.getElementById('f-emergencyRel')?.value||'').trim(),emergencyPhone:(document.getElementById('f-emergencyPhone')?.value||'').trim(),notes:document.getElementById('f-notes').value.trim(),leadSource:document.getElementById('f-leadsource')?.value||'',paymentMethod:payMethodValue('f-pay'),attachments:[...(existing.attachments||[]),...pendingFiles],agreementSent:existing.agreementSent||'',agreementSigned:existing.agreementSigned||''};
     // Renaming a member: carry the new name to everything linked to it by
     // name (occupants' company, offices, booking hour roll-ups) so occupants
     // don't lose booking access.
@@ -4811,7 +4836,7 @@ function openNewMemberSetup(){
   NMS = {
     step:0, memberId:null,
     m:{name:'',firstName:'',lastName:'',email:'',phone:'',start:nx.getFullYear()+'-'+String(nx.getMonth()+1).padStart(2,'0')+'-01',
-       mailbox:'',leadSource:'',emergencyName:'',emergencyRel:'',emergencyPhone:'',notes:''},
+       mailbox:'',leadSource:'',emergencyName:'',emergencyRel:'',emergencyPhone:'',notes:'',paymentMethod:'bank'},
     occs:[], offices:{},                     // offices: {officeId: {listDues, discount, confHours}}
     deposit:'', depositTouched:false, proration:'', prorationTouched:false,
   };
@@ -4829,7 +4854,7 @@ function nmsLoadExisting(id){
   if(!id){ const keep=NMS.m.start; openNewMemberSetup(); NMS.m.start=keep; nmsRender(); return; }
   const m=getMemberById(id); if(!m) return;
   NMS.memberId=id;
-  ['name','email','phone','start','mailbox','leadSource','emergencyName','emergencyRel','emergencyPhone','notes'].forEach(k=>NMS.m[k]=m[k]||NMS.m[k]||'');
+  ['name','email','phone','start','mailbox','leadSource','emergencyName','emergencyRel','emergencyPhone','notes','paymentMethod'].forEach(k=>NMS.m[k]=m[k]||NMS.m[k]||'');
   NMS.m.firstName = m.firstName!==undefined ? m.firstName : splitFirst(m.name);
   NMS.m.lastName  = m.lastName!==undefined  ? m.lastName  : splitLast(m.name);
   NMS.occs = DB.occupants.filter(o=>o.company===m.name && o.status!=='Archive')
@@ -4857,6 +4882,7 @@ function nmsCollect(){
   if(NMS.step===0){
     ['name','firstName','lastName','email','phone','start','mailbox','leadSource','emergencyName','emergencyRel','emergencyPhone','notes']
       .forEach(k=>{const x=v('nms-m-'+k); if(x!==null) NMS.m[k]=x;});
+    if(document.querySelector('input[name="nms-pay"]')) NMS.m.paymentMethod=payMethodValue('nms-pay');
   } else if(NMS.step===1){
     NMS.occs.forEach((o,i)=>{['name','email','phone','birthday','office'].forEach(k=>{const x=v('nms-o'+i+'-'+k); if(x!==null) o[k]=x;});});
   } else if(NMS.step===2){
@@ -4967,6 +4993,7 @@ function nmsRender(){
       inp('nms-m-start','Start Date *',NMS.m.start,{type:'date'})+
       inp('nms-m-mailbox','Mailbox <span style="font-weight:400;color:var(--txt3);font-size:11px">— used in agreement address</span>',NMS.m.mailbox,{ph:'e.g. 41'})+
       '<div class="fl"><label>How Did They Find Us?</label><select id="nms-m-leadSource">'+lsOpts+'</select></div>'+
+      '<div class="fl full"><label>Payment Method</label>'+payMethodPicker('nms-pay',NMS.m.paymentMethod)+'</div>'+
       '<div class="sect-title">Emergency Contact</div>'+
       inp('nms-m-emergencyName','Name',NMS.m.emergencyName)+inp('nms-m-emergencyRel','Relationship',NMS.m.emergencyRel,{ph:'e.g. Spouse'})+
       inp('nms-m-emergencyPhone','Phone',NMS.m.emergencyPhone)+
@@ -5027,6 +5054,7 @@ function nmsRender(){
       row('Term',t.dates.termStart?t.dates.termStart+' – '+t.dates.termEnd:'—')+
       row('Offices',offs.join('<br>'))+
       row('Net Monthly Dues','<b style="color:var(--grn)">$'+t.net.toLocaleString()+'/mo</b>')+
+      row('Payment',NMS.m.paymentMethod==='card'?'Credit card (+'+CARD_FEE_PCT+'% fee: $'+(t.net*CARD_FEE_PCT/100).toFixed(2)+'/mo)':'Bank draft')+
       row('Deposit','$'+nmsNum(NMS.deposit).toLocaleString())+
       (t.dates.hasProration?row('Prorated First Payment','$'+nmsNum(NMS.proration).toLocaleString()+' <span style="color:var(--txt3);font-size:11px">('+t.dates.proStart+' – '+t.dates.proEnd+')</span>'):'')+
       row('Conference Room',t.hrs+' hrs/mo')+
@@ -5046,7 +5074,7 @@ async function nmsSave(){
   const oldName = m ? m.name : '';
   const fields={name,firstName:NMS.m.firstName,lastName:NMS.m.lastName,email:NMS.m.email,phone:NMS.m.phone,start:NMS.m.start,
     mailbox:NMS.m.mailbox,leadSource:NMS.m.leadSource,emergencyName:NMS.m.emergencyName,emergencyRel:NMS.m.emergencyRel,
-    emergencyPhone:NMS.m.emergencyPhone,notes:NMS.m.notes,dues:t.gross,discount:t.disc,deposit:nmsNum(NMS.deposit),
+    emergencyPhone:NMS.m.emergencyPhone,notes:NMS.m.notes,paymentMethod:NMS.m.paymentMethod||'bank',dues:t.gross,discount:t.disc,deposit:nmsNum(NMS.deposit),
     proration:t.dates.hasProration?nmsNum(NMS.proration):0};
   if(m){ Object.assign(m,fields); }
   else { m=Object.assign({id:uid(),status:'Pending',end:'',attachments:[],agreementSent:'',agreementSigned:''},fields); DB.members.push(m); }

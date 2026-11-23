@@ -297,6 +297,10 @@ Do NOT add `requests` to requirements — use `urllib.request` instead. All curr
 Members → **✨ New Member Setup** (`openNewMemberSetup()` in dashboard.html, `nms*` functions, `#nms-modal`). Four steps: Member → Occupants → Offices & Dues → Review. Records are linked by name, so the wizard sets the links itself: `occupant.company` = member name, and every office an occupant is placed in gets `office.member` = member name, `status='Occupied'`, `tenantStart` = member start. The first occupant is prefilled from the member contact. Deposit defaults to one month's net dues and proration to the partial first month (both editable). Member and occupants save as Pending. It can also finish a Pending member created by the onboarding form instead of duplicating it. When done, it opens the agreement review.
 Related: `markAgreementSigned` now also flips that member's Pending occupants to Active. Saving an occupant into an office with no member offers to link the office to the occupant's company.
 
+## Payment method: bank draft or credit card (Nov 2026)
+
+`member.paymentMethod` is `'bank'` (default) or `'card'`, set on the member form, the New Member Setup wizard, or the agreement review screen (which passes `?payment=` to `/admin/api/generate-agreement/<id>` and saves it on the member). The sample agreement has a "Pays by credit card" checkbox. `CARD_FEE_PCT` (app.py and dashboard.html, currently 2.9) is the processing fee passed on to card payers. For card payers, `_render_agreement_html` adds the fee to the summary, rewords the body's "via auto-draft through Bill.com" sentence, and swaps the Auto-Draft page (with bank account/routing fields) for a Credit Card Payment Authorization page (BILL's example authorization with "bank accounts" changed to credit card(s); the amount is generic, i.e. all amounts due under the Membership Agreement plus the fee). Card numbers are never collected on paper; they are entered on the BILL site.
+
 ## Pending / To-Do
 
 - **DMARC record:** Add TXT record `_dmarc.qbixcentre.com` → `v=DMARC1; p=none; rua=mailto:info@qbixcentre.com` in GoDaddy DNS (improves email deliverability).
