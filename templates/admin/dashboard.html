@@ -1809,7 +1809,7 @@ function closeMo(e,id){if(!e||e.target===document.getElementById(id))document.ge
         </label>
         <label style="display:flex;align-items:center;gap:12px;cursor:pointer;padding:12px 14px;background:var(--sur2);border:1px solid var(--bdr);border-radius:8px">
           <input type="checkbox" id="sa-pay-card" style="width:18px;height:18px;accent-color:var(--acc);cursor:pointer;flex-shrink:0">
-          <div style="color:var(--txt);font-size:14px;font-weight:600">Pays by credit card (+3% fee) <span style="font-weight:400;color:var(--txt3);font-size:12px">&mdash; otherwise bank draft</span></div>
+          <div style="color:var(--txt);font-size:14px;font-weight:600">Pays by credit card (+2.9% fee) <span style="font-weight:400;color:var(--txt3);font-size:12px">&mdash; otherwise bank draft</span></div>
         </label>
       </div>
       <div style="background:rgba(212,168,67,0.08);border:1px solid rgba(212,168,67,0.25);border-radius:8px;padding:12px 14px;margin-bottom:18px;color:var(--txt2);font-size:13px;line-height:1.6">
@@ -3978,7 +3978,7 @@ async function updateAgreementStatus(memberId, status, selectEl){
 
 // Payment method picker (bank auto-draft vs credit card with fee) — used on the
 // member form, the New Member Setup wizard and the agreement review screen.
-const CARD_FEE_PCT = 3;
+const CARD_FEE_PCT = 2.9;
 function payMethodPicker(name, cur){
   const opt=(val,title,sub)=>'<label style="flex:1;display:flex;gap:10px;align-items:flex-start;cursor:pointer;padding:10px 12px;background:var(--sur2);border:1px solid var(--bdr);border-radius:8px">'+
     '<input type="radio" name="'+name+'" value="'+val+'" '+((cur||'bank')===val?'checked':'')+' style="width:17px;height:17px;accent-color:var(--acc);margin-top:2px;flex-shrink:0">'+

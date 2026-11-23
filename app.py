@@ -61,7 +61,7 @@ BACKUP_DIR = BASE_DIR / 'backups'
 ADMIN_EMAIL         = os.environ.get('ADMIN_EMAIL', 'qbixcentre@outlook.com')
 ADMIN_PHONE         = os.environ.get('ADMIN_PHONE', '4787379107')
 APP_URL             = os.environ.get('APP_URL', 'http://localhost:5000')
-CARD_FEE_PCT        = 3   # credit card processing fee passed on to members paying by card (percent)
+CARD_FEE_PCT        = 2.9 # credit card processing fee passed on to members paying by card (percent)
 ANTHROPIC_API_KEY   = os.environ.get('ANTHROPIC_API_KEY', '')
 GA_MEASUREMENT_ID   = os.environ.get('GA_MEASUREMENT_ID', '')
 

@@ -299,7 +299,7 @@ Related: `markAgreementSigned` now also flips that member's Pending occupants to
 
 ## Payment method: bank draft or credit card (Nov 2026)
 
-`member.paymentMethod` is `'bank'` (default) or `'card'`, set on the member form, the New Member Setup wizard, or the agreement review screen (which passes `?payment=` to `/admin/api/generate-agreement/<id>` and saves it on the member). The sample agreement has a "Pays by credit card" checkbox. `CARD_FEE_PCT` (app.py and dashboard.html, currently 3) is the processing fee passed on to card payers. For card payers, `_render_agreement_html` adds the fee to the summary, rewords the body's "via auto-draft through Bill.com" sentence, and swaps the Auto-Draft page (with bank account/routing fields) for a Credit Card Payment Authorization page that uses BILL's recommended wording with amount and frequency filled in. Card numbers are never collected on paper; they are entered on the BILL site.
+`member.paymentMethod` is `'bank'` (default) or `'card'`, set on the member form, the New Member Setup wizard, or the agreement review screen (which passes `?payment=` to `/admin/api/generate-agreement/<id>` and saves it on the member). The sample agreement has a "Pays by credit card" checkbox. `CARD_FEE_PCT` (app.py and dashboard.html, currently 2.9) is the processing fee passed on to card payers. For card payers, `_render_agreement_html` adds the fee to the summary, rewords the body's "via auto-draft through Bill.com" sentence, and swaps the Auto-Draft page (with bank account/routing fields) for a Credit Card Payment Authorization page that uses BILL's recommended wording with amount and frequency filled in. Card numbers are never collected on paper; they are entered on the BILL site.
 
 ## Pending / To-Do
 
