@@ -292,6 +292,11 @@ Do NOT add `requests` to requirements — use `urllib.request` instead. All curr
 - **Financial data is never committed (this repo is public).** Statements are stored in table `qbix_financials` (one row per company, JSONB), separate from `qbix_store`, so they are not in `/admin/api/data` or backups. The **Upload data** button remains as a manual fallback using the same JSON shape.
 - JSON shape: `{company, basis, fiscalYearStart, source, live?, syncedAt?, note?, balanceSheet: {periods: [month-end ISO dates], tree: [{label, id?, values[], children?}]}, incomeStatements: [{id, label, start, end, netIncome, sections: [{label, amount, children: [{label, id?, amount, values?, own?, children?}]}], monthly: {months[], Income[], "Operating Expenses"[], "Other Expenses"[], "Net Income"[]}}]}`.
 
+## New Member Setup wizard (Nov 2026)
+
+Members → **✨ New Member Setup** (`openNewMemberSetup()` in dashboard.html, `nms*` functions, `#nms-modal`). Four steps: Member → Occupants → Offices & Dues → Review. Records are linked by name, so the wizard sets the links itself: `occupant.company` = member name, and every office an occupant is placed in gets `office.member` = member name, `status='Occupied'`, `tenantStart` = member start. The first occupant is prefilled from the member contact. Deposit defaults to one month's net dues and proration to the partial first month (both editable). Member and occupants save as Pending. It can also finish a Pending member created by the onboarding form instead of duplicating it. When done, it opens the agreement review.
+Related: `markAgreementSigned` now also flips that member's Pending occupants to Active. Saving an occupant into an office with no member offers to link the office to the occupant's company.
+
 ## Pending / To-Do
 
 - **DMARC record:** Add TXT record `_dmarc.qbixcentre.com` → `v=DMARC1; p=none; rua=mailto:info@qbixcentre.com` in GoDaddy DNS (improves email deliverability).
